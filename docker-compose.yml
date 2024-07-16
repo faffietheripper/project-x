@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  bidding-app-db:
+    image: postgres
+    restart: always
+    container_name: bidding-app-db
+    ports:
+      - 5433:5433
+    environment:
+      POSTGRES_PASSWORD: loveandpeace
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+
+volumes:
+  postgres:
