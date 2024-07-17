@@ -1,10 +1,5 @@
 import React from "react";
 import { database } from "@/db/database";
-import { bids as bidsSchema, items } from "@/db/schema";
-import { Button } from "@/components/ui/button";
-import { revalidatePath } from "next/cache";
-import { SignIn } from "@/components/sign-in";
-import { SignOut } from "@/components/sign-out";
 import { auth } from "@/auth";
 
 export default async function HomePage() {
@@ -17,32 +12,17 @@ export default async function HomePage() {
   if (!user) return null;
 
   return (
-    <main>
-      {session ? <SignOut /> : <SignIn />}
+    <main className="p-10">
+      <h1 className="font-bold text-2xl mt-6 "> Items for Sale </h1>
 
-      {session?.user?.name}
-
-      <form
-        action={async (formData: FormData) => {
-          "use server";
-          await database?.insert(items).values({
-            name: formData.get("name") as string,
-            userId: session?.user?.id!,
-          });
-          revalidatePath("/");
-        }}
-      >
-        <input
-          name="name"
-          placeholder="Name your item"
-          className="text-black"
-        />
-        <Button type="submit">Post Item</Button>
-      </form>
-
-      {allItems.map((item) => (
-        <div key={item.id}>{item.name}</div>
-      ))}
+      <div className="grid grid-cols-4 gap-4 mt-6">
+        {allItems.map((item) => (
+          <div key={item.id} className="border p-6 rounded-lg">
+            {item.name}
+            <h1 className="">Starting Price : ${item.startingPrice}</h1>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
