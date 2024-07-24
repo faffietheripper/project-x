@@ -23,11 +23,32 @@ export default async function Header() {
             Project X
           </Link>
           <div className="flex items-center gap-8">
+            <Link href="/" className="hover:underline flex items-center gap-1">
+              Home Page
+            </Link>
+          </div>
+          <div className="flex items-center gap-8">
+            <Link
+              href="/buyers"
+              className="hover:underline flex items-center gap-1"
+            >
+              Jobs on Display (All Auctions)
+            </Link>
+          </div>
+          <div className="flex items-center gap-8">
             <Link
               href="/items/create"
               className="hover:underline flex items-center gap-1"
             >
-              Auction Item
+              Sellers
+            </Link>
+          </div>
+          <div className="flex items-center gap-8">
+            <Link
+              href="/auctions"
+              className="hover:underline flex items-center gap-1"
+            >
+              My Auctions
             </Link>
           </div>
         </div>

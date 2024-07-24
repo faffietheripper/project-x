@@ -1,25 +1,51 @@
-import React from "react";
-import { database } from "@/db/database";
-import { bids as bidsSchema, items } from "@/db/schema";
+"use client";
+
+import {
+  createItemAction,
+  createUploadUrlAction,
+} from "@/app/items/create/actions";
+
 import { Button } from "@/components/ui/button";
-import { revalidatePath } from "next/cache";
-
-import { auth } from "@/auth";
 import { Input } from "@/components/ui/input";
-import { createItemAction } from "./action";
 
-export default async function CreatePage() {
+export default function CreatePage() {
   return (
-    <main className="p-10">
-      <h1 className="font-bold text-4xl py-2 "> Post an item to sell </h1>
+    <main className="space-y-8">
+      <h1 className="font-bold">Post an Item</h1>
+
       <form
-        className="flex flex-col max-w-lg border border-gray rounded-lg p-4 space-y-4"
-        action={createItemAction}
+        className="flex flex-col border p-8 rounded-xl space-y-4 max-w-lg"
+        onSubmit={async (e) => {
+          e.preventDefault();
+
+          const form = e.currentTarget as HTMLFormElement;
+          const formData = new FormData(form);
+          const file = formData.get("file") as File;
+
+          const uploadUrl = await createUploadUrlAction(file.name, file.type);
+
+          await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
+          });
+
+          const name = formData.get("name") as string;
+          const startingPrice = parseInt(
+            formData.get("startingPrice") as string
+          );
+          const startingPriceInCents = Math.floor(startingPrice * 100);
+
+          await createItemAction({
+            name,
+            startingPrice: startingPriceInCents,
+            fileName: file.name,
+          });
+        }}
       >
         <Input
           required
-          name="name"
           className="max-w-lg"
+          name="name"
           placeholder="Name your item"
         />
         <Input
@@ -30,7 +56,9 @@ export default async function CreatePage() {
           step="0.01"
           placeholder="What to start your auction at"
         />
-        <Button type="submit" className="self-end">
+        <Input type="file" name="file"></Input>
+
+        <Button className="self-end" type="submit">
           Post Item
         </Button>
       </form>
