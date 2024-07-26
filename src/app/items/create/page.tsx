@@ -4,19 +4,26 @@ import {
   createItemAction,
   createUploadUrlAction,
 } from "@/app/items/create/actions";
-
+import { DatePickerDemo } from "@/components/DatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 export default function CreatePage() {
+  const [date, setDate] = useState<Date | undefined>();
+
   return (
     <main className="space-y-8">
-      <h1 className="font-bold">Post an Item</h1>
+      <h1 className="">Post an Item</h1>
 
       <form
         className="flex flex-col border p-8 rounded-xl space-y-4 max-w-lg"
         onSubmit={async (e) => {
           e.preventDefault();
+
+          if (!date) {
+            return;
+          }
 
           const form = e.currentTarget as HTMLFormElement;
           const formData = new FormData(form);
@@ -39,6 +46,7 @@ export default function CreatePage() {
             name,
             startingPrice: startingPriceInCents,
             fileName: file.name,
+            endDate: date,
           });
         }}
       >
@@ -57,7 +65,7 @@ export default function CreatePage() {
           placeholder="What to start your auction at"
         />
         <Input type="file" name="file"></Input>
-
+        <DatePickerDemo date={date} setDate={setDate} />
         <Button className="self-end" type="submit">
           Post Item
         </Button>

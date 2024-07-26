@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { database } from "@/db/database";
 import { items } from "@/db/schema";
 import { auth } from "@/auth";
@@ -14,10 +15,12 @@ export async function createItemAction({
   fileName,
   name,
   startingPrice,
+  endDate,
 }: {
   fileName: string;
   name: string;
   startingPrice: number;
+  endDate: Date;
 }) {
   const session = await auth();
 
@@ -37,7 +40,8 @@ export async function createItemAction({
     fileKey: fileName,
     currentBid: startingPrice,
     userId: user.id,
+    endDate,
   });
 
-  redirect("/");
+  redirect("/buyers");
 }

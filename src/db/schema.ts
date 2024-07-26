@@ -17,6 +17,7 @@ export const users = pgTable("bb_user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
 });
+import { relations } from "drizzle-orm";
 
 export const accounts = pgTable(
   "bb_account",
@@ -64,6 +65,16 @@ export const verificationTokens = pgTable(
 
 export const bids = pgTable("bb_bids", {
   id: serial("id").primaryKey(),
+  amount: integer("amount").notNull(),
+  name: text("name").notNull(),
+  emailAddress: text("name").notNull(),
+  itemId: serial("itemId")
+    .notNull()
+    .references(() => items.id, { onDelete: "cascade" }),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
 });
 
 export const items = pgTable("bb_item", {
@@ -74,7 +85,15 @@ export const items = pgTable("bb_item", {
   name: text("name").notNull(),
   startingPrice: integer("startingPrice").notNull().default(0),
   fileKey: text("fileKey").notNull(),
-  bidInterval: integer("bidInterval").notNull().default(100),
+  currentBid: integer("currentBid").notNull().default(0),
+  endDate: timestamp("endDate", { mode: "date" }).notNull(),
 });
+
+export const usersRelations = relations(bids, ({ one }) => ({
+  user: one(users, {
+    fields: [bids.userId],
+    references: [users.id],
+  }),
+}));
 
 export type Item = typeof items.$inferSelect;
