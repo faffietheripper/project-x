@@ -43,5 +43,5 @@ export async function createItemAction({
     endDate,
   });
 
-  redirect("/buyers");
+  redirect("/home/buyers");
 }

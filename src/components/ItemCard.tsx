@@ -21,7 +21,7 @@ export default function ItemCard({ item }: { item: Item }) {
           Starting Price : ${formatToDollar(item.startingPrice)}
         </h1>
         <Button asChild>
-          <Link href={`/items/${item.id}`}>Place Bid</Link>
+          <Link href={`/home/items/${item.id}`}>Place Bid</Link>
         </Button>
       </div>
     </div>

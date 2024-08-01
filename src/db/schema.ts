@@ -17,6 +17,7 @@ export const users = pgTable("bb_user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
 });
+
 import { relations } from "drizzle-orm";
 
 export const accounts = pgTable(
@@ -66,8 +67,8 @@ export const verificationTokens = pgTable(
 export const bids = pgTable("bb_bids", {
   id: serial("id").primaryKey(),
   amount: integer("amount").notNull(),
-  name: text("name").notNull(),
-  emailAddress: text("name").notNull(),
+  companyName: text("name").notNull(),
+  emailAddress: text("emailAddress").notNull(),
   itemId: serial("itemId")
     .notNull()
     .references(() => items.id, { onDelete: "cascade" }),

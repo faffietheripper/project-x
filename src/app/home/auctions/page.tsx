@@ -20,7 +20,7 @@ export default async function MyAuctionPage() {
   const hasItems = allItems.length > 0;
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-8 py-36 px-12">
       <h1 className="font-bold">Your Current Auctions</h1>
 
       {hasItems ? (

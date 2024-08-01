@@ -24,7 +24,7 @@ export default async function ItemPage({
 
   if (!item) {
     return (
-      <div className="space-y-8 flex flex-col items-center mt-12">
+      <div className="space-y-8 py-36 px-12 flex flex-col items-center mt-12">
         <Image src="/package.svg" width="200" height="200" alt="Package" />
 
         <h1 className="">Item not found</h1>
@@ -42,11 +42,12 @@ export default async function ItemPage({
   }
 
   const allBids = await getBidsForItem(item.id);
+  console.log(allBids);
 
   const hasBids = allBids.length > 0;
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-8 py-36 px-12">
       <div className="flex gap-8">
         <div className="flex flex-col gap-6">
           <h1 className="">
@@ -80,7 +81,7 @@ export default async function ItemPage({
           <div className="flex justify-between">
             <h2 className="text-2xl font-bold">Current Bids</h2>
 
-            <BidModal />
+            <BidModal itemId={itemId} />
           </div>
 
           {hasBids ? (
@@ -92,7 +93,7 @@ export default async function ItemPage({
                       <span className="font-bold">
                         ${formatToDollar(bid.amount)}
                       </span>{" "}
-                      by <span className="font-bold">{bid.user.name}</span>
+                      by <span className="font-bold">{bid.companyName}</span>
                     </div>
 
                     <div className="">{formatTimestamp(bid.timestamp)}</div>
@@ -110,7 +111,7 @@ export default async function ItemPage({
               />
               <h2 className="text-2xl font-bold">No bids yet</h2>
 
-              <BidModal />
+              <BidModal itemId={itemId} />
             </div>
           )}
         </div>

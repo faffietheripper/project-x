@@ -3,21 +3,21 @@
 import {
   createItemAction,
   createUploadUrlAction,
-} from "@/app/items/create/actions";
+} from "@/app/home/items/create/actions";
 import { DatePickerDemo } from "@/components/DatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import PostJobIntro from "@/components/app/PostJobIntro";
 
 export default function CreatePage() {
   const [date, setDate] = useState<Date | undefined>();
 
   return (
-    <main className="space-y-8">
-      <h1 className="">Post an Item</h1>
-
+    <main className="space-y-8 m-10">
+      <PostJobIntro />
       <form
-        className="flex flex-col border p-8 rounded-xl space-y-4 max-w-lg"
+        className="flex flex-col border border-black p-8 rounded-xl space-y-5 "
         onSubmit={async (e) => {
           e.preventDefault();
 
@@ -50,15 +50,10 @@ export default function CreatePage() {
           });
         }}
       >
+        <Input required className="" name="name" placeholder="Name your item" />
         <Input
           required
-          className="max-w-lg"
-          name="name"
-          placeholder="Name your item"
-        />
-        <Input
-          required
-          className="max-w-lg"
+          className=""
           name="startingPrice"
           type="number"
           step="0.01"

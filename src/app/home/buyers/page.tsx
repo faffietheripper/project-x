@@ -13,7 +13,7 @@ export default async function HomePage() {
   if (!user) return null;
 
   return (
-    <main className="p-10">
+    <main className="py-36 px-12">
       <h1 className="font-bold text-2xl mt-6 "> Items for Sale </h1>
 
       <div className="grid grid-cols-4 gap-4 mt-6">

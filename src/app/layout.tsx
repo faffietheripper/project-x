@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter as FontSans } from "next/font/google";
 import "./globals.css";
-
 import { cn } from "@/lib/utils";
-import Header from "@/components/header";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -15,21 +13,15 @@ export const metadata: Metadata = {
   description: "Trying out shit lol",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body
-        className={cn(
-          "min-h-screen  text-black font-sans antialiased",
-          fontSans.variable
-        )}
-      >
-        <Header />
-        <div className="container mx-auto py-12">{children}</div>
+      <body className={cn("  font-sans antialiased", fontSans.variable)}>
+        <div className="">{children}</div>
       </body>
     </html>
   );

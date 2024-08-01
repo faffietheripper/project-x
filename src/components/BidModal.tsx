@@ -1,23 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { createBidAction } from "@/app/items/[itemId]/actions";
+import { createBidAction } from "@/app/home/items/[itemId]/actions";
 import { useState } from "react";
 import { Input } from "./ui/input";
-import { getBidsForItem } from "@/data-access/bids";
-import { getItem } from "@/data-access/items";
-import { items } from "@/db/schema";
 
-export default async function  BidModal({
-  params: { itemId },
-}: {
-  params: { itemId: string };
-}) {
+interface BidModalProps {
+  itemId: string;
+}
+
+const BidModal: React.FC<BidModalProps> = ({ itemId }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  const item = await getItem(parseInt(itemId));
-
-  const allBids = await getBidsForItem(item.id);
 
   return (
     <div className="">
@@ -27,12 +20,22 @@ export default async function  BidModal({
       >
         Place Bid
       </button>
-      <SpringModal isOpen={isOpen} setIsOpen={setIsOpen} />
+      <SpringModal isOpen={isOpen} setIsOpen={setIsOpen} itemId={itemId} />
     </div>
   );
 };
 
-const SpringModal = ({ isOpen, setIsOpen }) => {
+interface SpringModalProps {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  itemId: string;
+}
+
+const SpringModal: React.FC<SpringModalProps> = ({
+  isOpen,
+  setIsOpen,
+  itemId,
+}) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -50,7 +53,7 @@ const SpringModal = ({ isOpen, setIsOpen }) => {
             onClick={(e) => e.stopPropagation()}
             className="bg-gradient-to-br from-violet-600 to-indigo-600 text-white p-6 rounded-lg w-full max-w-lg shadow-xl cursor-default relative overflow-hidden"
           >
-            <h1> Place Your Bid</h1>
+            <h1>Place Your Bid</h1>
             <form
               className="space-y-8"
               onSubmit={async (e) => {
@@ -59,23 +62,23 @@ const SpringModal = ({ isOpen, setIsOpen }) => {
                 const form = e.currentTarget as HTMLFormElement;
                 const formData = new FormData(form);
 
-                const name = formData.get("name") as string;
+                const companyName = formData.get("companyName") as string;
                 const emailAddress = formData.get("emailAddress") as string;
                 const amount = parseInt(formData.get("amount") as string);
 
-              
-
-                await createBidAction.bind(null, {
-                  item.id,
-                  name: name,
+                await createBidAction({
+                  itemId,
+                  companyName: companyName,
                   amount: amount,
                   emailAddress: emailAddress,
                 });
+
+                setIsOpen(false); // Close the modal after submitting the bid
               }}
             >
               <Input
                 required
-                name="name"
+                name="companyName"
                 className="w-96 text-black"
                 placeholder="Name of Organisation"
               />
@@ -85,7 +88,6 @@ const SpringModal = ({ isOpen, setIsOpen }) => {
                 className="w-96 text-black"
                 placeholder="Email Address"
               />
-              //cant be less than the latestbidValue
               <Input
                 required
                 name="amount"
@@ -95,7 +97,6 @@ const SpringModal = ({ isOpen, setIsOpen }) => {
                 placeholder="What's your bid?"
               />
               <button
-                onClick={() => setIsOpen(false)}
                 type="submit"
                 className="bg-white hover:opacity-90 transition-opacity text-indigo-600 font-semibold w-full py-2 rounded"
               >
@@ -109,4 +110,4 @@ const SpringModal = ({ isOpen, setIsOpen }) => {
   );
 };
 
-
+export default BidModal;
