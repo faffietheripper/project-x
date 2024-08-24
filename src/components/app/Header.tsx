@@ -1,16 +1,37 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { auth } from "@/auth";
-import SignIn from "../sign-in";
-import SignOut from "../sign-out";
+import { signIn, signOut, useSession } from "next-auth/react";
+import {
+  NotificationCell,
+  NotificationFeedPopover,
+  NotificationIconButton,
+} from "@knocklabs/react";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
 
-export default async function Header() {
-  const session = await auth();
+export default function Header() {
+  const [isVisible, setIsVisible] = useState(false);
+  const notifButtonRef = useRef(null);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const userId = session?.user?.id;
+
+  useEffect(() => {
+    console.log("Session status:", status);
+    console.log("User ID:", userId);
+  }, [status, userId]);
+
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <div className="bg-white shadow-md py-10 px-20 fixed z-50 w-full">
-      <div className="container flex justify-between items-center">
+    <div className="bg-white shadow-md py-10 px-8 fixed z-50 w-full">
+      <div className=" flex justify-between items-center">
         <div className="flex items-center gap-12">
           <Link
             href="/home"
@@ -35,10 +56,10 @@ export default async function Header() {
           </div>
           <div className="flex items-center gap-8">
             <Link
-              href="/home/buyers"
+              href="/home/waste-listings"
               className=" text-md font-semibold flex items-center gap-1"
             >
-              All Projects.
+              Waste Listings.
             </Link>
           </div>
           <div className="text-md font-semibold flex items-center gap-8">
@@ -46,31 +67,80 @@ export default async function Header() {
               href="/home/items/create"
               className=" flex items-center gap-1"
             >
-              Add a Project.
+              Create Waste Listing.
             </Link>
           </div>
           <div className="text-md font-semibold flex items-center gap-8">
-            <Link href="/home/auctions" className=" flex items-center gap-1">
-              My Projects.
-            </Link>
-          </div>
-          <div className="text-md font-semibold flex items-center gap-8">
-            <Link href="/home/auctions" className=" flex items-center gap-1">
-              My Bids.
+            <Link href="/home/my-activity" className=" flex items-center gap-1">
+              My Activity.
             </Link>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Image
-            className="rounded-full ml-8 h-10 w-10 object-cover"
-            src={session?.user?.image}
-            alt="Profile picture"
-            height={900}
-            width={900}
-          />
-
-          <div> {session?.user?.name}</div>
-          <div> {session ? <SignOut /> : <SignIn />}</div>
+          {userId && (
+            <>
+              <NotificationIconButton
+                ref={notifButtonRef}
+                onClick={(e) => setIsVisible(!isVisible)}
+              />
+              <NotificationFeedPopover
+                buttonRef={notifButtonRef}
+                isVisible={isVisible}
+                onClose={() => setIsVisible(false)}
+                renderItem={({ item, ...props }) => (
+                  <NotificationCell {...props} item={item}>
+                    <div className="rounded-xl">
+                      <Link
+                        className="text-blue-400 hover:text=blue-500"
+                        onClick={() => {
+                          setIsVisible(false);
+                        }}
+                        href={`/home/items/${item?.data?.itemId}`}
+                      >
+                        Someone outbidded you on{" "}
+                        <span className="font-bold">
+                          {item?.data?.itemName}
+                        </span>{" "}
+                        by ${item?.data?.bidAmount}
+                      </Link>
+                    </div>
+                  </NotificationCell>
+                )}
+              />
+            </>
+          )}
+          <Link href="/home/me" className="flex space-x-3 items-center">
+            {session?.user.image ? (
+              <Image
+                src={session.user.image}
+                width="40"
+                height="40"
+                alt="user avatar"
+                className="rounded-full"
+              />
+            ) : (
+              <Image
+                src="/avatar.png"
+                width="40"
+                height="40"
+                alt="user avatar"
+                className="rounded-full"
+              />
+            )}
+            <div>{session?.user.name}</div>
+          </Link>
+          <div>
+            <button
+              className="bg-blue-600 text-white py-2 px-4 rounded-md"
+              onClick={() =>
+                signOut({
+                  callbackUrl: "/",
+                })
+              }
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     </div>

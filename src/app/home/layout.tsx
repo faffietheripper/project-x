@@ -1,7 +1,7 @@
 import Header from "@/components/app/Header";
-import AppFooter from "@/components/app/AppFooter";
 import React from "react";
 import { auth } from "@/auth";
+import { Toaster } from "@/components/ui/toaster";
 
 export default async function layout({
   children,
@@ -16,8 +16,8 @@ export default async function layout({
   return (
     <div>
       <Header />
+      <Toaster />
       <div className="">{children}</div>
-      <AppFooter />
     </div>
   );
 }

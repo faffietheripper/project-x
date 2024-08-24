@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -12,7 +16,27 @@ const nextConfig = {
         protocol: "https",
         port: "",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.pixabay.com",
+        port: "",
+        pathname: "/photo/**",
+      },
     ],
+  },
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      // Fallback for 'net' module
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        fs: false,
+        tls: false,
+        perf_hooks: false,
+      };
+    }
+
+    return config;
   },
 };
 

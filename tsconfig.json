@@ -26,7 +26,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/components/home/Hero.jsx"
+    "src/components/home/Hero.jsx",
+    "src/components/app/ActivityNav.jsx",
+    "src/components/app/BidForm.jsx"
   ],
   "exclude": ["node_modules"]
 }

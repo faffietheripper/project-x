@@ -2,9 +2,14 @@
 
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { bids, items } from "@/db/schema";
+import { bids, items, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { Knock } from "@knocklabs/node";
+import { env } from "@/env";
+import { isBidOver } from "@/util/bids";
+
+const knock = new Knock(env.KNOCK_SECRET_KEY);
 
 interface CreateBidActionParams {
   companyName: string;
@@ -24,7 +29,7 @@ export async function createBidAction({
   const userId = session?.user?.id;
 
   if (!userId) {
-    throw new Error("You must be logged in to place a bid");
+    return { error: "You must be logged in to place a bid." };
   }
 
   const item = await database.query.items.findFirst({
@@ -32,21 +37,35 @@ export async function createBidAction({
   });
 
   if (!item) {
-    throw new Error("Item not found");
+    return { error: "Item not found." };
+  }
+
+  if (isBidOver(item)) {
+    return { error: "This auction is already over." };
+  }
+
+  const profile = await database.query.profiles.findFirst({
+    where: eq(profiles.userId, userId),
+  });
+
+  if (!profile) {
+    return {
+      error: "Please update your profile before placing a bid.",
+    };
   }
 
   try {
-    // Insert the new bid
     await database.insert(bids).values({
       companyName,
       emailAddress,
       amount,
       itemId: item.id,
+      itemName: item.name,
       userId,
+      profileId: profile.id,
       timestamp: new Date(),
     });
 
-    // Update the item's current bid
     await database
       .update(items)
       .set({
@@ -54,37 +73,11 @@ export async function createBidAction({
       })
       .where(eq(items.id, item.id));
 
-    // Get the current bids
-    const currentBids = await database.query.bids.findMany({
-      where: eq(bids.itemId, item.id),
-      with: {
-        user: true,
-      },
-    });
-
-    const recipients: {
-      id: string;
-      name: string;
-      email: string;
-    }[] = [];
-
-    for (const bid of currentBids) {
-      if (
-        bid.userId !== userId &&
-        !recipients.find((recipient) => recipient.id === bid.userId)
-      ) {
-        recipients.push({
-          id: bid.userId + "",
-          name: bid.user.name ?? "Anonymous",
-          email: bid.user.email,
-        });
-      }
-    }
-
-    // Revalidate the item page
     revalidatePath(`/items/${itemId}`);
+
+    return { success: true };
   } catch (error) {
     console.error("Error creating bid:", error);
-    throw new Error("Failed to create bid");
+    return { error: "Failed to create bid." };
   }
 }

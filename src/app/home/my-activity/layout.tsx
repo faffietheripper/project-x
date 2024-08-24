@@ -1,5 +1,6 @@
 import React from "react";
 import { auth } from "@/auth";
+import ActivityNav from "@/components/app/ActivityNav";
 
 export default async function layout({
   children,
@@ -13,7 +14,8 @@ export default async function layout({
   }
   return (
     <div>
-      <div className="">{children}</div>
+      <ActivityNav />
+      <div className="p-10">{children}</div>
     </div>
   );
 }

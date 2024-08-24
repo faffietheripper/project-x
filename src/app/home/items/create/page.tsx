@@ -1,70 +1,22 @@
-"use client";
+import WasteListingForm from "@/components/app/WasteListingForm";
 
-import {
-  createItemAction,
-  createUploadUrlAction,
-} from "@/app/home/items/create/actions";
-import { DatePickerDemo } from "@/components/DatePicker";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import PostJobIntro from "@/components/app/PostJobIntro";
-
-export default function CreatePage() {
-  const [date, setDate] = useState<Date | undefined>();
-
+export default function CreateWasteListing() {
   return (
-    <main className="space-y-8 m-10">
-      <PostJobIntro />
-      <form
-        className="flex flex-col border border-black p-8 rounded-xl space-y-5 "
-        onSubmit={async (e) => {
-          e.preventDefault();
-
-          if (!date) {
-            return;
-          }
-
-          const form = e.currentTarget as HTMLFormElement;
-          const formData = new FormData(form);
-          const file = formData.get("file") as File;
-
-          const uploadUrl = await createUploadUrlAction(file.name, file.type);
-
-          await fetch(uploadUrl, {
-            method: "PUT",
-            body: file,
-          });
-
-          const name = formData.get("name") as string;
-          const startingPrice = parseInt(
-            formData.get("startingPrice") as string
-          );
-          const startingPriceInCents = Math.floor(startingPrice * 100);
-
-          await createItemAction({
-            name,
-            startingPrice: startingPriceInCents,
-            fileName: file.name,
-            endDate: date,
-          });
-        }}
-      >
-        <Input required className="" name="name" placeholder="Name your item" />
-        <Input
-          required
-          className=""
-          name="startingPrice"
-          type="number"
-          step="0.01"
-          placeholder="What to start your auction at"
-        />
-        <Input type="file" name="file"></Input>
-        <DatePickerDemo date={date} setDate={setDate} />
-        <Button className="self-end" type="submit">
-          Post Item
-        </Button>
-      </form>
+    <main className="py-36 px-12">
+      <h1 className="py-4 text-center text-3xl font-bold">
+        Waste Listing Form
+      </h1>
+      <p className="text-center text-gray-500 text-xs pb-8 px-16 border-b border-gray-500">
+        Thank you for choosing our platform to connect with top-tier waste
+        management service providers. To ensure you receive the best possible
+        service, we ask that you complete the following waste listing form with
+        as much detail as possible. This form is designed to gather all the
+        essential information about the waste you need to manage, including its
+        type, quantity, and any special considerations. By providing accurate
+        and comprehensive details, you enable our service providers to offer
+        tailored solutions that perfectly match your needs.
+      </p>
+      <WasteListingForm />
     </main>
   );
 }

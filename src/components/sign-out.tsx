@@ -13,7 +13,7 @@ export default function SignOut() {
     >
       <button
         type="submit"
-        className="relative scale-100 overflow-hidden rounded-lg bg-gradient-to-br from-indigo-600 from-40% to-indigo-400 px-4 py-2 font-medium text-white transition-transform hover:scale-105 active:scale-95"
+        className="bg-blue-600 text-white py-2 px-4 rounded-md"
       >
         Sign Out!
       </button>
