@@ -18,6 +18,7 @@ export const users = pgTable("bb_user", {
   image: text("image"),
   password: text("password"),
   confirmPassword: text("confirmPassword"),
+  role: text("role"),
 });
 
 import { relations } from "drizzle-orm";
@@ -117,8 +118,9 @@ export const profiles = pgTable("bb_profile", {
   region: text("region").notNull(),
   postCode: text("postCode").notNull(),
   wasteManagementMethod: text("wasteManagementMethod").notNull(),
-  wasteManagementNeeds: text("wasteManagementNeeds").notNull(),
+  wasteManagementNeeds: text("wasteManagementNeeds"),
   wasteType: text("wasteType"),
+  servicesOffered: text("servicesOffered"),
   environmentalPolicy: text("environmentalPolicy"),
   certifications: text("certifications"),
 });

@@ -15,7 +15,7 @@ export default async function layout({
   }
   return (
     <div className="">
-      <div className=" h-[100vh] w-[300px] border-r border-black fixed bg-gray-50">
+      <div className=" h-[100vh] w-[300px] shadow-md shadow-gray-400 fixed bg-gray-50">
         <div className="flex flex-col gap-y-[350px] pt-40">
           <div className="flex flex-col gap-12 pl-6">
             <div className="flex items-center gap-4">
@@ -114,7 +114,7 @@ export default async function layout({
           </div>
           <Link
             href="/home/me"
-            className="flex space-x-3 border-t border-black p-4 items-center"
+            className="flex space-x-3  shadow shadow-gray-400 p-4 items-center"
           >
             {session?.user.image ? (
               <Image

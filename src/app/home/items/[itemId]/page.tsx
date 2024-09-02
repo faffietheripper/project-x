@@ -47,7 +47,10 @@ export default async function ItemPage({
   const hasBids = allBids.length > 0;
 
   const canPlaceBid =
-    session && item.userId !== session.user.id && !isBidOver(item);
+    session &&
+    session.user.role !== "wasteGenerator" && // Prevent wasteGenerator from bidding
+    item.userId !== session.user.id &&
+    !isBidOver(item);
 
   const fileKeys = item.fileKey.split(",");
 

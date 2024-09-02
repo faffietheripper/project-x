@@ -4,15 +4,15 @@ import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-export default function ActivityNav() {
+export default function ActivityNav({ userRole }) {
   return (
-    <div className="pt-36">
-      <SlideTabs />
+    <div className="pt-24">
+      <SlideTabs userRole={userRole} />
     </div>
   );
 }
 
-const SlideTabs = () => {
+const SlideTabs = ({ userRole }) => {
   const [position, setPosition] = useState({
     left: 0,
     width: 0,
@@ -27,18 +27,28 @@ const SlideTabs = () => {
           opacity: 0,
         }));
       }}
-      className="relative mx-auto flex w-fit rounded-full bg-gray-200 p-2"
+      className="relative flex justify-end bg-gray-200 pt-10 pb-4 px-10"
     >
       <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity">Profile</Link>
+        <Link href="/home/my-activity">My Profile</Link>
       </Tab>
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/my-bids">Bids</Link>
-      </Tab>
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/my-listings">Listings</Link>
-      </Tab>
-
+      {userRole === "wasteManager" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/my-bids">View My Bids</Link>
+        </Tab>
+      )}
+      {userRole === "wasteGenerator" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/my-listings">Active Listings</Link>
+        </Tab>
+      )}
+      {userRole === "wasteGenerator" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/archived-listings">
+            Archived Listings
+          </Link>
+        </Tab>
+      )}
       <Cursor position={position} />
     </ul>
   );
@@ -61,7 +71,7 @@ const Tab = ({ children, setPosition }) => {
           opacity: 1,
         });
       }}
-      className="relative z-10 block cursor-pointer px-3 py-1.5 text-xs font-bold text-white mix-blend-difference md:px-8 md:py-3 md:text-base"
+      className="relative z-10 block cursor-pointer px-3 py-1.5 text-xs font-bold text-black hover:text-white  md:px-8 md:py-3 md:text-base"
     >
       {children}
     </li>
@@ -74,7 +84,7 @@ const Cursor = ({ position }) => {
       animate={{
         ...position,
       }}
-      className="absolute z-0 h-7 rounded-full bg-black md:h-12"
+      className="absolute z-0 h-7 rounded-full bg-blue-600 md:h-12"
     />
   );
 };

@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 //this is where you will be able to manage selected listings : Renew or Delete Listings or End Bid
 
-export default async function MyLisitngs() {
+export default async function ArchivedLisitngs() {
   const session = await auth();
 
   if (!session || !session.user) {
@@ -22,7 +22,7 @@ export default async function MyLisitngs() {
 
   return (
     <main className="">
-      <h1 className="font-bold pb-10">Manage Active Listings</h1>
+      <h1 className="font-bold pb-10">Manage Archived Listings</h1>
 
       {hasItems ? (
         <div className="grid grid-cols-4 gap-8">

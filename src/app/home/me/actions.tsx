@@ -52,6 +52,7 @@ export async function saveProfileAction({
   postCode,
   wasteManagementMethod,
   wasteManagementNeeds,
+  servicesOffered,
   wasteType,
   environmentalPolicy,
   certifications,
@@ -67,6 +68,7 @@ export async function saveProfileAction({
   region: string;
   postCode: string;
   wasteManagementMethod: string;
+  servicesOffered: string;
   wasteManagementNeeds: string;
   wasteType?: string;
   environmentalPolicy?: string;
@@ -98,6 +100,7 @@ export async function saveProfileAction({
         postCode,
         wasteManagementMethod,
         wasteManagementNeeds,
+        servicesOffered,
         wasteType,
         environmentalPolicy,
         certifications: certifications.join(","),
@@ -118,6 +121,7 @@ export async function saveProfileAction({
       postCode,
       wasteManagementMethod,
       wasteManagementNeeds,
+      servicesOffered,
       wasteType,
       environmentalPolicy,
       certifications: certifications.join(","),

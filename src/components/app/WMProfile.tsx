@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import Image from "next/image";
 import { getImageUrl } from "@/util/files";
 
-export default async function MyProfile() {
+export default async function WMProfile() {
   const session = await auth();
 
   if (!session || !session.user) {
@@ -27,90 +27,88 @@ export default async function MyProfile() {
   }
 
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold mb-8">My Profile</h1>
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold">Company Information</h2>
-          <p>
-            <strong>Company Name:</strong> {profile.companyName}
-          </p>
-          <p>
-            <strong>Company Overview:</strong> {profile.companyOverview}
-          </p>
+    <main className="p-8 bg-white shadow-lg rounded-lg mx-auto">
+      <div className="flex items-center mb-8">
+        {profile.profilePicture && (
+          <div className="mr-6">
+            <Image
+              height={100}
+              width={100}
+              src={getImageUrl(profile.profilePicture)}
+              alt="Profile"
+              className="w-32 h-32 rounded-full object-cover"
+            />
+          </div>
+        )}
+        <p className="text-4xl font-semibold">{profile.companyName}</p>
+      </div>
+
+      <section className="space-y-8">
+        <div className="p-6 bg-gray-100 rounded-lg">
+          <h2 className="text-2xl font-semibold mb-4">Company Overview</h2>
+
+          <p className="text-md">{profile.companyOverview}</p>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold">Contact Information</h2>
-          <p>
+        <div className="p-6 bg-gray-100 rounded-lg">
+          <h2 className="text-2xl font-semibold mb-4">Contact Information</h2>
+          <p className="text-lg">
             <strong>Telephone:</strong> {profile.telephone}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Email Address:</strong> {profile.emailAddress}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Country:</strong> {profile.country}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Street Address:</strong> {profile.streetAddress}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>City:</strong> {profile.city}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Region:</strong> {profile.region}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Post Code:</strong> {profile.postCode}
           </p>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold">Waste Management</h2>
-          <p>
+        <div className="p-6 bg-gray-100 rounded-lg">
+          <h2 className="text-2xl font-semibold mb-4">Services Offered</h2>
+          <p className="text-lg">
             <strong>Waste Management Method:</strong>{" "}
             {profile.wasteManagementMethod}
           </p>
-          <p>
-            <strong>Waste Management Needs:</strong>{" "}
-            {profile.wasteManagementNeeds}
+          <p className="text-lg">
+            <strong>Waste Management Services Offered:</strong>{" "}
+            {profile.servicesOffered}
           </p>
           {profile.wasteType && (
-            <p>
+            <p className="text-lg">
               <strong>Waste Type:</strong> {profile.wasteType}
             </p>
           )}
           {profile.environmentalPolicy && (
-            <p>
+            <p className="text-lg">
               <strong>Environmental Policy:</strong>{" "}
               {profile.environmentalPolicy}
             </p>
           )}
         </div>
 
-        {profile.profilePicture && (
-          <div>
-            <h2 className="text-xl font-semibold">Profile Picture</h2>
-            <Image
-              height={900}
-              width={900}
-              src={getImageUrl(profile.profilePicture)}
-              alt="Profile"
-              className="w-32 h-32 rounded-full"
-            />
-          </div>
-        )}
-
         {profile.certifications && (
-          <div>
-            <h2 className="text-xl font-semibold">Certifications</h2>
-            <ul className="list-disc list-inside">
+          <div className="p-6 bg-gray-100 rounded-lg">
+            <h2 className="text-2xl font-semibold mb-4">Certifications</h2>
+            <ul className="list-disc list-inside text-lg">
               {profile.certifications.split(",").map((cert, index) => (
                 <li key={index}>
                   <a
                     href={getImageUrl(cert)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
                   >
                     {cert}
                   </a>

@@ -18,7 +18,7 @@ export default async function FilteredItemsPage({ searchParams }) {
     })
     .filter((item) => {
       if (minBid) {
-        return item.currentBid >= parseFloat(minBid);
+        return item.startingPrice >= parseFloat(minBid);
       }
       return true;
     })

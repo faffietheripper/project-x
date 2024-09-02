@@ -12,9 +12,12 @@ export default async function layout({
   if (!session || !session.user) {
     throw new Error("Unauthorized");
   }
+
+  const userRole = session?.user?.role; // Assuming role is available in the session data
+
   return (
     <div>
-      <ActivityNav />
+      <ActivityNav userRole={userRole} />
       <div className="p-10">{children}</div>
     </div>
   );
