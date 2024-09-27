@@ -121,19 +121,24 @@ const BidForm = ({ itemId, currentBid, closeFlyout }) => {
 
           if (result.error) {
             toast({
-              title: "Profile not found ❌",
+              title: "Error",
               description: result.error,
               action: (
                 <button
                   altText="Update Profile"
                   className="bg-blue-600 text-xs rounded-md p-2 text-white"
                 >
-                  <Link href="/home/me">Visit Profile</Link>
+                  <Link href="/home/me">Update Profile</Link>
                 </button>
               ),
             });
             return;
           }
+
+          toast({
+            title: "Bid placed successfully",
+            description: "Your bid has been placed.",
+          });
 
           closeFlyout(); // Close the flyout after submitting the bid
         }}

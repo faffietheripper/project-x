@@ -6,6 +6,9 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { isBidOver } from "@/util/bids";
 import { auth } from "@/auth";
+import { archiveBids } from "@/util/archiveBids";
+import { unarchivedBids } from "@/util/unarchivedBids";
+import { deleteItemAction } from "@/app/home/my-activity/archived-listings/actions";
 
 export default async function ItemCard({ item }: { item: Item }) {
   const session = await auth();
@@ -14,7 +17,7 @@ export default async function ItemCard({ item }: { item: Item }) {
   const canPlaceBid =
     userRole !== "wasteGenerator" &&
     item.userId !== session?.user?.id &&
-    !isBidOver(item);
+    !(await isBidOver(item));
 
   const fileKeys = item.fileKey.split(",");
   const firstImageUrl = getImageUrl(fileKeys[0]);
@@ -37,7 +40,7 @@ export default async function ItemCard({ item }: { item: Item }) {
           <span className=" font-semibold">Starting Price: </span> $
           {item.startingPrice}
         </h1>
-        {isBidOver(item) ? (
+        {(await isBidOver(item)) ? (
           <p className="text-red-600 text-md font-semibold">Bidding is Over.</p>
         ) : (
           <p>
@@ -46,15 +49,63 @@ export default async function ItemCard({ item }: { item: Item }) {
           </p>
         )}
       </div>
-      <Link href={`/home/items/${item.id}`}>
-        <button className="bg-blue-600 py-2 px-4 rounded-md w-full text-white">
-          {userRole === "wasteGenerator"
-            ? "View Bid"
-            : canPlaceBid
-            ? "Place Bid"
-            : "Cannot Bid"}
-        </button>
-      </Link>
+      {!item.archived ? (
+        <section>
+          {item.userId == session?.user?.id ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Link href={`/home/items/${item.id}`}>
+                <button className="bg-blue-600 py-2 px-4 rounded-md w-full text-white">
+                  View Bid
+                </button>
+              </Link>
+              <form action={archiveBids}>
+                <input type="hidden" name="itemId" value={item.id} />
+                <button
+                  type="submit"
+                  className="bg-gray-600 py-2 px-4 rounded-md w-full text-white"
+                >
+                  Archive
+                </button>
+              </form>
+            </div>
+          ) : (
+            <Link href={`/home/items/${item.id}`}>
+              <button className="bg-blue-600 py-2 px-4 rounded-md w-full text-white">
+                View Bid
+              </button>
+            </Link>
+          )}
+        </section>
+      ) : (
+        <section>
+          <Link href={`/home/items/${item.id}`}>
+            <button className="bg-blue-600 py-2 px-4 mb-2 rounded-md w-full text-white">
+              {userRole === "wasteGenerator"
+                ? "View Bid"
+                : canPlaceBid
+                ? "Place Bid"
+                : "Cannot Bid"}
+            </button>
+          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <form action={deleteItemAction} method="post">
+              <input type="hidden" name="itemId" value={item.id} />
+              <button className="bg-red-600 py-2 px-4 rounded-md w-full text-white">
+                Delete
+              </button>
+            </form>
+            <form action={unarchivedBids}>
+              <input type="hidden" name="itemId" value={item.id} />
+              <button
+                type="submit"
+                className="bg-gray-600 py-2 px-4 rounded-md w-full text-white"
+              >
+                Unarchive
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

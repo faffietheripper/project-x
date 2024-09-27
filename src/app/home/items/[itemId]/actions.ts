@@ -39,8 +39,10 @@ export async function createBidAction({
   if (!item) {
     return { error: "Item not found." };
   }
+  // **Await** the isBidOver function, since it is async
+  const bidOver = await isBidOver(item); // Ensure we await this function
 
-  if (isBidOver(item)) {
+  if (bidOver) {
     return { error: "This auction is already over." };
   }
 
@@ -79,5 +81,44 @@ export async function createBidAction({
   } catch (error) {
     console.error("Error creating bid:", error);
     return { error: "Failed to create bid." };
+  }
+}
+
+// function to assign a winning bid
+
+export async function handleAssignWinningBid(formData: FormData) {
+  const itemId = formData.get("itemId");
+  const bidId = formData.get("bidId");
+
+  if (!itemId || !bidId) {
+    console.error("Missing itemId or bidId");
+    throw new Error("itemId or bidId is missing");
+  }
+
+  try {
+    // Retrieve the bid and validate it belongs to the item
+    const bid = await database.query.bids.findFirst({
+      where: eq(bids.id, Number(bidId)),
+    });
+
+    if (!bid || bid.itemId !== Number(itemId)) {
+      throw new Error("Invalid bid or bid does not belong to the item.");
+    }
+
+    // Update the item with the winning bid and set assigned to true
+    await database
+      .update(items)
+      .set({
+        winningBid: bid.id,
+        assigned: true,
+      })
+      .where(eq(items.id, Number(itemId)));
+
+    console.log("Bid assigned successfully");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error assigning winning bid:", error);
+    throw new Error("Failed to assign winning bid.");
   }
 }

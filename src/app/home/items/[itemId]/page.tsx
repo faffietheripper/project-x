@@ -9,19 +9,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { isBidOver } from "@/util/bids";
+import { handleAssignWinningBid } from "./actions";
+import BidWinner from "@/components/app/BidWinner";
+import { getWinningBid } from "@/data-access/getWinningBid";
 
 function formatTimestamp(timestamp: Date) {
   return formatDistance(timestamp, new Date(), { addSuffix: true });
 }
 
 export default async function ItemPage({
-  params: { itemId },
+  params: { itemId, bidId },
 }: {
-  params: { itemId: string };
+  params: { itemId: string; bidId: string };
 }) {
   const session = await auth();
 
   const item = await getItem(parseInt(itemId));
+
+  const { winningBid } = await getWinningBid(Number(itemId));
 
   if (!item) {
     return (
@@ -50,7 +55,10 @@ export default async function ItemPage({
     session &&
     session.user.role !== "wasteGenerator" && // Prevent wasteGenerator from bidding
     item.userId !== session.user.id &&
-    !isBidOver(item);
+    !(await isBidOver(item)) &&
+    item.archived == false;
+
+  const canAssignBid = session && item.userId == session?.user.id;
 
   const fileKeys = item.fileKey.split(",");
 
@@ -65,7 +73,7 @@ export default async function ItemPage({
               <span className="font-bold">${item.currentBid}</span>
             </div>
           </div>
-          {isBidOver(item) && (
+          {(await isBidOver(item)) && (
             <Badge className="w-fit bg-red-400" variant="destructive">
               Bidding Over
             </Badge>
@@ -111,53 +119,85 @@ export default async function ItemPage({
             {item.transactionConditions}
           </p>
         </div>
+        <section className="col-span-2 fixed right-10">
+          <div className=" space-y-4 p-6 rounded-lg bg-gray-200 h-[60vh] overflow-y-scroll">
+            <div className="flex flex-col justify-between ">
+              <h2 className="text-2xl font-semibold mb-6">Current Bids</h2>
 
-        <div className="col-span-2 space-y-4 p-6 rounded-lg bg-gray-100 h-[75vh] overflow-y-scroll">
-          <div className="flex flex-col justify-between ">
-            <h2 className="text-2xl font-semibold mb-6">Current Bids</h2>
+              {canPlaceBid && (
+                <PlaceBid itemId={itemId} currentBid={item.currentBid} />
+              )}
+            </div>
 
-            {canPlaceBid && (
-              <PlaceBid itemId={itemId} currentBid={item.currentBid} />
+            {hasBids ? (
+              <ul className="space-y-4">
+                {allBids.map((bid) => (
+                  <li key={bid.id} className="bg-gray-300 rounded-xl p-8">
+                    <div className="flex flex-col">
+                      <div>
+                        <span className="font-bold">${bid.amount}</span> by{" "}
+                        <span className="font-bold">{bid.companyName}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mb-6">
+                        {formatTimestamp(bid.timestamp)}
+                      </div>
+                      {canAssignBid && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="submit"
+                            className="bg-blue-600 text-white py-2 px-4  rounded-md"
+                          >
+                            <Link href={`/home/profiles/${bid.profileId}`}>
+                              View Profile
+                            </Link>
+                          </button>
+                          <form action={handleAssignWinningBid}>
+                            <input
+                              type="hidden"
+                              name="itemId"
+                              value={item.id}
+                            />
+                            <input type="hidden" name="bidId" value={bidId} />
+                            <button
+                              type="submit"
+                              className="bg-blue-600 text-white py-2 px-4 rounded-md"
+                            >
+                              Assign Listing
+                            </button>
+                          </form>
+                        </div>
+                      )}{" "}
+                      {!canAssignBid && (
+                        <button
+                          type="submit"
+                          className="bg-blue-600 text-white py-2 px-4  rounded-md"
+                        >
+                          <Link href={`/home/profiles/${bid.profileId}`}>
+                            View Profile
+                          </Link>
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-col items-center gap-8 bg-gray-100 rounded-xl p-12">
+                <Image
+                  src="/package.svg"
+                  width="200"
+                  height="200"
+                  alt="Package"
+                />
+                <h2 className="text-2xl font-bold">No bids yet</h2>
+              </div>
             )}
           </div>
-
-          {hasBids ? (
-            <ul className="space-y-4">
-              {allBids.map((bid) => (
-                <li key={bid.id} className="bg-gray-200 rounded-xl p-8">
-                  <div className="flex flex-col gap-y-2">
-                    <div>
-                      <span className="font-bold">${bid.amount}</span> by{" "}
-                      <span className="font-bold">{bid.companyName}</span>
-                    </div>
-
-                    <div className="text-md text-gray-500">
-                      {formatTimestamp(bid.timestamp)}
-                    </div>
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white py-2 px-4 rounded-md"
-                    >
-                      <Link href={`/home/profiles/${bid.profileId}`}>
-                        View Profile
-                      </Link>
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="flex flex-col items-center gap-8 bg-gray-100 rounded-xl p-12">
-              <Image
-                src="/package.svg"
-                width="200"
-                height="200"
-                alt="Package"
-              />
-              <h2 className="text-2xl font-bold">No bids yet</h2>
-            </div>
-          )}
-        </div>
+          <div className="rounded-lg bg-gray-200 h-[18vh] mt-4 p-6">
+            <h1 className="font-bold text-xl "> Bid Winner :</h1>
+            <BidWinner winningBid={winningBid} />
+          </div>
+        </section>
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { eq } from "drizzle-orm";
 import Image from "next/image";
 import { getImageUrl } from "@/util/files";
+import Link from "next/link";
 
 export default async function WMProfile() {
   const session = await auth();
@@ -28,19 +29,26 @@ export default async function WMProfile() {
 
   return (
     <main className="p-8 bg-white shadow-lg rounded-lg mx-auto">
-      <div className="flex items-center mb-8">
-        {profile.profilePicture && (
-          <div className="mr-6">
-            <Image
-              height={100}
-              width={100}
-              src={getImageUrl(profile.profilePicture)}
-              alt="Profile"
-              className="w-32 h-32 rounded-full object-cover"
-            />
-          </div>
-        )}
-        <p className="text-4xl font-semibold">{profile.companyName}</p>
+      <div className="flex items-center justify-between mb-8">
+        <section className="flex items-center">
+          {profile.profilePicture && (
+            <div className="mr-6">
+              <Image
+                height={100}
+                width={100}
+                src={getImageUrl(profile.profilePicture)}
+                alt="Profile"
+                className="w-32 h-32 rounded-full object-cover"
+              />
+            </div>
+          )}
+          <p className="text-4xl font-semibold">{profile.companyName}</p>
+        </section>
+        <Link href="/home/me">
+          <button className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-md">
+            Edit Profile
+          </button>
+        </Link>
       </div>
 
       <section className="space-y-8">

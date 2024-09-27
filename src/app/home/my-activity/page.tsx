@@ -18,22 +18,12 @@ export default async function MyActivity() {
       {userRole === "wasteManager" && (
         <>
           <WMProfile />
-          <Link href="/home/me">
-            <button className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-md">
-              Edit Profile
-            </button>
-          </Link>
         </>
       )}
 
       {userRole === "wasteGenerator" && (
         <>
           <WGProfile />
-          <Link href="/home/me">
-            <button className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-md">
-              Edit Profile
-            </button>
-          </Link>
         </>
       )}
 

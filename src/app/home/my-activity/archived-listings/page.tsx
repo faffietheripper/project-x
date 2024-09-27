@@ -3,30 +3,31 @@ import { database } from "@/db/database";
 import { items } from "@/db/schema";
 import ItemCard from "@/components/ItemCard";
 import { EmptyState } from "./emptyState";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-//this is where you will be able to manage selected listings : Renew or Delete Listings or End Bid
+// This is where you will be able to manage selected listings: Renew or Delete Listings or End Bid
 
-export default async function ArchivedLisitngs() {
+export default async function ArchivedListings() {
   const session = await auth();
 
   if (!session || !session.user) {
     throw new Error("Unauthorized");
   }
 
-  const allItems = await database.query.items.findMany({
-    where: eq(items.userId, session.user.id!),
+  // Fetch only archived items where userId matches the logged-in user
+  const archivedItems = await database.query.items.findMany({
+    where: and(eq(items.userId, session.user.id!), eq(items.archived, true)),
   });
 
-  const hasItems = allItems.length > 0;
+  const hasArchivedItems = archivedItems.length > 0;
 
   return (
     <main className="">
       <h1 className="font-bold pb-10">Manage Archived Listings</h1>
 
-      {hasItems ? (
+      {hasArchivedItems ? (
         <div className="grid grid-cols-4 gap-8">
-          {allItems.map((item) => (
+          {archivedItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
         </div>

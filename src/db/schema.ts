@@ -4,14 +4,17 @@ import {
   primaryKey,
   serial,
   text,
+  boolean,
   timestamp,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "next-auth/adapters";
+import { relations } from "drizzle-orm";
 
+// Users Table
 export const users = pgTable("bb_user", {
   id: text("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+    .$defaultFn(() => crypto.randomUUID()), // Use UUID for user IDs
   name: text("name").notNull(),
   email: text("email").notNull(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
@@ -21,14 +24,13 @@ export const users = pgTable("bb_user", {
   role: text("role"),
 });
 
-import { relations } from "drizzle-orm";
-
+// Accounts Table
 export const accounts = pgTable(
   "bb_account",
   {
     userId: text("userId")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
     type: text("type").$type<AdapterAccount>().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
@@ -43,18 +45,20 @@ export const accounts = pgTable(
   (account) => ({
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
-    }),
+    }), // Composite primary key for provider and providerAccountId
   })
 );
 
+// Sessions Table
 export const sessions = pgTable("bb_session", {
-  sessionToken: text("sessionToken").primaryKey(),
+  sessionToken: text("sessionToken").primaryKey(), // Session token as primary key
   userId: text("userId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
   expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
+// Verification Tokens Table
 export const verificationTokens = pgTable(
   "bb_verificationToken",
   {
@@ -63,28 +67,11 @@ export const verificationTokens = pgTable(
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (vt) => ({
-    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }), // Composite key
   })
 );
 
-export const bids = pgTable("bb_bids", {
-  id: serial("id").primaryKey(),
-  amount: integer("amount").notNull(),
-  companyName: text("name").notNull(),
-  emailAddress: text("emailAddress").notNull(),
-  itemName: text("itemName").notNull(),
-  itemId: serial("itemId")
-    .notNull()
-    .references(() => items.id, { onDelete: "cascade" }),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  profileId: serial("profileId")
-    .notNull()
-    .references(() => profiles.id, { onDelete: "cascade" }),
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
-});
-
+// Items Table
 export const items = pgTable("bb_item", {
   id: serial("id").primaryKey(),
   userId: text("userId")
@@ -100,13 +87,39 @@ export const items = pgTable("bb_item", {
   complianceDetails: text("complianceDetails").notNull(),
   detailedDescription: text("detailedDescription").notNull(),
   location: text("location").notNull(),
+  archived: boolean("archived").notNull().default(false),
+  assigned: boolean("assigned").notNull().default(false),
+  completed: boolean("completed").notNull().default(false),
+  winningBidId: integer("winningBidId")
+    .references(() => bids.id, { onDelete: "set null" }) // Allow null for unassigned
+    .default(null), // Default value should be null
 });
 
-export const profiles = pgTable("bb_profile", {
-  id: serial("id").primaryKey(),
+// Bids Table
+export const bids = pgTable("bb_bids", {
+  id: serial("id").primaryKey(), // Auto-incrementing primary key
+  amount: integer("amount").notNull(),
+  companyName: text("companyName").notNull(),
+  emailAddress: text("emailAddress").notNull(),
+  itemName: text("itemName").notNull(),
+  itemId: integer("itemId")
+    .notNull()
+    .references(() => items.id, { onDelete: "cascade" }), // Foreign key to items
   userId: text("userId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+  profileId: integer("profileId")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }), // Foreign key to profiles
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
+});
+
+// Profiles Table
+export const profiles = pgTable("bb_profile", {
+  id: serial("id").primaryKey(), // Auto-incrementing primary key
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
   profilePicture: text("profilePicture"),
   companyName: text("companyName").notNull(),
   companyOverview: text("companyOverview"),
@@ -125,14 +138,19 @@ export const profiles = pgTable("bb_profile", {
   certifications: text("certifications"),
 });
 
+// Define relationships for bids
 export const bidsRelations = relations(bids, ({ one }) => ({
   user: one(users, {
     fields: [bids.userId],
     references: [users.id],
   }),
+  item: one(items, {
+    fields: [bids.itemId],
+    references: [items.id],
+  }),
 }));
 
-// Define relationships for the profiles table
+// Define relationships for profiles
 export const profilesRelations = relations(profiles, ({ one }) => ({
   user: one(users, {
     fields: [profiles.userId],
@@ -140,4 +158,17 @@ export const profilesRelations = relations(profiles, ({ one }) => ({
   }),
 }));
 
+// Define relationships for items
+export const itemsRelations = relations(items, ({ one }) => ({
+  user: one(users, {
+    fields: [items.userId],
+    references: [users.id],
+  }),
+  winningBid: one(bids, {
+    fields: [items.id],
+    references: [bids.itemId],
+  }),
+}));
+
+// Type for selecting item rows
 export type Item = typeof items.$inferSelect;

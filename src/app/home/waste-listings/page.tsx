@@ -1,12 +1,16 @@
 import React from "react";
 import { database } from "@/db/database";
 import ItemCard from "@/components/ItemCard";
+import { eq } from "drizzle-orm";
+import { items } from "@/db/schema";
 
 // Ensure you're in the `/app/filtered-items/` directory
 export default async function FilteredItemsPage({ searchParams }) {
   const { endDate, minBid, location } = searchParams;
 
-  const allItems = await database.query.items.findMany();
+  const allItems = await database.query.items.findMany({
+    where: eq(items.archived, false),
+  });
 
   // Filter items based on query parameters
   const filteredItems = allItems
