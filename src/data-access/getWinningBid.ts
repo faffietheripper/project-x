@@ -1,24 +1,28 @@
 import { database } from "@/db/database";
 import { items, bids } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function getWinningBid(itemId: number) {
   try {
-    // Fetch the item along with the related winning bid
     const item = await database.query.items.findFirst({
-      where: eq(items.id, itemId),
-      with: {
-        winningBid: true, // This retrieves the related winning bid in one go
-      },
+      where: and(
+        eq(items.id, itemId),
+        eq(items.offerAccepted, true) // wait for the offer to be accepted
+      ),
     });
 
     // If no item or no winning bid is assigned, return nulls
-    if (!item || !item.winningBid) {
+    if (!item || !item.winningBidId) {
       return { item: null, winningBid: null };
     }
 
-    // Return both item and winning bid directly from the retrieved data
-    return { item, winningBid: item.winningBid };
+    // Fetch the bid that matches the winningBidId
+    const winningBid = await database.query.bids.findFirst({
+      where: eq(bids.id, item.winningBidId),
+    });
+
+    // Return both the item and the winning bid
+    return { item, winningBid };
   } catch (error) {
     console.error("Error fetching item with winning bid:", error);
     return { item: null, winningBid: null };

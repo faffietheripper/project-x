@@ -37,6 +37,11 @@ const SlideTabs = ({ userRole }) => {
           <Link href="/home/my-activity/my-bids">View My Bids</Link>
         </Tab>
       )}
+      {userRole === "wasteManager" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/assigned-jobs">Assigned Jobs</Link>
+        </Tab>
+      )}
       {userRole === "wasteGenerator" && (
         <Tab setPosition={setPosition}>
           <Link href="/home/my-activity/my-listings">Active Listings</Link>
@@ -49,11 +54,15 @@ const SlideTabs = ({ userRole }) => {
           </Link>
         </Tab>
       )}
+      {userRole === "wasteGenerator" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/jobs-in-progress">
+            Jobs in Progress
+          </Link>
+        </Tab>
+      )}
       <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity">Jobs in Progress</Link>
-      </Tab>
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity">Jobs Completed</Link>
+        <Link href="/home/my-activity/completed-jobs">Jobs Completed</Link>
       </Tab>
       <Cursor position={position} />
     </ul>

@@ -12,6 +12,7 @@ import { isBidOver } from "@/util/bids";
 import { handleAssignWinningBid } from "./actions";
 import BidWinner from "@/components/app/BidWinner";
 import { getWinningBid } from "@/data-access/getWinningBid";
+import AssignListingButton from "@/components/app/AssignListingButton";
 
 function formatTimestamp(timestamp: Date) {
   return formatDistance(timestamp, new Date(), { addSuffix: true });
@@ -151,20 +152,11 @@ export default async function ItemPage({
                               View Profile
                             </Link>
                           </button>
-                          <form action={handleAssignWinningBid}>
-                            <input
-                              type="hidden"
-                              name="itemId"
-                              value={item.id}
-                            />
-                            <input type="hidden" name="bidId" value={bidId} />
-                            <button
-                              type="submit"
-                              className="bg-blue-600 text-white py-2 px-4 rounded-md"
-                            >
-                              Assign Listing
-                            </button>
-                          </form>
+                          <AssignListingButton
+                            itemId={item.id}
+                            bidId={bid.id}
+                            handleAssignWinningBid={handleAssignWinningBid} // Pass the action directly
+                          />
                         </div>
                       )}{" "}
                       {!canAssignBid && (

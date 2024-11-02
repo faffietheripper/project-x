@@ -6,7 +6,7 @@ export function EmptyState() {
   return (
     <div className="space-y-8 flex flex-col items-center justify-center">
       <Image src="/package.svg" width="200" height="200" alt="Package" />
-      <h2 className="text-2xl font-bold">You have no archived listings yet</h2>
+      <h2 className="text-2xl font-bold">You have no assigned jobs yet</h2>
       <Button asChild>
         <Link href="/home/my-activity/my-listings">Manage Listings</Link>
       </Button>

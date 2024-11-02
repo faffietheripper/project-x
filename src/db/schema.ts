@@ -21,7 +21,7 @@ export const users = pgTable("bb_user", {
   image: text("image"),
   password: text("password"),
   confirmPassword: text("confirmPassword"),
-  role: text("role"),
+  role: text("role").default("wasteManager"),
 });
 
 // Accounts Table
@@ -88,11 +88,17 @@ export const items = pgTable("bb_item", {
   detailedDescription: text("detailedDescription").notNull(),
   location: text("location").notNull(),
   archived: boolean("archived").notNull().default(false),
+  offerAccepted: boolean("offerAccepted").notNull().default(false),
   assigned: boolean("assigned").notNull().default(false),
   completed: boolean("completed").notNull().default(false),
   winningBidId: integer("winningBidId")
     .references(() => bids.id, { onDelete: "set null" }) // Allow null for unassigned
     .default(null), // Default value should be null
+  declined: boolean("declined").notNull().default(false), // Tracks if the bid was declined
+  canceled: boolean("canceled").notNull().default(false), // Tracks if the job was canceled
+  declinedAt: timestamp("declinedAt", { mode: "date" }), // Optional timestamp for declined offers
+  canceledAt: timestamp("canceledAt", { mode: "date" }), // Optional timestamp for canceled jobs
+  cancellationReason: text("cancellationReason"),
 });
 
 // Bids Table
@@ -164,11 +170,11 @@ export const itemsRelations = relations(items, ({ one }) => ({
     fields: [items.userId],
     references: [users.id],
   }),
+  // Correct the relationship to fetch only the bid that matches the `winningBidId`
   winningBid: one(bids, {
-    fields: [items.id],
-    references: [bids.itemId],
+    fields: [items.winningBidId], // Use `winningBidId` from `items` table
+    references: [bids.id], // Referencing the primary key `id` in the `bids` table
   }),
 }));
-
 // Type for selecting item rows
 export type Item = typeof items.$inferSelect;

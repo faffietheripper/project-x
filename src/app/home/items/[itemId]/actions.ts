@@ -85,24 +85,36 @@ export async function createBidAction({
 }
 
 // function to assign a winning bid
-
+/*
 export async function handleAssignWinningBid(formData: FormData) {
   const itemId = formData.get("itemId");
   const bidId = formData.get("bidId");
 
   if (!itemId || !bidId) {
-    console.error("Missing itemId or bidId");
-    throw new Error("itemId or bidId is missing");
+    return { success: false, message: "id is missing" };
   }
 
   try {
+    // Check if the item already has a winning bid
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, Number(itemId)),
+    });
+
+    if (!item) {
+      return { success: false, message: "Item not found" };
+    }
+
+    if (item.assigned) {
+      return { success: false, message: "winning bid already assigned" };
+    }
+
     // Retrieve the bid and validate it belongs to the item
     const bid = await database.query.bids.findFirst({
       where: eq(bids.id, Number(bidId)),
     });
 
     if (!bid || bid.itemId !== Number(itemId)) {
-      throw new Error("Invalid bid or bid does not belong to the item.");
+      return { success: false, message: "invalid bid" };
     }
 
     // Update the item with the winning bid and set assigned to true
@@ -114,11 +126,55 @@ export async function handleAssignWinningBid(formData: FormData) {
       })
       .where(eq(items.id, Number(itemId)));
 
-    console.log("Bid assigned successfully");
-
-    return { success: true };
+    return { success: false, message: "Bid placed successfully" }; // Return success if everything is fine
   } catch (error) {
     console.error("Error assigning winning bid:", error);
-    throw new Error("Failed to assign winning bid.");
+    return { success: false, message: "failed to assign winning bid " };
+  }
+}
+*/
+
+//function to assign a winning bid
+export async function handleAssignWinningBid(formData: FormData) {
+  const itemId = formData.get("itemId");
+  const bidId = formData.get("bidId");
+
+  if (!itemId || !bidId) {
+    return { success: false, message: "id is missing" };
+  }
+
+  try {
+    // Retrieve the item to check if a winning bid has already been assigned
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, Number(itemId)),
+    });
+
+    // If a winning bid already exists, stop the process and show a toast
+    if (item && item.winningBidId) {
+      return { success: false, message: "winning bid already assigned" };
+    }
+
+    // Retrieve the bid and validate that it belongs to the item
+    const bid = await database.query.bids.findFirst({
+      where: eq(bids.id, Number(bidId)),
+    });
+
+    if (!bid || bid.itemId !== Number(itemId)) {
+      return { success: false, message: "invalid bid" };
+    }
+
+    // Assign the winning bid if no other winning bid has been assigned
+    await database
+      .update(items)
+      .set({
+        winningBidId: bid.id, // Set the winning bid
+        assigned: true,
+      })
+      .where(eq(items.id, Number(itemId)));
+
+    return { success: false, message: "Bid placed successfully" };
+  } catch (error) {
+    console.error("Error assigning winning bid:", error);
+    return { success: false, message: "failed to assign winning bid " };
   }
 }
