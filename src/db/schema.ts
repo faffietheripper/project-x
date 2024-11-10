@@ -92,13 +92,8 @@ export const items = pgTable("bb_item", {
   assigned: boolean("assigned").notNull().default(false),
   completed: boolean("completed").notNull().default(false),
   winningBidId: integer("winningBidId")
-    .references(() => bids.id, { onDelete: "set null" }) // Allow null for unassigned
-    .default(null), // Default value should be null
-  declined: boolean("declined").notNull().default(false), // Tracks if the bid was declined
-  canceled: boolean("canceled").notNull().default(false), // Tracks if the job was canceled
-  declinedAt: timestamp("declinedAt", { mode: "date" }), // Optional timestamp for declined offers
-  canceledAt: timestamp("canceledAt", { mode: "date" }), // Optional timestamp for canceled jobs
-  cancellationReason: text("cancellationReason"),
+    .references(() => bids.id, { onDelete: "set null" })
+    .default(null),
 });
 
 // Bids Table
@@ -118,6 +113,9 @@ export const bids = pgTable("bb_bids", {
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }), // Foreign key to profiles
   timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
+  declinedOffer: boolean("declinedOffer").notNull().default(false),
+  cancelledJob: boolean("cancelledJob").notNull().default(false),
+  cancellationReason: text("cancellationReason"),
 });
 
 // Profiles Table

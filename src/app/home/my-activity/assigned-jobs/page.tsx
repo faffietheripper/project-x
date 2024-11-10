@@ -4,9 +4,9 @@ import { database } from "@/db/database";
 import { eq, isNotNull } from "drizzle-orm";
 import { items } from "@/db/schema";
 import Link from "next/link";
-import { deleteBidAction } from "@/app/home/my-activity/my-bids/actions";
 import { acceptOfferAction } from "./actions";
 import { declineOfferAction } from "./actions";
+import CancelJob from "@/components/app/CancelJob";
 
 export default async function MyWinningBids() {
   const session = await auth();
@@ -63,6 +63,7 @@ export default async function MyWinningBids() {
                   View Item
                 </button>
               </Link>
+              <CancelJob />
 
               {/* Conditionally render based on offerAccepted status */}
               {myWinningBid.offerAccepted ? (
@@ -78,19 +79,6 @@ export default async function MyWinningBids() {
                       className="bg-green-600 text-white px-4 py-2 rounded-md"
                     >
                       Mark as Completed
-                    </button>
-                  </form>
-                  <form method="post">
-                    <input
-                      type="hidden"
-                      name="itemId"
-                      value={myWinningBid.id}
-                    />
-                    <button
-                      type="submit"
-                      className="bg-red-600 text-white px-4 py-2 rounded-md"
-                    >
-                      Cancel Job
                     </button>
                   </form>
                 </div>
