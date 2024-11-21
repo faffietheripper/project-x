@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "drizzle": "drizzle-kit"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.4.1",
@@ -24,11 +25,10 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "drizzle-orm": "^0.32.0",
     "framer-motion": "^11.3.8",
     "heroicons": "^2.1.5",
     "lucide-react": "^0.408.0",
-    "next": "14.2.5",
+    "next": "^14.2.18",
     "next-auth": "^5.0.0-beta.19",
     "next-themes": "^0.3.0",
     "node-polyfill-webpack-plugin": "^4.0.0",
@@ -49,7 +49,8 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "drizzle-kit": "^0.23.0",
+    "drizzle-kit": "^0.28.1",
+    "drizzle-orm": "^0.36.3",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8",

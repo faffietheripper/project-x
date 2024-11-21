@@ -4,8 +4,11 @@ import { database } from "@/db/database";
 import { eq, isNotNull } from "drizzle-orm";
 import { items } from "@/db/schema";
 import Link from "next/link";
-import { acceptOfferAction } from "./actions";
-import { declineOfferAction } from "./actions";
+import {
+  acceptOfferAction,
+  completeJobAction,
+  declineOfferAction,
+} from "./actions";
 import CancelJob from "@/components/app/CancelJob";
 
 export default async function MyWinningBids() {
@@ -15,20 +18,21 @@ export default async function MyWinningBids() {
     throw new Error("Unauthorized");
   }
 
-  // Fetch all items where the winning bid is not null
+  // Step 1: Fetch all items where the winning bid is not null
   const itemsWithWinningBids = await database.query.items.findMany({
-    where: isNotNull(items.winningBidId), // Ensure the item has a winning bid (non-null)
+    where: isNotNull(items.winningBidId),
     with: {
       winningBid: true, // Include related winning bid data
     },
   });
 
-  // Filter the items to find the ones where the winning bid matches the logged-in user's ID
+  // Step 2: Filter items to exclude completed items and find ones where the winning bid matches the logged-in user's ID
   const myWinningBids = itemsWithWinningBids.filter(
-    (item) => item.winningBid?.userId === session.user.id
+    (item) =>
+      item.winningBid?.userId === session.user.id && item.completed === false
   );
 
-  console.log("My Winning Bids: ", myWinningBids);
+  console.log("Filtered Winning Bids: ", myWinningBids);
 
   return (
     <div className="p-8">
@@ -52,7 +56,7 @@ export default async function MyWinningBids() {
                 {new Date(myWinningBid.winningBid.timestamp).toLocaleString()}
               </div>
               {myWinningBid.offerAccepted ? (
-                <h1 className="text-green-600 font-bold">Job in Progress</h1>
+                <h1 className="text-yellow-600 font-bold">Job in Progress</h1>
               ) : (
                 <h1>Job Assigned</h1>
               )}
@@ -63,12 +67,14 @@ export default async function MyWinningBids() {
                   View Item
                 </button>
               </Link>
-              <CancelJob />
 
-              {/* Conditionally render based on offerAccepted status */}
               {myWinningBid.offerAccepted ? (
                 <div className="flex space-x-4">
-                  <form method="post">
+                  <CancelJob
+                    itemId={myWinningBid.id}
+                    bidId={myWinningBid.winningBid.id}
+                  />
+                  <form action={completeJobAction} method="post">
                     <input
                       type="hidden"
                       name="itemId"
@@ -76,9 +82,14 @@ export default async function MyWinningBids() {
                     />
                     <button
                       type="submit"
-                      className="bg-green-600 text-white px-4 py-2 rounded-md"
+                      className={`px-4 py-2 rounded-md ${
+                        myWinningBid.completed ? "bg-gray-400" : "bg-green-600"
+                      } text-white`}
+                      disabled={myWinningBid.completed} // Disable if completed
                     >
-                      Mark as Completed
+                      {myWinningBid.completed
+                        ? "Already Completed"
+                        : "Mark as Completed"}
                     </button>
                   </form>
                 </div>

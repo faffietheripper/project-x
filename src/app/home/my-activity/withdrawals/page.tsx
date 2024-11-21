@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { bids, items } from "@/db/schema";
@@ -11,34 +10,46 @@ export default async function WithdrawalsPage() {
     throw new Error("Unauthorized");
   }
 
-  // Step 1: Fetch all bids where declinedOffer is true and relate to items posted by the logged-in user
+  // Fetch all bids where declinedOffer is true and relate to items posted by the logged-in user
   const allDeclinedOffers = await database.query.bids.findMany({
     where: eq(bids.declinedOffer, true),
     with: {
-      item: true, // Include related item data
+      item: {
+        with: {
+          winningBid: true, // Include the winningBid relation when querying item
+        },
+      },
     },
   });
 
-  // Step 2: Fetch all bids where cancelledJob is true and relate to items posted by the logged-in user
+  // Fetch all bids where cancelledJob is true and relate to items posted by the logged-in user
   const allCancelledJobs = await database.query.bids.findMany({
     where: eq(bids.cancelledJob, true),
     with: {
-      item: true, // Include related item data
+      item: {
+        with: {
+          winningBid: true, // Include the winningBid relation when querying item
+        },
+      },
     },
   });
 
-  // Step 3: Filter the declined offers to match the logged-in user's ID based on the item.userId
+  // Filter the declined offers to match the logged-in user's ID based on item.userId or winningBid.userId
   const declinedOffers = allDeclinedOffers.filter(
-    (bid) => bid.item.userId === session.user.id
+    (bid) =>
+      bid.item.userId === session.user.id || // Check if the logged-in user is the item owner
+      bid.userId === session.user.id // OR if the logged-in user is the winning bidder
   );
 
-  // Step 4: Filter the cancelled jobs to match the logged-in user's ID based on the item.userId
+  // Filter the cancelled jobs to match the logged-in user's ID based on item.userId or winningBid.userId
   const cancelledJobs = allCancelledJobs.filter(
-    (bid) => bid.item.userId === session.user.id
+    (bid) =>
+      bid.item.userId === session.user.id || // Check if the logged-in user is the item owner
+      bid.userId === session.user.id // OR if the logged-in user is the winning bidder
   );
 
-  console.log("Declined Offers:", declinedOffers);
-  console.log("Cancelled Jobs:", cancelledJobs);
+  console.log("Filtered Declined Offers:", declinedOffers); // Debugging line
+  console.log("Filtered Cancelled Jobs:", cancelledJobs); // Debugging line
 
   return (
     <div>

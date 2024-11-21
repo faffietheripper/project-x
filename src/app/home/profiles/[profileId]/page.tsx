@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getImageUrl } from "@/util/files";
 import { database } from "@/db/database";
 import { eq } from "drizzle-orm";
-import { users } from "@/db/schema";
+import { users, reviews } from "@/db/schema";
 
 export default async function ProfilePage({
   params: { profileId },
@@ -17,7 +17,18 @@ export default async function ProfilePage({
 
   const profile = await getProfile(parseInt(profileId));
 
-  // Assuming role is available in the session data
+  const userId = session.user.id;
+
+  const allReviews = await database.query.reviews.findMany({
+    with: {
+      reviewer: true,
+      profile: true,
+    },
+  });
+
+  const userReviews = allReviews.filter(
+    (review) => review.profileId === profile.id
+  );
 
   if (!profile) {
     return (
@@ -98,6 +109,35 @@ export default async function ProfilePage({
             <br />
             {profile.environmentalPolicy}
           </p>
+
+          <section className="p-6 bg-gray-100 rounded-lg">
+            <h2 className="text-2xl font-semibold mb-4">Reviews</h2>
+
+            {userReviews.length > 0 ? (
+              <ul className="grid grid-cols-2">
+                {userReviews.map((review) => (
+                  <li
+                    key={review.id}
+                    className="border rounded-lg p-4 shadow-sm bg-white"
+                  >
+                    <h2 className="text-lg font-semibold">
+                      Reviewed By: {review.reviewer?.name || "Anonymous"}
+                    </h2>
+
+                    <p className="text-gray-600 py-3">
+                      <strong>Rating:</strong> {review.rating} / 5
+                    </p>
+                    <p className="mt-2">" {review.reviewText} "</p>
+                    <p className="text-sm text-right text-gray-400 mt-2">
+                      {new Date(review.timestamp).toLocaleString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No reviews found.</p>
+            )}
+          </section>
         </div>
 
         <div className="col-span-2 space-y-4 p-6 rounded-lg bg-gray-100">

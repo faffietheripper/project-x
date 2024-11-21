@@ -67,6 +67,9 @@ const SlideTabs = ({ userRole }) => {
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/completed-jobs">Jobs Completed</Link>
       </Tab>
+      <Tab setPosition={setPosition}>
+        <Link href="/home/my-activity/reviews">Reviews</Link>
+      </Tab>
       <Cursor position={position} />
     </ul>
   );

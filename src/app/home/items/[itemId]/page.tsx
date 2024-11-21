@@ -155,6 +155,8 @@ export default async function ItemPage({
                           <AssignListingButton
                             itemId={item.id}
                             bidId={bid.id}
+                            item={item} // Ensure 'item' is passed correctly
+                            bid={bid}
                             handleAssignWinningBid={handleAssignWinningBid} // Pass the action directly
                           />
                         </div>

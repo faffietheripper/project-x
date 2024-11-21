@@ -64,31 +64,57 @@ export async function declineOfferAction(formData: FormData) {
   }
 }
 
-export async function cancelJobAction(formData: FormData) {
-  const itemId = formData.get("itemId");
-
-  if (!itemId) {
-    throw new Error("Item ID is required to accept the offer.");
+export async function cancelJobAction({ itemId, bidId, cancellationReason }) {
+  if (!itemId || !bidId) {
+    throw new Error("Item ID and Bid ID are required to cancel the job.");
   }
-  try {
-    const currentTimestamp = new Date().toLocaleString(); // Record the time of cancellation
 
-    // Update the item to mark it as canceled and record the reason
+  try {
+    const currentTimestamp = new Date();
+
+    // Step 1: Update the specific bid to mark it as canceled and provide a reason
+    await database
+      .update(bids)
+      .set({
+        cancelledJob: true, // Mark job as canceled
+        cancellationReason, // Set provided cancellation reason
+        timestamp: currentTimestamp, // Record time of cancellation
+      })
+      .where(eq(bids.id, bidId));
+
+    // Step 2: Update the related item to reset certain fields
     await database
       .update(items)
       .set({
-        assigned: false,
-        offerAccepted: false, // Reset offerAccepted to false
-        winningBidId: null,
-        canceled: true,
-        cancellationReason: reason || null, // Set reason if provided
+        assigned: false, // Reset assignment
+        offerAccepted: false, // Reset offer acceptance
+        winningBidId: null, // Clear winning bid ID
       })
       .where(eq(items.id, itemId));
 
-    console.log("Job canceled successfully.");
+    console.log("Job canceled successfully with reason:", cancellationReason);
     return { success: true, message: "Job canceled successfully." };
   } catch (error) {
     console.error("Error canceling job:", error);
     return { success: false, message: "Failed to cancel job." };
   }
+}
+
+export async function completeJobAction(formData: FormData) {
+  const itemId = formData.get("itemId");
+
+  if (!itemId) {
+    throw new Error("Item ID is missing");
+  }
+
+  // Update item status to completed in the database
+  await database
+    .update(items)
+    .set({ completed: true })
+    .where(eq(items.id, Number(itemId)));
+
+  revalidatePath("/home/my-activity/completed-jobs");
+
+  // Return a response if needed (e.g., redirect, toast message, etc.)
+  return { success: true, message: "Item marked as completed." };
 }

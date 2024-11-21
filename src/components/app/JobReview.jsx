@@ -8,28 +8,38 @@ import {
   useAnimate,
   motion,
 } from "framer-motion";
-import { cancelJobAction } from "@/app/home/my-activity/assigned-jobs/actions";
+import { createReviewAction } from "@/app/home/my-activity/completed-jobs/actions";
 
-export default function CancelJob({ itemId, bidId }) {
+export default function JobReview({ profileId }) {
   const [open, setOpen] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
+  const [reviewText, setReviewText] = useState("");
+  const [rating, setRating] = useState(0);
 
-  const handleCancelJob = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (cancellationReason.trim()) {
-      const result = await cancelJobAction({
-        itemId,
-        bidId,
-        cancellationReason,
-      });
-      if (result.success) {
-        alert(result.message);
-        setOpen(false);
-      } else {
-        alert(result.message);
+
+    if (reviewText.trim()) {
+      try {
+        const result = await createReviewAction({
+          profileId,
+          rating,
+          reviewText,
+        });
+
+        if (result.success) {
+          alert(result.message || "Review submitted successfully!");
+          setOpen(false);
+          setReviewText("");
+          setRating(0);
+        } else {
+          alert(result.error || "Failed to submit review.");
+        }
+      } catch (error) {
+        console.error("Error submitting review:", error);
+        alert("Something went wrong.");
       }
     } else {
-      alert("Please provide a cancellation reason.");
+      alert("Please provide your review.");
     }
   };
 
@@ -39,28 +49,37 @@ export default function CancelJob({ itemId, bidId }) {
         onClick={() => setOpen(true)}
         className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-500"
       >
-        Cancel Job
+        Leave a Review
       </button>
 
       <DragCloseDrawer open={open} setOpen={setOpen}>
-        <div className=" mx-auto text-center space-y-4 text-neutral-400">
-          <h2 className="text-4xl mx-auto text-center font-bold text-neutral-200 mb-16">
-            Please provide a reason why you would like to cancel this job
+        <div className="mx-auto text-center space-y-4 text-neutral-400">
+          <h2 className="text-xl mx-auto text-center font-bold text-neutral-200 mb-16">
+            Your feedback is important to us!
           </h2>
-          <form onSubmit={handleCancelJob} className="flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col">
             <textarea
-              name="cancellationReason"
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              className="w-[900px] rounded-md border-0 p-3 h-72 text-black shadow-sm ring-1 ring-inset ring-gray-300 placeholder-black focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6"
-              placeholder="Cancellation Reason"
+              name="reviewText"
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              className="rounded-md border-0 p-3 h-72 text-black shadow-sm ring-1 ring-inset ring-gray-300 placeholder-black focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6"
+              placeholder="Leave your review"
               required
             ></textarea>
+            <input
+              type="number"
+              min="1"
+              max="5"
+              value={rating}
+              onChange={(e) => setRating(Number(e.target.value))}
+              className="mt-2 p-2 rounded-md border"
+              placeholder="Rating (1-5)"
+            />
             <button
               type="submit"
-              className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-500 w-56"
+              className="mt-4 mx-auto bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-500 w-56"
             >
-              Confirm Cancellation
+              Submit Review
             </button>
           </form>
         </div>
@@ -72,7 +91,6 @@ export default function CancelJob({ itemId, bidId }) {
 const DragCloseDrawer = ({ open, setOpen, children }) => {
   const [scope, animate] = useAnimate();
   const [drawerRef, { height }] = useMeasure();
-
   const y = useMotionValue(0);
   const controls = useDragControls();
 

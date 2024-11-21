@@ -24,7 +24,7 @@ export default function BidWinner({ winningBid }: BidWinner) {
           </p>
         </div>
       ) : (
-        <p className="mt-2 text-red-500">No winning bid assigned yet.</p>
+        <p className="mt-2 text-red-500">Decision Pending</p>
       )}
     </div>
   );

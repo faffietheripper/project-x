@@ -2,7 +2,6 @@ import {
   integer,
   pgTable,
   primaryKey,
-  serial,
   text,
   boolean,
   timestamp,
@@ -10,7 +9,7 @@ import {
 import type { AdapterAccount } from "next-auth/adapters";
 import { relations } from "drizzle-orm";
 
-// Users Table
+// Users
 export const users = pgTable("bb_user", {
   id: text("id")
     .primaryKey()
@@ -24,7 +23,7 @@ export const users = pgTable("bb_user", {
   role: text("role").default("wasteManager"),
 });
 
-// Accounts Table
+// Accounts
 export const accounts = pgTable(
   "bb_account",
   {
@@ -49,7 +48,7 @@ export const accounts = pgTable(
   })
 );
 
-// Sessions Table
+// Sessions
 export const sessions = pgTable("bb_session", {
   sessionToken: text("sessionToken").primaryKey(), // Session token as primary key
   userId: text("userId")
@@ -58,7 +57,7 @@ export const sessions = pgTable("bb_session", {
   expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-// Verification Tokens Table
+// Verification Tokens
 export const verificationTokens = pgTable(
   "bb_verificationToken",
   {
@@ -71,9 +70,9 @@ export const verificationTokens = pgTable(
   })
 );
 
-// Items Table
+// Items
 export const items = pgTable("bb_item", {
-  id: serial("id").primaryKey(),
+  id: integer("id").primaryKey(), // Changed from serial to integer
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -96,9 +95,9 @@ export const items = pgTable("bb_item", {
     .default(null),
 });
 
-// Bids Table
+// Bids
 export const bids = pgTable("bb_bids", {
-  id: serial("id").primaryKey(), // Auto-incrementing primary key
+  id: integer("id").primaryKey(), // Changed from serial to integer
   amount: integer("amount").notNull(),
   companyName: text("companyName").notNull(),
   emailAddress: text("emailAddress").notNull(),
@@ -118,9 +117,9 @@ export const bids = pgTable("bb_bids", {
   cancellationReason: text("cancellationReason"),
 });
 
-// Profiles Table
+// Profiles
 export const profiles = pgTable("bb_profile", {
-  id: serial("id").primaryKey(), // Auto-incrementing primary key
+  id: integer("id").primaryKey(), // Changed from serial to integer
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
@@ -142,6 +141,20 @@ export const profiles = pgTable("bb_profile", {
   certifications: text("certifications"),
 });
 
+// Reviews
+export const reviews = pgTable("bb_review", {
+  id: integer("id").primaryKey(), // Changed from serial to integer
+  reviewerId: text("reviewerId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users who leave reviews
+  profileId: integer("profileId")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }), // Foreign key to profiles being reviewed
+  rating: integer("rating").notNull(), // Rating, e.g., from 1 to 5
+  reviewText: text("reviewText").notNull(), // The review content
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(), // Timestamp for when the review is created
+});
+
 // Define relationships for bids
 export const bidsRelations = relations(bids, ({ one }) => ({
   user: one(users, {
@@ -154,11 +167,27 @@ export const bidsRelations = relations(bids, ({ one }) => ({
   }),
 }));
 
+// Define relationships for reviews
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id],
+  }),
+  profile: one(profiles, {
+    fields: [reviews.profileId],
+    references: [profiles.id],
+  }),
+}));
+
 // Define relationships for profiles
-export const profilesRelations = relations(profiles, ({ one }) => ({
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
   user: one(users, {
     fields: [profiles.userId],
     references: [users.id],
+  }),
+  reviews: many(reviews, {
+    fields: [reviews.profileId],
+    references: [profiles.id],
   }),
 }));
 
@@ -174,5 +203,6 @@ export const itemsRelations = relations(items, ({ one }) => ({
     references: [bids.id], // Referencing the primary key `id` in the `bids` table
   }),
 }));
+
 // Type for selecting item rows
 export type Item = typeof items.$inferSelect;

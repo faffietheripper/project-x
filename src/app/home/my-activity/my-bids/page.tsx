@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { bids } from "@/db/schema";
 import Link from "next/link";
 import { deleteBidAction } from "@/app/home/my-activity/my-bids/actions";
+
 export default async function MyBids() {
   const session = await auth();
 
@@ -49,8 +50,14 @@ export default async function MyBids() {
                     {new Date(bid.timestamp).toLocaleString()}
                   </div>
 
-                  {/* Conditional rendering for bid status */}
-                  {bid.declinedOffer ? (
+                  {bid.cancelledJob ? (
+                    <div>
+                      <h1 className="text-red-600 font-bold">Canceled Job</h1>
+                      <p className="">
+                        Cancellation Reason: {bid.cancellationReason}
+                      </p>
+                    </div>
+                  ) : bid.declinedOffer ? (
                     <h1 className="text-red-600 font-bold">Declined Offer</h1>
                   ) : isWinningBid ? (
                     <h1 className="text-yellow-600 font-bold">Winning Bid</h1>
@@ -64,15 +71,6 @@ export default async function MyBids() {
                       View Item
                     </button>
                   </Link>
-                  <form action={deleteBidAction} method="post">
-                    <input type="hidden" name="bidId" value={bid.id} />
-                    <button
-                      type="submit"
-                      className="bg-red-600 text-white px-4 py-2 rounded-md"
-                    >
-                      Delete Bid
-                    </button>
-                  </form>
                 </div>
               </li>
             );
