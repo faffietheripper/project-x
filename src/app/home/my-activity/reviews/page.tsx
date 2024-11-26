@@ -1,7 +1,5 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { reviews, profiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 export default async function ReviewsPage() {
   const session = await auth();

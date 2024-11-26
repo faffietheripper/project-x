@@ -2,11 +2,12 @@
 
 "use server";
 
-import { getSession } from "next-auth/react";
+import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { users } from "@/db/schema";
 import bcryptjs from "bcryptjs";
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 
 export async function updatePassword({
   userId,
@@ -65,3 +66,15 @@ export async function updatePassword({
 }
 
 //action to delete account
+export async function deleteAccountAction() {
+  const session = await auth();
+
+  if (!session || !session.user || !session.user.id) {
+    throw new Error("Unauthorized");
+  }
+
+  await database.delete(users).where(eq(users.id, session.user.id));
+
+  // Redirect the user to the homepage
+  redirect("/");
+}

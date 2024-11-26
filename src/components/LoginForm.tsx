@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/login/actions";
 import { useForm } from "react-hook-form";
@@ -13,6 +12,9 @@ type LoginFormInputs = z.infer<typeof LoginSchema>;
 
 export default function LoginForm() {
   const router = useRouter();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const errorContainerRef = useRef<HTMLDivElement | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -28,37 +30,83 @@ export default function LoginForm() {
       router.push("/home");
     } else {
       // Handle login error
+      setServerError("You have entered an incorrect email or password.");
       console.error("Login failed:", res.message);
+
+      // Move focus to error container
+      if (errorContainerRef.current) {
+        errorContainerRef.current.focus();
+      }
     }
   };
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="mt-8 grid grid-cols-6 gap-6"
     >
+      {/* General error message */}
+      {serverError && (
+        <div
+          ref={errorContainerRef}
+          tabIndex={-1}
+          className="col-span-6 bg-red-100 border border-red-400 text-red-700 p-4 rounded relative"
+          role="alert"
+          aria-live="polite"
+        >
+          {serverError}
+        </div>
+      )}
+
       <div className="col-span-6">
-        Email
+        <label
+          htmlFor="Email"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Email
+        </label>
         <input
           type="email"
           id="Email"
           {...register("email")}
           className="mt-1 w-full h-12 border p-3 rounded-md border-gray-200 bg-white text-sm text-gray-700 shadow-sm"
+          aria-invalid={!!errors.email}
+          aria-describedby="email-error"
         />
         {errors.email && (
-          <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+          <p
+            id="email-error"
+            className="text-red-500 text-sm mt-1"
+            role="alert"
+          >
+            {errors.email.message}
+          </p>
         )}
       </div>
 
       <div className="col-span-6">
-        Password
+        <label
+          htmlFor="Password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Password
+        </label>
         <input
           type="password"
           id="Password"
           {...register("password")}
           className="mt-1 w-full rounded-md h-12 border p-3 border-gray-200 bg-white text-sm text-gray-700 shadow-sm"
+          aria-invalid={!!errors.password}
+          aria-describedby="password-error"
         />
         {errors.password && (
-          <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+          <p
+            id="password-error"
+            className="text-red-500 text-sm mt-1"
+            role="alert"
+          >
+            {errors.password.message}
+          </p>
         )}
       </div>
 

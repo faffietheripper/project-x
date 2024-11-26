@@ -10,7 +10,7 @@ import {
 } from "framer-motion";
 import { createReviewAction } from "@/app/home/my-activity/completed-jobs/actions";
 
-export default function JobReview({ profileId }) {
+export default function JobReview({ itemId, profileId }) {
   const [open, setOpen] = useState(false);
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
@@ -21,6 +21,7 @@ export default function JobReview({ profileId }) {
     if (reviewText.trim()) {
       try {
         const result = await createReviewAction({
+          itemId, // Pass itemId here
           profileId,
           rating,
           reviewText,

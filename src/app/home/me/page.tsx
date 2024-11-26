@@ -1,5 +1,6 @@
 import WGProfileForm from "@/components/app/WGProfileForm";
 import WMProfileForm from "@/components/app/WMProfileForm";
+import RoleAssignmentForm from "@/components/app/RoleAssignmentForm";
 import { auth } from "@/auth";
 import React from "react";
 
@@ -18,7 +19,9 @@ export default async function Me() {
       {userRole === "wasteManager" && <WMProfileForm />}
       {userRole === "wasteGenerator" && <WGProfileForm />}
       {userRole !== "wasteManager" && userRole !== "wasteGenerator" && (
-        <div>Role not recognized.</div>
+        <div>
+          <RoleAssignmentForm />
+        </div>
       )}
     </main>
   );

@@ -1,3 +1,4 @@
+import ConfirmProfileDelete from "@/components/app/ConfirmProfileDelete";
 import ManagePassword from "@/components/ManagePassword";
 import React from "react";
 
@@ -88,6 +89,7 @@ export default function Account() {
             Are you sure you want to delete your account ? Deleting your account
             means you wont be able to recover your data from te past if you
             decide to use the service again.
+            <ConfirmProfileDelete />
           </p>
         </details>
       </div>
