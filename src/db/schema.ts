@@ -23,6 +23,20 @@ export const users = pgTable("bb_user", {
   role: text("role").default("wasteManager"),
 });
 
+//Reset Password Tokens
+export const passwordResetTokens = pgTable("bb_passwordResetToken", {
+  id: integer("id")
+    .notNull()
+    .$defaultFn("GENERATED ALWAYS AS IDENTITY") // Use PostgreSQL's identity columns for auto-increment
+    .primaryKey(), // Mark as primary key
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+  token: text("token").notNull(), // Reset token
+  expires: timestamp("expires", { mode: "date" }).notNull(), // Expiration timestamp
+  used: boolean("used").notNull().default(false), // Token usage status
+});
+
 // Accounts
 export const accounts = pgTable(
   "bb_account",
