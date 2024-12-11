@@ -25,14 +25,11 @@ export const users = pgTable("bb_user", {
 
 //Reset Password Tokens
 export const passwordResetTokens = pgTable("bb_passwordResetToken", {
-  id: integer("id")
-    .notNull()
-    .$defaultFn("GENERATED ALWAYS AS IDENTITY") // Use PostgreSQL's identity columns for auto-increment
-    .primaryKey(), // Mark as primary key
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()), // Generate UUID as default
   token: text("token").notNull(), // Reset token
+  email: text("email").notNull(),
   expires: timestamp("expires", { mode: "date" }).notNull(), // Expiration timestamp
   used: boolean("used").notNull().default(false), // Token usage status
 });

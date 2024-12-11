@@ -1,24 +1,38 @@
-import mailgun from "mailgun.js";
+// src/util/sendEmail.ts
+import emailjs from "@emailjs/browser";
 
-const DOMAIN = "YOUR_MAILGUN_DOMAIN";
-const mg = mailgun({
-  apiKey: "YOUR_MAILGUN_API_KEY",
-  domain: DOMAIN,
-});
+export async function sendResetEmail(email: string, resetLink: string) {
+  const SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
+  const TEMPLATE_ID = "template_ttdi4gm";
+  const PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 
-export async function sendResetEmail(email: string, token: string) {
-  const resetLink = `${process.env.BASE_URL}/reset-password?token=${token}`;
-  const data = {
-    from: "YourApp <no-reply@yourdomain.com>",
-    to: email,
-    subject: "Password Reset Request",
-    text: `Click the link below to reset your password:\n\n${resetLink}`,
-  };
+  console.log("temp id", TEMPLATE_ID);
 
   try {
-    await mg.messages().send(data);
+    const templateParams = {
+      to_email: email,
+      reset_link: resetLink,
+    };
+
+    const response = await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID,
+      templateParams,
+      PUBLIC_KEY
+    );
+
+    if (response.status === 200) {
+      console.log("Email sent successfully:", response);
+      return {
+        success: true,
+        message: "Password reset link sent successfully.",
+      };
+    } else {
+      console.error("Failed to send email:", response);
+      throw new Error("Failed to send email.");
+    }
   } catch (error) {
-    console.error("Mailgun error:", error);
-    throw new Error("Failed to send email");
+    console.error("EmailJS error:", error);
+    return { success: false, message: "Error sending reset email." };
   }
 }

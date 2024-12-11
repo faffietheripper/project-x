@@ -1,42 +1,57 @@
 "use server";
 
-import { database } from "@/db/database";
-import { users, passwordResetTokens } from "@/db/schema";
-import { sendResetEmail } from "@/util/password-mail";
 import { randomUUID } from "crypto";
 import { add } from "date-fns";
-import { eq } from "drizzle-orm";
+import { database } from "@/db/database";
+import { passwordResetTokens } from "@/db/schema";
+import { sendResetEmail } from "@/util/password-mail";
 
-export async function submitForgotPassword(email: string) {
-  if (!email) return { message: "Email is required" };
+export async function submitForgotPassword(formData: FormData) {
+  const email = formData.get("email")?.toString();
 
-  // Find user by email
-  const user = await database
-    .select()
-    .from(users)
-    .where(users.email.eq(email))
-    .limit(1);
-
-  if (!user.length) {
-    return { message: "If the email exists, a reset link will be sent" }; // Don't reveal user existence
+  if (!email) {
+    return { success: false, message: "Email is required." };
   }
 
-  const token = randomUUID();
-  const expires = add(new Date(), { hours: 1 });
+  const resetToken = randomUUID();
+  const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+  const tokenExpiration = add(new Date(), { hours: 1 });
 
-  // Save token in database
-  await database.insert(passwordResetTokens).values({
-    userId: user[0].id,
-    token,
-    expires,
-  });
+  console.log("time", tokenExpiration);
 
-  // Send reset email
   try {
-    await sendResetEmail(email, token);
-    return { message: "A reset link has been sent to your email" };
+    // Store the reset token in the database
+    await database.insert(passwordResetTokens).values({
+      email,
+      token: resetToken,
+      expires: tokenExpiration,
+      used: false,
+    });
+
+    console.log("Token successfully stored in the database.");
+
+    // Send the reset email
+    const emailResult = await sendResetEmail(email, resetLink);
+
+    if (!emailResult.success) {
+      console.error("Failed to send email.");
+      return {
+        success: true, // Token is already stored
+        message:
+          "Reset link generated, but there was an issue sending the email.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "If the email exists, a reset link has been sent.",
+    };
   } catch (error) {
-    console.error(error);
-    return { message: "Error sending email, please try again" };
+    console.error("Error handling forgot password:", error);
+
+    return {
+      success: false,
+      message: "An error occurred while processing your request.",
+    };
   }
 }
