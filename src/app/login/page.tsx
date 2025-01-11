@@ -50,12 +50,20 @@ export default function Login() {
               <LoginForm />
 
               <GoogleLogin />
-              <p className="mt-10 text-sm text-gray-500">
-                Don't have an account?{" "}
-                <span className="hover:underline">
-                  <Link href="/register">Register here!</Link>
-                </span>
-              </p>
+              <div className="flex justify-between">
+                <p className="mt-10 text-sm text-gray-500">
+                  Don't have an account?{" "}
+                  <span className="hover:underline">
+                    <Link href="/register">Register here!</Link>
+                  </span>
+                </p>
+                <p className="mt-10 text-sm text-gray-500">
+                  Have you forgotten your password?{" "}
+                  <span className="hover:underline">
+                    <Link href="/forgot-password">Reset it here!</Link>
+                  </span>
+                </p>
+              </div>
             </div>
           </main>
         </div>

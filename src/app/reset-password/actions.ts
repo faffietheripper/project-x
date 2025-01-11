@@ -2,16 +2,44 @@
 
 import { database } from "@/db/database";
 import { passwordResetTokens, users } from "@/db/schema";
-import bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
-export async function submitResetPassword(token: string, newPassword: string) {
-  // Validate inputs
-  if (!token || !newPassword) {
-    return { message: "Token and password are required", success: false };
+export async function validateTokenAndResetPassword(
+  url: string,
+  newPassword: string,
+  confirmPassword: string
+) {
+  if (!url || !newPassword || !confirmPassword) {
+    return {
+      success: false,
+      message: "URL, new password, and confirm password are required.",
+    };
   }
 
-  // Fetch the token record from the database
+  if (newPassword !== confirmPassword) {
+    return {
+      success: false,
+      message: "Password and confirm password do not match.",
+    };
+  }
+
+  if (newPassword.length < 8) {
+    return {
+      success: false,
+      message: "Password must be at least 8 characters long.",
+    };
+  }
+
+  // Extract token from the query string
+  const urlObject = new URL(url);
+  const token = urlObject.searchParams.get("token");
+
+  if (!token) {
+    return { success: false, message: "Invalid reset link. Token is missing." };
+  }
+
+  // Check token in the database
   const tokenRecord = await database
     .select()
     .from(passwordResetTokens)
@@ -23,20 +51,30 @@ export async function submitResetPassword(token: string, newPassword: string) {
     tokenRecord[0].expires < new Date() ||
     tokenRecord[0].used
   ) {
-    return { message: "Invalid or expired token", success: false };
+    return { success: false, message: "Invalid or expired token." };
   }
 
-  const userId = tokenRecord[0].userId;
+  const email = tokenRecord[0].email;
 
   try {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update the user's password
-    await database
+    const updatedUser = await database
       .update(users)
-      .set({ password: hashedPassword })
-      .where(eq(users.id, userId));
+      .set({
+        password: hashedPassword,
+        confirmPassword: hashedPassword,
+      })
+      .where(eq(users.email, email));
+
+    if (!updatedUser) {
+      return {
+        success: false,
+        message: "Failed to update password. User not found.",
+      };
+    }
 
     // Mark the token as used
     await database
@@ -44,12 +82,15 @@ export async function submitResetPassword(token: string, newPassword: string) {
       .set({ used: true })
       .where(eq(passwordResetTokens.token, token));
 
-    return { message: "Password successfully reset", success: true };
+    return {
+      success: true,
+      message: "Password reset successfully.",
+    };
   } catch (error) {
     console.error("Error resetting password:", error);
     return {
-      message: "An error occurred while resetting the password",
       success: false,
+      message: "An error occurred while resetting the password.",
     };
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { submitForgotPassword } from "./actions";
 import emailjs from "@emailjs/browser";
 
 export default function ForgotPassword() {
@@ -17,37 +18,36 @@ export default function ForgotPassword() {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email")?.toString();
-
-    if (!email) {
-      setMessage("Email is required.");
-      setIsLoading(false);
-      return;
-    }
-
-    const resetLink = `http://localhost:3000/reset-password?token=${crypto.randomUUID()}`;
 
     try {
-      const templateParams = {
-        to_email: email,
-        reset_link: resetLink,
-      };
+      // Call the server action to handle token generation and database storage
+      const result = await submitForgotPassword(formData);
 
-      const response = await emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        templateParams,
-        PUBLIC_KEY
-      );
+      if (result.success && result.resetLink) {
+        // Send the email using the reset link returned from the server
+        const templateParams = {
+          to_email: formData.get("email"),
+          reset_link: result.resetLink,
+        };
 
-      if (response.status === 200) {
-        setMessage("Password reset link sent successfully.");
+        const emailResponse = await emailjs.send(
+          SERVICE_ID,
+          TEMPLATE_ID,
+          templateParams,
+          PUBLIC_KEY
+        );
+
+        if (emailResponse.status === 200) {
+          setMessage("Password reset link sent successfully.");
+        } else {
+          setMessage("Failed to send email.");
+        }
       } else {
-        setMessage("Failed to send email.");
+        setMessage(result.message || "An error occurred.");
       }
     } catch (error) {
-      console.error("EmailJS error:", error);
-      setMessage("Error sending reset email.");
+      console.error("Error handling forgot password:", error);
+      setMessage("An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }

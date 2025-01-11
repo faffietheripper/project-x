@@ -28,7 +28,8 @@
     ".next/types/**/*.ts",
     "src/components/home/Hero.jsx",
     "src/components/app/ActivityNav.jsx",
-    "src/components/app/BidForm.jsx"
+    "src/components/app/BidForm.jsx",
+    "src/components/app/NotificationsClient.tsx"
   ],
   "exclude": ["node_modules"]
 }

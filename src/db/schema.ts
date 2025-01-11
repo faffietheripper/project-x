@@ -166,6 +166,27 @@ export const reviews = pgTable("bb_review", {
   timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(), // Timestamp for when the review is created
 });
 
+//Notifications
+export const notifications = pgTable("bb_notifications", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  receiverId: text("receiverId").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  url: text("url").notNull(),
+  isRead: boolean("isRead").notNull().default(false),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+});
+
+// Define relationships for notifications
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.receiverId],
+    references: [users.id],
+  }),
+}));
+
 // Define relationships for bids
 export const bidsRelations = relations(bids, ({ one }) => ({
   user: one(users, {

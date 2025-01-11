@@ -5,11 +5,8 @@ import { database } from "@/db/database";
 import { bids, items, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { Knock } from "@knocklabs/node";
-import { env } from "@/env";
 import { isBidOver } from "@/util/bids";
-
-const knock = new Knock(env.KNOCK_SECRET_KEY);
+import { createNotification } from "../../notifications/actions";
 
 interface CreateBidActionParams {
   companyName: string;
@@ -25,7 +22,6 @@ export async function createBidAction({
   itemId,
 }: CreateBidActionParams) {
   const session = await auth();
-
   const userId = session?.user?.id;
 
   if (!userId) {
@@ -39,8 +35,8 @@ export async function createBidAction({
   if (!item) {
     return { error: "Item not found." };
   }
-  // **Await** the isBidOver function, since it is async
-  const bidOver = await isBidOver(item); // Ensure we await this function
+
+  const bidOver = await isBidOver(item);
 
   if (bidOver) {
     return { error: "This auction is already over." };
@@ -51,12 +47,11 @@ export async function createBidAction({
   });
 
   if (!profile) {
-    return {
-      error: "Please update your profile before placing a bid.",
-    };
+    return { error: "Please update your profile before placing a bid." };
   }
 
   try {
+    // Insert the new bid
     await database.insert(bids).values({
       companyName,
       emailAddress,
@@ -68,12 +63,22 @@ export async function createBidAction({
       timestamp: new Date(),
     });
 
+    // Update the item's current bid
     await database
       .update(items)
-      .set({
-        currentBid: amount,
-      })
+      .set({ currentBid: amount })
       .where(eq(items.id, item.id));
+
+    // Trigger a notification for the item owner
+    const receiverId = item.userId;
+    console.log("receiver", receiverId);
+    if (receiverId) {
+      const title = "New bid placed";
+      const message = `Someone has placed a bid on your item "${item.name}".`;
+      const itemUrl = `/home/items/${item.id}`;
+
+      await createNotification(userId, title, message, itemUrl);
+    }
 
     revalidatePath(`/items/${itemId}`);
 

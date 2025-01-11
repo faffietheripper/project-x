@@ -2,9 +2,9 @@
 import emailjs from "@emailjs/browser";
 
 export async function sendResetEmail(email: string, resetLink: string) {
-  const SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
+  const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
   const TEMPLATE_ID = "template_ttdi4gm";
-  const PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
+  const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
 
   console.log("temp id", TEMPLATE_ID);
 

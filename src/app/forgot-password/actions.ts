@@ -4,7 +4,6 @@ import { randomUUID } from "crypto";
 import { add } from "date-fns";
 import { database } from "@/db/database";
 import { passwordResetTokens } from "@/db/schema";
-import { sendResetEmail } from "@/util/password-mail";
 
 export async function submitForgotPassword(formData: FormData) {
   const email = formData.get("email")?.toString();
@@ -17,8 +16,6 @@ export async function submitForgotPassword(formData: FormData) {
   const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
   const tokenExpiration = add(new Date(), { hours: 1 });
 
-  console.log("time", tokenExpiration);
-
   try {
     // Store the reset token in the database
     await database.insert(passwordResetTokens).values({
@@ -29,25 +26,13 @@ export async function submitForgotPassword(formData: FormData) {
     });
 
     console.log("Token successfully stored in the database.");
-
-    // Send the reset email
-    const emailResult = await sendResetEmail(email, resetLink);
-
-    if (!emailResult.success) {
-      console.error("Failed to send email.");
-      return {
-        success: true, // Token is already stored
-        message:
-          "Reset link generated, but there was an issue sending the email.",
-      };
-    }
-
     return {
       success: true,
-      message: "If the email exists, a reset link has been sent.",
+      resetLink, // Pass the reset link back to the client
+      message: "If the email exists, a reset link has been generated.",
     };
   } catch (error) {
-    console.error("Error handling forgot password:", error);
+    console.error("Error storing reset token:", error);
 
     return {
       success: false,
