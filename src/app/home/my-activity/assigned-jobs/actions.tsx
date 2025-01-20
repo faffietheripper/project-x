@@ -5,6 +5,7 @@ import { bids, items } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "../../notifications/actions";
 
 export async function acceptOfferAction(formData: FormData) {
   const itemId = formData.get("itemId");
@@ -14,12 +15,36 @@ export async function acceptOfferAction(formData: FormData) {
   }
 
   try {
+    // Fetch the item details to ensure it exists and retrieve the necessary data
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, Number(itemId)),
+    });
+
+    if (!item) {
+      throw new Error("Item not found.");
+    }
+
     // Update the item to set offerAccepted to true
     await database
       .update(items)
       .set({ offerAccepted: true })
       .where(eq(items.id, Number(itemId)));
 
+    // Trigger a notification for the item owner
+    const receiverId = item.userId; // The user who created the item
+    console.log("Receiver ID:", receiverId);
+
+    if (receiverId) {
+      const title = "Job Accepted 🎉";
+      const message = `Work on "${item.name}" is now in progress.`;
+      const itemUrl = `/home/my-activity/jobs-in-progress`;
+
+      await createNotification(receiverId, title, message, itemUrl);
+    } else {
+      console.warn("No receiver ID found for the item owner.");
+    }
+
+    // Notify the user of success
     alert("Offer accepted!");
     revalidatePath("/home/my-activity/assigned-jobs");
 

@@ -22,7 +22,7 @@ export default async function MyWinningBids() {
   const itemsWithWinningBids = await database.query.items.findMany({
     where: isNotNull(items.winningBidId),
     with: {
-      winningBid: true, // Include related winning bid data
+      winningBid: true,
     },
   });
 
@@ -85,7 +85,7 @@ export default async function MyWinningBids() {
                       className={`px-4 py-2 rounded-md ${
                         myWinningBid.completed ? "bg-gray-400" : "bg-green-600"
                       } text-white`}
-                      disabled={myWinningBid.completed} // Disable if completed
+                      disabled={myWinningBid.completed}
                     >
                       {myWinningBid.completed
                         ? "Already Completed"

@@ -77,7 +77,7 @@ export async function createBidAction({
       const message = `Someone has placed a bid on your item "${item.name}".`;
       const itemUrl = `/home/items/${item.id}`;
 
-      await createNotification(userId, title, message, itemUrl);
+      await createNotification(receiverId, title, message, itemUrl);
     }
 
     revalidatePath(`/items/${itemId}`);
@@ -140,46 +140,66 @@ export async function handleAssignWinningBid(formData: FormData) {
 */
 
 //function to assign a winning bid
+
 export async function handleAssignWinningBid(formData: FormData) {
   const itemId = formData.get("itemId");
   const bidId = formData.get("bidId");
 
   if (!itemId || !bidId) {
-    return { success: false, message: "id is missing" };
+    return { success: false, message: "ID is missing" };
   }
 
   try {
-    // Retrieve the item to check if a winning bid has already been assigned
+    // Fetch the item along with the winningBid relationship
     const item = await database.query.items.findFirst({
       where: eq(items.id, Number(itemId)),
+      with: {
+        winningBid: true, // Include the winning bid relationship
+      },
     });
 
-    // If a winning bid already exists, stop the process and show a toast
-    if (item && item.winningBidId) {
-      return { success: false, message: "winning bid already assigned" };
+    if (!item) {
+      return { success: false, message: "Item not found" };
     }
 
-    // Retrieve the bid and validate that it belongs to the item
+    // Check if a winning bid has already been assigned
+    if (item.winningBidId) {
+      return { success: false, message: "Winning bid already assigned" };
+    }
+
+    // Fetch the bid and validate it belongs to the item
     const bid = await database.query.bids.findFirst({
       where: eq(bids.id, Number(bidId)),
     });
 
     if (!bid || bid.itemId !== Number(itemId)) {
-      return { success: false, message: "invalid bid" };
+      return { success: false, message: "Invalid bid" };
     }
 
-    // Assign the winning bid if no other winning bid has been assigned
+    // Assign the winning bid
     await database
       .update(items)
       .set({
-        winningBidId: bid.id, // Set the winning bid
+        winningBidId: bid.id,
         assigned: true,
       })
       .where(eq(items.id, Number(itemId)));
 
-    return { success: false, message: "Bid placed successfully" };
+    // Trigger a notification for the bid owner
+    const receiverId = bid.userId; // Fetch directly from the bid
+    console.log("Receiver ID:", receiverId);
+
+    if (receiverId) {
+      const title = "New Job Assigned 🎉";
+      const message = `You have won the auction for your bid on "${item.name}".`;
+      const itemUrl = `/home/my-activity/assigned-jobs`;
+
+      await createNotification(receiverId, title, message, itemUrl);
+    }
+
+    return { success: true, message: "Bid assigned successfully" };
   } catch (error) {
     console.error("Error assigning winning bid:", error);
-    return { success: false, message: "failed to assign winning bid " };
+    return { success: false, message: "Failed to assign winning bid" };
   }
 }
