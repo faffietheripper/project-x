@@ -79,7 +79,22 @@ export async function declineOfferAction(formData: FormData) {
       .set({ declinedOffer: true })
       .where(eq(bids.id, bidId));
 
-    console.log("Offer declined and bid marked as declined successfully.");
+    // Fetch the item details to get the owner's user ID
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, itemId),
+    });
+
+    if (item && item.userId) {
+      // Trigger a notification to the item owner
+      const receiverId = item.userId;
+      const title = "Offer Declined❌";
+      const message = `An offer for your item "${item.name}" has been declined.`;
+      const itemUrl = `/home/my-activity/my-listings`; // Link to the owner's listings
+
+      await createNotification(receiverId, title, message, itemUrl);
+    }
+
+    console.log("Offer declined and notification sent successfully.");
     revalidatePath("/home/my-activity/my-bids");
 
     return { success: true, message: "Offer declined successfully." };
@@ -117,6 +132,21 @@ export async function cancelJobAction({ itemId, bidId, cancellationReason }) {
       })
       .where(eq(items.id, itemId));
 
+    // Fetch the item details to get the owner's user ID
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, itemId),
+    });
+
+    if (item && item.userId) {
+      // Notify the item owner about the job cancellation
+      const receiverId = item.userId;
+      const title = "Job Canceled🚨";
+      const message = `Your job "${item.name}" has been canceled. Reason: "${cancellationReason}".`;
+      const itemUrl = `/home/my-activity/canceled-jobs`; // Link to the owner's canceled jobs section
+
+      await createNotification(receiverId, title, message, itemUrl);
+    }
+
     console.log("Job canceled successfully with reason:", cancellationReason);
     return { success: true, message: "Job canceled successfully." };
   } catch (error) {
@@ -132,14 +162,43 @@ export async function completeJobAction(formData: FormData) {
     throw new Error("Item ID is missing");
   }
 
-  // Update item status to completed in the database
-  await database
-    .update(items)
-    .set({ completed: true })
-    .where(eq(items.id, Number(itemId)));
+  try {
+    // Fetch the item details to ensure it exists and retrieve the necessary data
+    const item = await database.query.items.findFirst({
+      where: eq(items.id, Number(itemId)),
+    });
 
-  revalidatePath("/home/my-activity/completed-jobs");
+    if (!item) {
+      throw new Error("Item not found.");
+    }
 
-  // Return a response if needed (e.g., redirect, toast message, etc.)
-  return { success: true, message: "Item marked as completed." };
+    // Update item status to completed in the database
+    await database
+      .update(items)
+      .set({ completed: true })
+      .where(eq(items.id, Number(itemId)));
+
+    // Trigger a notification for the item owner
+    const receiverId = item.userId; // The user who created the item
+    console.log("Receiver ID:", receiverId);
+
+    if (receiverId) {
+      const title = "Job Completed 🎉";
+      const message = `Your job "${item.name}" has been successfully completed.`;
+      const itemUrl = `/home/my-activity/completed-jobs`;
+
+      await createNotification(receiverId, title, message, itemUrl);
+    } else {
+      console.warn("No receiver ID found for the item owner.");
+    }
+
+    // Revalidate the completed jobs path
+    revalidatePath("/home/my-activity/completed-jobs");
+
+    // Return a success response
+    return { success: true, message: "Item marked as completed." };
+  } catch (error) {
+    console.error("Error completing job:", error);
+    return { success: false, error: "Failed to complete the job." };
+  }
 }

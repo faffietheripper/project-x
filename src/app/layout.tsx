@@ -10,7 +10,7 @@ const fontSans = FontSans({
 });
 
 export const metadata: Metadata = {
-  title: "Bidding App",
+  title: "Waste X",
   description: "Trying out shit lol",
 };
 

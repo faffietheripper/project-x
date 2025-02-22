@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { database } from "@/db/database";
-import { notifications } from "@/db/schema";
+import { notifications, users, profiles } from "@/db/schema";
 
 // Create a notification
 export async function createNotification(
@@ -29,7 +29,13 @@ export async function getUserNotifications(userId: string) {
 }
 
 // Mark a notification as read
-export async function markAsRead(notificationId: string) {
+export async function markAsRead(formData: FormData) {
+  const notificationId = formData.get("notificationId");
+
+  if (!notificationId) {
+    throw new Error("Notification ID is required.");
+  }
+
   try {
     await database
       .update(notifications)
@@ -63,5 +69,26 @@ export async function getUnreadNotificationsCount(userId: string) {
   } catch (error) {
     console.error("Error fetching unread notifications count:", error);
     return 0; // Fallback to 0 in case of an error
+  }
+}
+
+export async function checkForSystemNotifications(
+  userId: string
+): Promise<boolean> {
+  try {
+    const user = await database.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { role: true },
+    });
+
+    const userProfile = await database.query.profiles.findFirst({
+      where: eq(profiles.userId, userId),
+      columns: { id: true },
+    });
+
+    return !user?.role || !userProfile;
+  } catch (error) {
+    console.error("Error checking for system notifications:", error);
+    return false;
   }
 }

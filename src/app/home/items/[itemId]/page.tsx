@@ -57,7 +57,8 @@ export default async function ItemPage({
     session.user.role !== "wasteGenerator" && // Prevent wasteGenerator from bidding
     item.userId !== session.user.id &&
     !(await isBidOver(item)) &&
-    item.archived == false;
+    item.archived == false &&
+    item.offerAccepted == false;
 
   const canAssignBid = session && item.userId == session?.user.id;
 

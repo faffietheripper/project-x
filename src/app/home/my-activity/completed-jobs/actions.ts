@@ -1,8 +1,9 @@
 "use server";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { reviews, items } from "@/db/schema";
+import { reviews, items, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { createNotification } from "../../notifications/actions";
 
 export async function createReviewAction({
   itemId,
@@ -70,7 +71,23 @@ export async function createReviewAction({
     return { error: "You cannot review yourself." };
   }
 
-  // Insert the review
+  // Fetch the profile being reviewed to get its userId
+  const profile = await database.query.profiles.findFirst({
+    where: eq(profiles.id, profileId),
+  });
+
+  if (!profile) {
+    return { error: "Profile not found." };
+  }
+
+  const receiverId = profile.userId;
+
+  // Ensure the receiver is not the reviewer
+  if (receiverId === userId) {
+    return { error: "You cannot send a notification to yourself." };
+  }
+
+  // Insert the review and trigger a notification
   try {
     const reviewData = {
       reviewerId: userId,
@@ -84,9 +101,16 @@ export async function createReviewAction({
 
     await database.insert(reviews).values(reviewData);
 
+    // Trigger a notification for the recipient of the review
+    const title = "New Review Received!";
+    const message = `You have received a review: "${reviewText}" with a rating of ${rating} stars.`;
+    const itemUrl = `/profile/${profileId}/reviews`; // Link to the recipient's reviews
+
+    await createNotification(receiverId, title, message, itemUrl);
+
     return { success: true, message: "Review submitted successfully." };
   } catch (error) {
-    console.error("Error inserting review:", error);
+    console.error("Error inserting review or sending notification:", error);
     throw new Error("Failed to create review.");
   }
 }
