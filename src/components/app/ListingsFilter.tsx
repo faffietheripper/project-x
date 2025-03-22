@@ -44,13 +44,13 @@ export default function HomePage({ items }) {
   };
 
   return (
-    <main className="mx-6">
-      <h1 className="font-bold text-center text-2xl mt-6 mb-14">
+    <main className="mx-6 flex justify-between">
+      <h1 className="font-bold text-center text-xl my-auto">
         Filter Your Search
       </h1>
 
       {/* Filter Form */}
-      <div className="mt-6 flex flex-col gap-y-6">
+      <div className="p-6 flex justify-between gap-x-6">
         <div>
           <h1 className="mb-2">End Date:</h1>
           <input
@@ -90,13 +90,13 @@ export default function HomePage({ items }) {
 
         <button
           onClick={handleFilterSubmit}
-          className="bg-blue-600 text-white py-2 px-4 mt-10 rounded-md"
+          className="bg-blue-600 text-white p-2 rounded-md"
         >
           Apply Filters
         </button>
         <button
           onClick={handleClearFilters}
-          className="bg-gray-600 text-white py-2 px-4 rounded-md"
+          className="bg-gray-600 text-white p-2 rounded-md"
         >
           Clear Filters
         </button>

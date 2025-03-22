@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function ActivityNav({ userRole }) {
   return (
-    <div className="pt-24">
+    <div className="pl-72">
       <SlideTabs userRole={userRole} />
     </div>
   );

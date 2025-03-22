@@ -16,7 +16,7 @@ export default async function layout({
   }
   return (
     <div>
-      <div className=" h-screen w-[300px] shadow-md pt-32 shadow-gray-400 fixed bg-gray-50">
+      <div className=" h-15vw w-[100vw] shadow-md pl-[24vw] shadow-gray-400 fixed bg-gray-50">
         <ListingsFilter items={allItems} />
       </div>
       <div className="ml-[300px] h-screen overflow-y-scroll py-36 px-12">

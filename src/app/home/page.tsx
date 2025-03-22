@@ -1,10 +1,10 @@
+import ActivityFeed from "@/components/app/ActivityFeed";
 import React from "react";
-import HomeIntro from "@/components/app/HomeIntro";
 
 export default function AppHome() {
   return (
     <div>
-      <HomeIntro />
+      <ActivityFeed />
     </div>
   );
 }

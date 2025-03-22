@@ -4,43 +4,18 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
-import {
-  getUnreadNotificationsCount,
-  checkForSystemNotifications,
-} from "@/app/home/notifications/actions";
 
-export default function Header() {
+export default function AdminHeader() {
   const { data: session, status } = useSession();
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [hasSystemNotifications, setHasSystemNotifications] =
-    useState<boolean>(false);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (session?.user?.id) {
-        const count = await getUnreadNotificationsCount(session.user.id);
-        setUnreadCount(count);
-
-        const hasSystemNotifs = await checkForSystemNotifications(
-          session.user.id
-        );
-        setHasSystemNotifications(hasSystemNotifs);
-      }
-    };
-
-    fetchNotifications();
-  }, [session]);
-
-  const showNotificationIndicator = unreadCount > 0 || hasSystemNotifications;
 
   if (status === "loading") {
     return <div>Loading...</div>;
   }
 
   return (
-    <div className="bg-white shadow-md p-12 fixed z-50 w-[20vw] flex  h-full">
-      <div className="flex flex-col justify-between">
-        <div className="flex flex-col justify-between gap-8">
+    <div className="bg-white shadow-md py-10 px-8 fixed z-50 w-[20vw] h-full">
+      <div className="flex flex-col items-between">
+        <div className="flex flex-col gap-8">
           <Link
             href="/home"
             className="text-3xl font-bold flex items-center gap-4"
@@ -54,23 +29,25 @@ export default function Header() {
             />
             Waste X
           </Link>
-          <Link href="/home" className="text-md font-semibold">
-            Home Page.
+          <h1 className="text-2xl font-semibold text-red-600">Welcome Tino.</h1>
+
+          <Link href="/admin" className="text-md font-semibold">
+            Home Page
           </Link>
-          <Link href="/home/waste-listings" className="text-md font-semibold">
-            Waste Listings.
+          <Link href="/admin" className="text-md font-semibold">
+            Track Waste Listings.
           </Link>
-          {session?.user?.role === "wasteGenerator" && (
-            <Link href="/home/items/create" className="text-md font-semibold">
-              Create Waste Listing.
-            </Link>
-          )}
-          <Link href="/home/my-activity" className="text-md font-semibold">
+
+          <Link href="/admin" className="text-md font-semibold">
+            Create Waste Listing.
+          </Link>
+
+          <Link href="/admin" className="text-md font-semibold">
             My Activity.
           </Link>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex  items-center gap-4">
           <Link href="/home/notifications" className="relative">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -86,9 +63,6 @@ export default function Header() {
                 d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
               />
             </svg>
-            {showNotificationIndicator && (
-              <span className="absolute top-0 right-0 w-3 h-3 bg-red-600 rounded-full"></span>
-            )}
           </Link>
 
           <Link href="/home/the-hub">
@@ -108,7 +82,7 @@ export default function Header() {
             </svg>
           </Link>
         </div>
-        <Link href="/home/me" className="flex items-center space-x-3">
+        <Link href="/home/me" className="flex items-center py-6 space-x-3">
           <Image
             src={session?.user?.image || "/avatar.png"}
             width="40"
@@ -118,8 +92,9 @@ export default function Header() {
           />
           <div>{session?.user?.name}</div>
         </Link>
+
         <button
-          className="bg-blue-600 text-white py-2 px-4 w-full rounded-md"
+          className="bg-blue-600 text-white py-2 px-4 rounded-md"
           onClick={() => signOut({ callbackUrl: "/" })}
         >
           Sign Out

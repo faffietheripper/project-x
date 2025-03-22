@@ -18,7 +18,7 @@ export default async function layout({
   return (
     <div>
       <ActivityNav userRole={userRole} />
-      <div className="p-10">{children}</div>
+      <div className="pl-[24vw] p-10">{children}</div>
     </div>
   );
 }
