@@ -40,9 +40,9 @@ export default function ProfileFilter({ profiles }) {
   };
 
   return (
-    <main className="mx-6 my-5">
+    <main className="mx-6 my-5 shadow-md p-10 w-[70vw] bg-white">
       {/* Filter Form */}
-      <div className="flex justify-between">
+      <div className="flex justify-between max-w-[70vw]">
         <div className="flex gap-x-8">
           <div className="flex gap-x-2">
             <select

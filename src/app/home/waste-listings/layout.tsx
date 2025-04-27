@@ -15,11 +15,11 @@ export default async function layout({
     throw new Error("Unauthorized");
   }
   return (
-    <div>
-      <div className=" h-15vw w-[100vw] shadow-md pl-[24vw] shadow-gray-400 fixed bg-gray-50">
+    <div className="relative">
+      <div className=" h-15vw w-[100vw] shadow-md pl-[24vw] pt-[13vh] shadow-gray-400 pb-8 fixed bg-gray-50">
         <ListingsFilter items={allItems} />
       </div>
-      <div className="ml-[300px] h-screen overflow-y-scroll py-36 px-12">
+      <div className="pl-[24vw] h-screen overflow-y-scroll py-64 px-12">
         {children}
       </div>
     </div>

@@ -9,18 +9,32 @@ import {
 import type { AdapterAccount } from "next-auth/adapters";
 import { relations } from "drizzle-orm";
 
+// Organizations
+export const organizations = pgTable("bb_organization", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  chainOfCustody: text("chainOfCustody"),
+  industry: text("industry"),
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
+
 // Users
 export const users = pgTable("bb_user", {
   id: text("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()), // Use UUID for user IDs
+    .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   password: text("password"),
   confirmPassword: text("confirmPassword"),
-  role: text("role").default("wasteManager"),
+  role: text("role"),
+  organizationId: text("organizationId").references(() => organizations.id, {
+    onDelete: "cascade",
+  }),
 });
 
 //Reset Password Tokens
@@ -119,9 +133,9 @@ export const bids = pgTable("bb_bids", {
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
-  profileId: integer("profileId")
+  organizationId: text("organizationId")
     .notNull()
-    .references(() => profiles.id, { onDelete: "cascade" }), // Foreign key to profiles
+    .references(() => organizations.id, { onDelete: "cascade" }), // Foreign key to organisations
   timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
   declinedOffer: boolean("declinedOffer").notNull().default(false),
   cancelledJob: boolean("cancelledJob").notNull().default(false),
@@ -135,8 +149,7 @@ export const profiles = pgTable("bb_profile", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
   profilePicture: text("profilePicture"),
-  companyName: text("companyName").notNull(),
-  companyOverview: text("companyOverview"),
+  fullName: text("fullName").notNull(),
   telephone: text("telephone").notNull(),
   emailAddress: text("emailAddress").notNull(),
   country: text("country").notNull(),
@@ -144,12 +157,6 @@ export const profiles = pgTable("bb_profile", {
   city: text("city").notNull(),
   region: text("region").notNull(),
   postCode: text("postCode").notNull(),
-  wasteManagementMethod: text("wasteManagementMethod").notNull(),
-  wasteManagementNeeds: text("wasteManagementNeeds"),
-  wasteType: text("wasteType"),
-  servicesOffered: text("servicesOffered"),
-  environmentalPolicy: text("environmentalPolicy"),
-  certifications: text("certifications"),
 });
 
 // Reviews
@@ -238,3 +245,18 @@ export const itemsRelations = relations(items, ({ one }) => ({
 
 // Type for selecting item rows
 export type Item = typeof items.$inferSelect;
+
+// Relationships
+export const usersRelations = relations(users, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  members: many(users, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+}));

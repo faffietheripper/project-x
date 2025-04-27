@@ -1,6 +1,6 @@
 import React from "react";
 import { auth } from "@/auth";
-import ActivityNav from "@/components/app/ActivityNav";
+import TeamNav from "@/components/app/TeamNav";
 
 export default async function layout({
   children,
@@ -17,8 +17,8 @@ export default async function layout({
 
   return (
     <div className="relative">
-      <ActivityNav userRole={userRole} />
-      <div className="pl-[24vw] p-10 pt-56">{children}</div>
+      <TeamNav userRole={userRole} />
+      <div className="">{children}</div>
     </div>
   );
 }

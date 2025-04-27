@@ -1,5 +1,4 @@
-import WGProfileForm from "@/components/app/WGProfileForm";
-import WMProfileForm from "@/components/app/WMProfileForm";
+import ProfileForm from "@/components/app/ProfileForm";
 import RoleAssignmentForm from "@/components/app/RoleAssignmentForm";
 import { auth } from "@/auth";
 import React from "react";
@@ -7,22 +6,18 @@ import React from "react";
 export default async function Me() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user) {
     return <div>Unauthorized</div>;
   }
 
-  const userRole = session.user.role;
+  const userRole = session.user.role ?? ""; // Fallback to empty string
+  const knownRoles = ["administrator", "seniorMember", "teamMember"];
 
   return (
     <main className="mb-10">
       <h1 className="text-3xl font-bold mb-10">Profile Settings</h1>
-      {userRole === "wasteManager" && <WMProfileForm />}
-      {userRole === "wasteGenerator" && <WGProfileForm />}
-      {userRole !== "wasteManager" && userRole !== "wasteGenerator" && (
-        <div>
-          <RoleAssignmentForm />
-        </div>
-      )}
+
+      {knownRoles.includes(userRole) ? <ProfileForm /> : <RoleAssignmentForm />}
     </main>
   );
 }

@@ -4,6 +4,7 @@ import React from "react";
 import { auth } from "@/auth";
 import { Toaster } from "@/components/ui/toaster";
 import { redirect } from "next/navigation"; // ✅ Import redirect
+import Header2 from "@/components/app/Header2";
 
 export default async function Layout({
   children,
@@ -19,7 +20,7 @@ export default async function Layout({
     <div>
       <Header />
       <Toaster />
-
+      <Header2 />
       <div>{children}</div>
     </div>
   );

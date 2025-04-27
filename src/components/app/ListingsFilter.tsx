@@ -44,7 +44,7 @@ export default function HomePage({ items }) {
   };
 
   return (
-    <main className="mx-6 flex justify-between">
+    <main className="h-[13vh] flex justify-between">
       <h1 className="font-bold text-center text-xl my-auto">
         Filter Your Search
       </h1>
@@ -90,13 +90,13 @@ export default function HomePage({ items }) {
 
         <button
           onClick={handleFilterSubmit}
-          className="bg-blue-600 text-white p-2 rounded-md"
+          className="bg-blue-600 text-white p-2 h-fit rounded-md"
         >
           Apply Filters
         </button>
         <button
           onClick={handleClearFilters}
-          className="bg-gray-600 text-white p-2 rounded-md"
+          className="bg-gray-600 text-white p-2 h-fit rounded-md"
         >
           Clear Filters
         </button>

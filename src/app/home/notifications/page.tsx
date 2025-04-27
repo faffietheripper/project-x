@@ -61,7 +61,7 @@ export default async function NotificationsPage() {
     const allNotifications = [...systemNotifications, ...userNotifications];
 
     return (
-      <div className="p-36">
+      <div className="pt-[18vh] pr-10 pl-[24vw]">
         <h1 className="text-2xl font-bold mb-8">Your Notifications</h1>
 
         {allNotifications.length === 0 ? (

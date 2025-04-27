@@ -15,9 +15,9 @@ export default async function layout({
   }
   return (
     <div className="">
-      <div className=" h-[100vh] w-[300px] shadow-md shadow-gray-400 fixed bg-gray-50">
-        <div className="flex flex-col gap-y-[350px] pt-40">
-          <div className="flex flex-col gap-12 pl-6">
+      <div className=" w-full pl-[24vw]  shadow-md shadow-gray-400 fixed bg-gray-50">
+        <div className="">
+          <div className="flex justify-between gap-12 p-6">
             <div className="flex items-center gap-4">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -112,29 +112,6 @@ export default async function layout({
               </Link>
             </div>
           </div>
-          <Link
-            href="/home/me"
-            className="flex space-x-3  shadow shadow-gray-400 p-4 items-center"
-          >
-            {session?.user.image ? (
-              <Image
-                src={session.user.image}
-                width="40"
-                height="40"
-                alt="user avatar"
-                className="rounded-full"
-              />
-            ) : (
-              <Image
-                src="/avatar.png"
-                width="40"
-                height="40"
-                alt="user avatar"
-                className="rounded-full"
-              />
-            )}
-            <div>{session?.user.name}</div>
-          </Link>
         </div>
       </div>
       <div className="ml-[300px] h-screen px-20 pt-40 overflow-y-scroll">

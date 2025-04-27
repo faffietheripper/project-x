@@ -15,11 +15,11 @@ export default async function layout({
     throw new Error("Unauthorized");
   }
   return (
-    <div>
-      <div className="fixed w-full shadow-md shadow-gray-300 pt-32 bg-gray-200">
+    <div className="pl-[24vw] pt-[13vh] relative">
+      <div className="w-full pt-10 fixed ">
         <ProfileFilter profiles={allProfiles} />
       </div>
-      <div className=" h-screen overflow-y-scroll py-64 px-12">{children}</div>
+      <div className=" h-screen pt-56 overflow-y-scroll">{children}</div>
     </div>
   );
 }

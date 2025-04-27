@@ -2,7 +2,7 @@ import WasteListingForm from "@/components/app/WasteListingForm";
 
 export default function CreateWasteListing() {
   return (
-    <main className="py-36 px-12">
+    <main className="pl-[24vw] py-14 pt-[15vh] px-12">
       <h1 className="py-4 text-center text-3xl font-bold">
         Waste Listing Form
       </h1>

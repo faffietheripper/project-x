@@ -42,8 +42,7 @@ export async function fetchProfileAction() {
 // Save or update the profile action
 export async function saveProfileAction({
   profilePicture,
-  companyName,
-  companyOverview,
+  fullName,
   telephone,
   emailAddress,
   country,
@@ -51,16 +50,9 @@ export async function saveProfileAction({
   city,
   region,
   postCode,
-  wasteManagementMethod,
-  wasteManagementNeeds,
-  servicesOffered,
-  wasteType,
-  environmentalPolicy,
-  certifications,
 }: {
   profilePicture: string;
-  companyName: string;
-  companyOverview: string;
+  fullName: string;
   telephone: string;
   emailAddress: string;
   country: string;
@@ -68,12 +60,6 @@ export async function saveProfileAction({
   city: string;
   region: string;
   postCode: string;
-  wasteManagementMethod: string;
-  servicesOffered: string;
-  wasteManagementNeeds: string;
-  wasteType?: string;
-  environmentalPolicy?: string;
-  certifications: string[];
 }) {
   const session = await auth();
 
@@ -90,8 +76,7 @@ export async function saveProfileAction({
       .update(profiles)
       .set({
         profilePicture,
-        companyName,
-        companyOverview,
+        fullName,
         telephone,
         emailAddress,
         country,
@@ -99,20 +84,13 @@ export async function saveProfileAction({
         city,
         region,
         postCode,
-        wasteManagementMethod,
-        wasteManagementNeeds,
-        servicesOffered,
-        wasteType,
-        environmentalPolicy,
-        certifications: certifications.join(","),
       })
       .where(eq(profiles.userId, userId));
   } else {
     await database.insert(profiles).values({
       userId: userId,
       profilePicture,
-      companyName,
-      companyOverview,
+      fullName,
       telephone,
       emailAddress,
       country,
@@ -120,12 +98,6 @@ export async function saveProfileAction({
       city,
       region,
       postCode,
-      wasteManagementMethod,
-      wasteManagementNeeds,
-      servicesOffered,
-      wasteType,
-      environmentalPolicy,
-      certifications: certifications.join(","),
     });
   }
 
@@ -145,7 +117,7 @@ export async function assignRoleAction({ role }: { role: string }) {
     throw new Error("Unauthorized");
   }
 
-  if (!["wasteManager", "wasteGenerator"].includes(role)) {
+  if (!["administrator", "seniorMember", "teamMember"].includes(role)) {
     throw new Error("Invalid role selected");
   }
 
