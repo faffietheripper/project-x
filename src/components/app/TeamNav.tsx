@@ -136,13 +136,17 @@ const SettingsDropdown = () => {
         style={{ originY: "top", translateX: "-50%" }}
         className="flex flex-col gap-2 p-2 rounded-lg bg-white shadow-xl absolute top-[120%] left-[50%] w-48 overflow-hidden"
       >
-        <Option setOpen={setOpen} Icon={FiEdit} text="Create New Team" />
-        <Option
-          setOpen={setOpen}
-          Icon={FiPlusSquare}
-          text="Create New Template"
-        />
-        <Option setOpen={setOpen} Icon={FiShare} text="Share" />
+        <Link href="/home/team-dashboard/team-profile">
+          <Option setOpen={setOpen} Icon={FiEdit} text="Team Profile" />
+        </Link>
+        <Link href="/home/team-dashboard/new-template">
+          <Option
+            setOpen={setOpen}
+            Icon={FiPlusSquare}
+            text="Create New Template"
+          />
+        </Link>
+        <Option setOpen={setOpen} Icon={FiShare} text="Manage Team" />
         <Option setOpen={setOpen} Icon={FiTrash} text="Remove" />
       </motion.ul>
     </motion.div>

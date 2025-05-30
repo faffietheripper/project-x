@@ -14,10 +14,18 @@ export const organizations = pgTable("bb_organization", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
+  teamName: text("teamName").notNull(),
+  profilePicture: text("profilePicture"),
   chainOfCustody: text("chainOfCustody"),
   industry: text("industry"),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  telephone: text("telephone").notNull(),
+  emailAddress: text("emailAddress").notNull(),
+  country: text("country").notNull(),
+  streetAddress: text("streetAddress").notNull(),
+  city: text("city").notNull(),
+  region: text("region").notNull(),
+  postCode: text("postCode").notNull(),
 });
 
 // Users
