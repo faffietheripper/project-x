@@ -1,42 +1,40 @@
 "use client";
 
-//this folder will be empty at the start and to register a new organisation onto the system you just need to fill it out and then from then you can just update the team profile
-
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   createUploadUrlAction,
   saveProfileAction,
   fetchProfileAction,
-} from "@/app/home/me/actions";
+} from "@/app/home/team-dashboard/team-profile/actions";
 import { getImageUrl } from "@/util/files";
 
 export default function TeamProfileForm() {
-  // Initialize profileData as an empty object to avoid null errors
-  const [profileData, setProfileData] = useState<any>({});
-  const [files, setFiles] = useState<File[]>([]);
-  const [newProfilePicture, setNewProfilePicture] = useState<File | null>(null);
+  const [profileData, setProfileData] = useState({});
+  const [newProfilePicture, setNewProfilePicture] = useState(null);
+  const [chainOfCustody, setChainOfCustody] = useState("wasteGenerator");
   const router = useRouter();
 
   useEffect(() => {
     async function loadProfile() {
       const profile = await fetchProfileAction();
-      setProfileData(profile || {}); // Ensure profileData is always an object
+      setProfileData(profile || {});
+      if (profile?.chainOfCustody) {
+        setChainOfCustody(profile.chainOfCustody);
+      }
     }
 
     loadProfile();
   }, []);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = event.target;
-    if (files) {
-      if (name === "profilePicture") {
-        setNewProfilePicture(files[0]);
-      }
+  const handleFileChange = (event) => {
+    const { files } = event.target;
+    if (files?.length > 0) {
+      setNewProfilePicture(files[0]);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const form = e.currentTarget;
@@ -57,16 +55,16 @@ export default function TeamProfileForm() {
     await saveProfileAction({
       profilePicture:
         newProfilePicture?.name || profileData?.profilePicture || "",
-      teamName: formData.get("teamName") as string,
-      chainOfCustody: formData.get("chainOfCustody") as string,
-      industry: formData.get("industry") as string,
-      telephone: formData.get("telephone") as string,
-      emailAddress: formData.get("emailAddress") as string,
-      country: formData.get("country") as string,
-      streetAddress: formData.get("streetAddress") as string,
-      city: formData.get("city") as string,
-      region: formData.get("region") as string,
-      postCode: formData.get("postCode") as string,
+      teamName: formData.get("teamName"),
+      chainOfCustody,
+      industry: formData.get("industry"),
+      telephone: formData.get("telephone"),
+      emailAddress: formData.get("emailAddress"),
+      country: formData.get("country"),
+      streetAddress: formData.get("streetAddress"),
+      city: formData.get("city"),
+      region: formData.get("region"),
+      postCode: formData.get("postCode"),
     });
 
     alert("Profile saved successfully!");
@@ -76,15 +74,14 @@ export default function TeamProfileForm() {
   return (
     <main>
       <form
-        className="flex flex-col p-8 rounded-xl space-y-5"
+        className="flex justify-center flex-col rounded-xl space-y-5 pb-10"
         onSubmit={handleSubmit}
       >
-        <div className="grid grid-cols-1 justify-items-center ">
+        <div className="grid grid-cols-1 justify-items-center">
           <div className="mb-2 text-sm text-gray-800">
             <h1 className="pb-2 font-semibold">Profile Picture:</h1>
           </div>
 
-          {/* Display existing profile picture */}
           {profileData.profilePicture && (
             <div className="mb-4">
               <img
@@ -103,10 +100,12 @@ export default function TeamProfileForm() {
             className="mt-2 ml-32"
           />
         </div>
+
         <section>
           <div className="mb-2 text-sm text-gray-800">
             <h1 className="pb-2 font-semibold">Profile Details :</h1>
           </div>
+
           <label className="block text-sm font-medium text-gray-700 mt-4">
             Team Name
           </label>
@@ -115,7 +114,17 @@ export default function TeamProfileForm() {
             className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
             name="teamName"
             placeholder="Team Name"
-            defaultValue={profileData.fullName || ""}
+            defaultValue={profileData.teamName || ""}
+          />
+          <label className="block text-sm font-medium text-gray-700 mt-4">
+            Industry
+          </label>
+          <input
+            required
+            className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
+            name="industry"
+            placeholder="Industry"
+            defaultValue={profileData.industry || ""}
           />
         </section>
 
@@ -162,6 +171,7 @@ export default function TeamProfileForm() {
               placeholder="Street Address"
               defaultValue={profileData.streetAddress || ""}
             />
+
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mt-4">
@@ -200,6 +210,7 @@ export default function TeamProfileForm() {
                 />
               </div>
             </div>
+
             <label className="block text-sm font-medium text-gray-700 mt-4">
               Country
             </label>

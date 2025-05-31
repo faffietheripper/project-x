@@ -3,9 +3,7 @@ import TeamProfileForm from "@/components/app/TeamDashboard/TeamProfileForm";
 
 export default function TeamProfile() {
   return (
-    <div className="p-96">
-      <h1>This is the settings page</h1>
-      This page is where admin creates a new team
+    <div className="pt-[30vh] pr-10 pl-[24vw]">
       <TeamProfileForm />
     </div>
   );

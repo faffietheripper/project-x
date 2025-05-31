@@ -2,13 +2,12 @@
 
 import { database } from "@/db/database";
 import { organisations, users } from "@/db/schema";
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { getSignedUrlForS3Object } from "@/lib/s3";
 import { eq } from "drizzle-orm";
-import { signOut } from "@/auth";
 
-// Create the upload URL action for Cloudflare R2 or any S3-compatible service
+// Upload URL action for S3-compatible services
 export async function createUploadUrlAction(keys: string[], types: string[]) {
   if (keys.length !== types.length) {
     throw new Error("Keys and types array must be of the same length.");
@@ -21,25 +20,30 @@ export async function createUploadUrlAction(keys: string[], types: string[]) {
   return signedUrls;
 }
 
-// Fetch the existing profile action
+// ✅ Fetch organisation by user's membership
 export async function fetchProfileAction() {
   const session = await auth();
-
-  if (!session || !session.user) {
-    throw new Error("Unauthorized");
-  }
+  if (!session?.user) throw new Error("Unauthorized");
 
   const userId = session.user.id;
 
-  const profileArray = await database
-    .select()
-    .from(organisations)
-    .where(eq(profiles.userId, userId));
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: {
+      organisationId: true,
+    },
+  });
 
-  return profileArray[0] || null;
+  if (!user?.organisationId) return null;
+
+  const org = await database.query.organisations.findFirst({
+    where: eq(organisations.id, user.organisationId),
+  });
+
+  return org || null;
 }
 
-// Save or update the profile action
+// ✅ Save or update organisation and associate user
 export async function saveProfileAction({
   profilePicture,
   teamName,
@@ -66,16 +70,20 @@ export async function saveProfileAction({
   postCode: string;
 }) {
   const session = await auth();
-
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
+  if (!session?.user) throw new Error("Unauthorized");
 
   const userId = session.user.id;
 
-  const existingProfile = await fetchProfileAction();
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: {
+      organisationId: true,
+    },
+  });
 
-  if (existingProfile) {
+  const existingOrgId = user?.organisationId;
+
+  if (existingOrgId) {
     await database
       .update(organisations)
       .set({
@@ -91,48 +99,51 @@ export async function saveProfileAction({
         region,
         postCode,
       })
-      .where(eq(profiles.userId, userId));
+      .where(eq(organisations.id, existingOrgId));
   } else {
-    await database.insert(profiles).values({
-      profilePicture,
-      teamName,
-      chainOfCustody,
-      industry,
-      telephone,
-      emailAddress,
-      country,
-      streetAddress,
-      city,
-      region,
-      postCode,
-    });
+    // Create new organisation and update user's organisationId + role
+    const [newOrg] = await database
+      .insert(organisations)
+      .values({
+        profilePicture,
+        teamName,
+        chainOfCustody,
+        industry,
+        telephone,
+        emailAddress,
+        country,
+        streetAddress,
+        city,
+        region,
+        postCode,
+      })
+      .returning();
+
+    await database
+      .update(users)
+      .set({
+        organisationId: newOrg.id,
+        role: "administrator",
+      })
+      .where(eq(users.id, userId));
   }
 
   redirect("/home/my-activity");
 }
 
+// ✅ Assign a role within the organisation (not global user table)
 export async function assignRoleAction({ role }: { role: string }) {
   const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
 
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
-
-  const user = session.user;
-
-  if (!user || !user.id) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session.user.id;
 
   if (!["administrator", "seniorMember", "teamMember"].includes(role)) {
     throw new Error("Invalid role selected");
   }
 
-  await database.update(users).set({ role }).where(eq(users.id, user.id));
+  await database.update(users).set({ role }).where(eq(users.id, userId));
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
-
-  await signOut({
-    redirectTo: "/",
-  });
+  await signOut({ redirectTo: "/" });
 }

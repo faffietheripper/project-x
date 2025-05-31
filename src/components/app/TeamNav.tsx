@@ -3,28 +3,22 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import {
-  FiEdit,
-  FiChevronDown,
-  FiTrash,
-  FiShare,
-  FiPlusSquare,
-} from "react-icons/fi";
+import { FiEdit, FiChevronDown, FiShare, FiPlusSquare } from "react-icons/fi";
+import NewMemberModal from "./TeamDashboard/NewMemberModal";
 
 export default function TeamNav({ userRole }) {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div className="pl-72 pt-[13vh] fixed">
-      <SlideTabs userRole={userRole} />
+      <SlideTabs userRole={userRole} setShowModal={setShowModal} />
+      <NewMemberModal isOpen={showModal} setIsOpen={setShowModal} />
     </div>
   );
 }
 
-const SlideTabs = ({ userRole }) => {
-  const [position, setPosition] = useState({
-    left: 0,
-    width: 0,
-    opacity: 0,
-  });
+const SlideTabs = ({ userRole, setShowModal }) => {
+  const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
 
   return (
     <ul
@@ -46,6 +40,7 @@ const SlideTabs = ({ userRole }) => {
           <Link href="/home/my-activity/assigned-jobs">Assigned Jobs</Link>
         </Tab>
       )}
+
       {userRole === "wasteGenerator" && (
         <>
           <Tab setPosition={setPosition}>
@@ -63,19 +58,21 @@ const SlideTabs = ({ userRole }) => {
           </Tab>
         </>
       )}
+
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
       </Tab>
+
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/completed-jobs">Jobs Completed</Link>
       </Tab>
+
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/reviews">Reviews</Link>
       </Tab>
 
-      {/* 🛠 Settings Dropdown - no Link */}
       <Tab setPosition={setPosition}>
-        <SettingsDropdown />
+        <SettingsDropdown setShowModal={setShowModal} />
       </Tab>
 
       <Cursor position={position} />
@@ -114,8 +111,8 @@ const Cursor = ({ position }) => {
   );
 };
 
-// ⚡ Settings Dropdown
-const SettingsDropdown = () => {
+// ⚙ Settings Dropdown
+const SettingsDropdown = ({ setShowModal }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -139,6 +136,7 @@ const SettingsDropdown = () => {
         <Link href="/home/team-dashboard/team-profile">
           <Option setOpen={setOpen} Icon={FiEdit} text="Team Profile" />
         </Link>
+
         <Link href="/home/team-dashboard/new-template">
           <Option
             setOpen={setOpen}
@@ -146,18 +144,28 @@ const SettingsDropdown = () => {
             text="Create New Template"
           />
         </Link>
+
         <Option setOpen={setOpen} Icon={FiShare} text="Manage Team" />
-        <Option setOpen={setOpen} Icon={FiTrash} text="Remove" />
+
+        <Option
+          setOpen={setOpen}
+          Icon={FiPlusSquare}
+          text="Add New Member"
+          onClick={() => setShowModal(true)}
+        />
       </motion.ul>
     </motion.div>
   );
 };
 
-const Option = ({ text, Icon, setOpen }) => {
+const Option = ({ text, Icon, setOpen, onClick }) => {
   return (
     <motion.li
       variants={itemVariants}
-      onClick={() => setOpen(false)}
+      onClick={() => {
+        setOpen(false);
+        if (onClick) onClick();
+      }}
       className="flex items-center gap-2 w-full p-2 text-xs font-medium whitespace-nowrap rounded-md hover:bg-indigo-100 text-slate-700 hover:text-indigo-500 transition-colors cursor-pointer"
     >
       <motion.span variants={actionIconVariants}>

@@ -9,8 +9,8 @@ import {
 import type { AdapterAccount } from "next-auth/adapters";
 import { relations } from "drizzle-orm";
 
-// Organizations
-export const organizations = pgTable("bb_organization", {
+// Organisations
+export const organisations = pgTable("bb_organisation", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -28,7 +28,7 @@ export const organizations = pgTable("bb_organization", {
   postCode: text("postCode").notNull(),
 });
 
-// Users
+// Users (no more organisationMembers)
 export const users = pgTable("bb_user", {
   id: text("id")
     .primaryKey()
@@ -39,10 +39,10 @@ export const users = pgTable("bb_user", {
   image: text("image"),
   password: text("password"),
   confirmPassword: text("confirmPassword"),
-  role: text("role"),
-  organizationId: text("organizationId").references(() => organizations.id, {
+  organisationId: text("organisationId").references(() => organisations.id, {
     onDelete: "cascade",
   }),
+  role: text("role"), // 'administrator', 'employee', "seniorManagement".
 });
 
 //Reset Password Tokens
@@ -141,9 +141,9 @@ export const bids = pgTable("bb_bids", {
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
-  organizationId: text("organizationId")
+  organisationId: text("organisationId")
     .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }), // Foreign key to organisations
+    .references(() => organisations.id, { onDelete: "cascade" }), // Foreign key to organisations
   timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
   declinedOffer: boolean("declinedOffer").notNull().default(false),
   cancelledJob: boolean("cancelledJob").notNull().default(false),
@@ -226,18 +226,6 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
-// Define relationships for profiles
-export const profilesRelations = relations(profiles, ({ one, many }) => ({
-  user: one(users, {
-    fields: [profiles.userId],
-    references: [users.id],
-  }),
-  reviews: many(reviews, {
-    fields: [reviews.profileId],
-    references: [profiles.id],
-  }),
-}));
-
 // Define relationships for items
 export const itemsRelations = relations(items, ({ one }) => ({
   user: one(users, {
@@ -256,15 +244,15 @@ export type Item = typeof items.$inferSelect;
 
 // Relationships
 export const usersRelations = relations(users, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [users.organizationId],
-    references: [organizations.id],
+  organisation: one(organisations, {
+    fields: [users.organisationId],
+    references: [organisations.id],
   }),
 }));
 
-export const organizationsRelations = relations(organizations, ({ many }) => ({
+export const organisationsRelations = relations(organisations, ({ many }) => ({
   members: many(users, {
-    fields: [users.organizationId],
-    references: [organizations.id],
+    fields: [users.organisationId],
+    references: [organisations.id],
   }),
 }));
