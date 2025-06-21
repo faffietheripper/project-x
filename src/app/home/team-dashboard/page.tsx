@@ -1,10 +1,11 @@
-import TeamHome from "@/components/app/TeamDashboard/TeamHome";
+import CompanyOverview from "@/components/app/TeamDashboard/CompanyOverview";
+
 import React from "react";
 
 export default function TeamDashboardHome() {
   return (
-    <div className=" pr-10">
-      <TeamHome />
+    <div className=" pl-[24vw] p-10 pt-56 pr-10">
+      <CompanyOverview />
     </div>
   );
 }

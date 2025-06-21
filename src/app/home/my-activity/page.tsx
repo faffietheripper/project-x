@@ -1,7 +1,5 @@
-import WMProfile from "@/components/app/WMProfile";
-import WGProfile from "@/components/app/WGProfile";
+import UserOverview from "@/components/app/MyActivity/UserOverview";
 import { auth } from "@/auth";
-import Link from "next/link";
 import React from "react";
 
 export default async function MyActivity() {
@@ -15,21 +13,9 @@ export default async function MyActivity() {
 
   return (
     <main className="mb-10">
-      {userRole === "wasteManager" && (
-        <>
-          <WMProfile />
-        </>
-      )}
-
-      {userRole === "wasteGenerator" && (
-        <>
-          <WGProfile />
-        </>
-      )}
-
-      {userRole !== "wasteManager" && userRole !== "wasteGenerator" && (
-        <div>Role not recognized.</div>
-      )}
+      <>
+        <UserOverview />
+      </>
     </main>
   );
 }

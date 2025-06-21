@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function ActivityNav({ userRole }) {
   return (
-    <div className="pl-72 pt-[13vh] fixed">
+    <div className="pl-72 pt-[13vh] w-full fixed">
       <SlideTabs userRole={userRole} />
     </div>
   );
@@ -27,7 +27,7 @@ const SlideTabs = ({ userRole }) => {
           opacity: 0,
         }));
       }}
-      className="relative flex justify-between bg-gray-200 h-[13vh] pt-4 text-sm px-10"
+      className="relative flex justify-around bg-gray-200 h-[13vh] pt-4 text-sm px-10"
     >
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity">My Profile</Link>

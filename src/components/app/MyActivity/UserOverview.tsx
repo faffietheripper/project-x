@@ -7,7 +7,7 @@ import Image from "next/image";
 import { getImageUrl } from "@/util/files";
 import Link from "next/link";
 
-export default async function WMProfile() {
+export default async function UserOverview() {
   const session = await auth();
 
   if (!session || !session.user) {
@@ -53,7 +53,7 @@ export default async function WMProfile() {
 
       <section className="space-y-8">
         <div className="p-6 bg-gray-100 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">Company Overview</h2>
+          <h2 className="text-2xl font-semibold mb-4">User Overview</h2>
 
           <p className="text-md">{profile.companyOverview}</p>
         </div>
@@ -82,49 +82,6 @@ export default async function WMProfile() {
             <strong>Post Code:</strong> {profile.postCode}
           </p>
         </div>
-
-        <div className="p-6 bg-gray-100 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">Services Offered</h2>
-          <p className="text-lg">
-            <strong>Waste Management Method:</strong>{" "}
-            {profile.wasteManagementMethod}
-          </p>
-          <p className="text-lg">
-            <strong>Waste Management Services Offered:</strong>{" "}
-            {profile.servicesOffered}
-          </p>
-          {profile.wasteType && (
-            <p className="text-lg">
-              <strong>Waste Type:</strong> {profile.wasteType}
-            </p>
-          )}
-          {profile.environmentalPolicy && (
-            <p className="text-lg">
-              <strong>Environmental Policy:</strong>{" "}
-              {profile.environmentalPolicy}
-            </p>
-          )}
-        </div>
-
-        {profile.certifications && (
-          <div className="p-6 bg-gray-100 rounded-lg">
-            <h2 className="text-2xl font-semibold mb-4">Certifications</h2>
-            <ul className="list-disc list-inside text-lg">
-              {profile.certifications.split(",").map((cert, index) => (
-                <li key={index}>
-                  <a
-                    href={getImageUrl(cert)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {cert}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
     </main>
   );

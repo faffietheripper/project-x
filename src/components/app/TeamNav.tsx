@@ -145,14 +145,7 @@ const SettingsDropdown = ({ setShowModal }) => {
           />
         </Link>
 
-        <Option setOpen={setOpen} Icon={FiShare} text="Manage Team" />
-
-        <Option
-          setOpen={setOpen}
-          Icon={FiPlusSquare}
-          text="Add New Member"
-          onClick={() => setShowModal(true)}
-        />
+        <Option setOpen={setOpen} Icon={FiShare} text="User Permissions" />
       </motion.ul>
     </motion.div>
   );

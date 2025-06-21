@@ -90,7 +90,7 @@ export default function AdminHeader() {
             alt="User avatar"
             className="rounded-full"
           />
-          <div>{session?.user?.name}</div>
+          <div>{session?.profile?.fullName || session?.user?.name}</div>
         </Link>
 
         <button

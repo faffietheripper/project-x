@@ -22,10 +22,10 @@ export default function RoleAssignmentForm() {
     <div className="max-w-lg mx-auto p-6 bg-white shadow-md rounded-lg">
       <h1 className="text-2xl font-bold mb-4">Role Assignment Form</h1>
       <p className="text-gray-700 mb-6">
-        You have no access to this feature yet. Please join a team or create a
-        new team if you are your organisation's Waste X administrator. Select
-        your role below and then proceed to the Team Dashboard. If you need any
-        help, please contact our support team.
+        We have noticed that you hve no role assigned to you which means you
+        either need to get in contact with your administrator or you are the
+        administrator. Select your role below and then proceed to the Team
+        Dashboard. If you need any help, please contact our support team.
       </p>
       <form onSubmit={handleRoleChange}>
         <label htmlFor="role" className="block mb-2 text-gray-700">
@@ -39,8 +39,6 @@ export default function RoleAssignmentForm() {
           className="w-full mb-4 p-2 border rounded"
         >
           <option value="administrator">Administrator</option>
-          <option value="seniorMember">Senior Member</option>
-          <option value="teamMember">Team Member</option>
         </select>
         <button
           type="submit"

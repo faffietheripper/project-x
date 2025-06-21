@@ -14,7 +14,7 @@ export default function NewMemberModal() {
     <div className="place-content-center">
       <button
         onClick={() => setIsOpen(true)}
-        className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm px-4 py-2 rounded hover:opacity-90 transition-opacity"
+        className=" bg-blue-600 m-10 absolute right-0  text-white text-sm px-4 py-3 rounded hover:opacity-90 transition-opacity"
       >
         Add New Member
       </button>
@@ -101,7 +101,7 @@ const RegisterForm = () => {
       className="grid grid-cols-6 gap-4 text-black"
     >
       <div className="col-span-6">
-        <label className="text-white text-sm">Company Name</label>
+        <label className="text-white text-sm">Full Name</label>
         <input
           required
           {...register("name")}

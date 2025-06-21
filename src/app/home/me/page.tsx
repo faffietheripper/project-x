@@ -11,7 +11,7 @@ export default async function Me() {
   }
 
   const userRole = session.user.role ?? ""; // Fallback to empty string
-  const knownRoles = ["administrator", "seniorMember", "teamMember"];
+  const knownRoles = ["administrator", "seniorManagement", "employee"];
 
   return (
     <main className="mb-10">
