@@ -67,7 +67,7 @@ export default function Header() {
           <Link href="/home/waste-listings" className="text-md font-semibold">
             Waste Listings.
           </Link>
-          {session?.user?.role === "wasteGenerator" && (
+          {session?.user?.role === "administrator" && (
             <Link href="/home/items/create" className="text-md font-semibold">
               Create Waste Listing.
             </Link>
@@ -81,8 +81,11 @@ export default function Header() {
           <Link href="/home/notifications" className="text-md font-semibold">
             Notifications
           </Link>
-          <Link href="/home/the-hub" className="text-md font-semibold">
-            The Hub
+          <Link href="/home/notifications" className="text-md font-semibold">
+            The Carrier Hub
+          </Link>
+          <Link href="/home/notifications" className="text-md font-semibold">
+            User Settings - to put billing
           </Link>
         </div>
       </div>

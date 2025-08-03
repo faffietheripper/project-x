@@ -35,36 +35,11 @@ const SlideTabs = ({ userRole, setShowModal }) => {
         </Link>
       </Tab>
 
-      {userRole === "wasteManager" && (
-        <Tab setPosition={setPosition}>
-          <Link href="/home/my-activity/assigned-jobs">Assigned Jobs</Link>
-        </Tab>
-      )}
-
-      {userRole === "wasteGenerator" && (
-        <>
-          <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/my-listings">Active Listings</Link>
-          </Tab>
-          <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/archived-listings">
-              Archived Listings
-            </Link>
-          </Tab>
-          <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/jobs-in-progress">
-              Jobs in Progress
-            </Link>
-          </Tab>
-        </>
-      )}
-
+      <Tab setPosition={setPosition}>
+        <ListingsDropdown setShowModal={setShowModal} />
+      </Tab>
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
-      </Tab>
-
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/completed-jobs">Jobs Completed</Link>
       </Tab>
 
       <Tab setPosition={setPosition}>
@@ -111,7 +86,7 @@ const Cursor = ({ position }) => {
   );
 };
 
-// ⚙ Settings Dropdown
+//Settings Dropdown
 const SettingsDropdown = ({ setShowModal }) => {
   const [open, setOpen] = useState(false);
 
@@ -146,6 +121,47 @@ const SettingsDropdown = ({ setShowModal }) => {
         </Link>
 
         <Option setOpen={setOpen} Icon={FiShare} text="User Permissions" />
+        <Option setOpen={setOpen} Icon={FiShare} text="Team Management" />
+        <Option setOpen={setOpen} Icon={FiShare} text="Billing" />
+      </motion.ul>
+    </motion.div>
+  );
+};
+
+// Listings Dropdown
+const ListingsDropdown = ({ setShowModal }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.div animate={open ? "open" : "closed"} className="relative">
+      <button
+        onClick={() => setOpen((pv) => !pv)}
+        className="flex items-center gap-2 rounded-md text-black transition-colors"
+      >
+        <span>Listings Management</span>
+        <motion.span variants={iconVariants}>
+          <FiChevronDown />
+        </motion.span>
+      </button>
+
+      <motion.ul
+        initial={wrapperVariants.closed}
+        variants={wrapperVariants}
+        style={{ originY: "top", translateX: "-50%" }}
+        className="flex flex-col gap-2 p-2 rounded-lg bg-white shadow-xl absolute top-[120%] left-[50%] w-48 overflow-hidden"
+      >
+        <Link href="/home/team-dashboard/team-profile">
+          <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
+        </Link>
+
+        <Link href="/home/team-dashboard/new-template">
+          <Option setOpen={setOpen} Icon={FiPlusSquare} text="Assigned Jobs" />
+        </Link>
+
+        <Option setOpen={setOpen} Icon={FiShare} text="Active Listings" />
+        <Option setOpen={setOpen} Icon={FiShare} text="Archived Listings" />
+        <Option setOpen={setOpen} Icon={FiShare} text="Jobs in Progress" />
+        <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
       </motion.ul>
     </motion.div>
   );
