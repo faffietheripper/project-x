@@ -58,7 +58,7 @@ export default function SelectDropdown() {
           <option value="merseyside">Merseyside</option>
           <option value="middlesbrough">Middlesbrough</option>
           <option value="milton-keynes">Milton Keynes</option>
-          <option value="norfolk">Norfolk</option>
+          <option value="Norfolk">Norfolk</option>
           <option value="north-east-lincolnshire">
             North East Lincolnshire
           </option>
