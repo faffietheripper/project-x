@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
+import { items, users } from "@/db/schema";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getSignedUrlForS3Object } from "@/lib/s3";
+import { eq } from "drizzle-orm";
 
 export async function createUploadUrlAction(keys: string[], types: string[]) {
   if (keys.length !== types.length) {
@@ -42,14 +43,16 @@ export async function createItemAction({
 }) {
   const session = await auth();
 
-  if (!session) {
+  if (!session || !session.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  const user = session.user;
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+  });
 
-  if (!user || !user.id) {
-    throw new Error("Unauthorized");
+  if (!user || !user.organisationId) {
+    throw new Error("User or organisation not found.");
   }
 
   await database.insert(items).values({
@@ -60,9 +63,10 @@ export async function createItemAction({
     detailedDescription,
     name,
     startingPrice,
-    fileKey: fileName,
+    fileKey: fileName.join(","),
     currentBid: startingPrice,
     userId: user.id,
+    organisationId: user.organisationId,
     endDate,
   });
 

@@ -32,7 +32,7 @@ export default async function ItemPage({
   if (!item) {
     return (
       <div className="space-y-8 py-36 px-12 flex flex-col items-center mt-12">
-        <Image src="/package.svg" width="200" height="200" alt="Package" />
+        <Image src="/package.svg" width={200} height={150} alt="Package" />
 
         <h1 className="">Item not found</h1>
         <p className="text-center">
@@ -65,7 +65,7 @@ export default async function ItemPage({
   const fileKeys = item.fileKey.split(",");
 
   return (
-    <main className="space-y-8 py-36 px-12">
+    <main className="space-y-8 py-36 px-12 pl-[22vw]">
       <div className="grid grid-cols-6 gap-6">
         <div className=" col-span-4 flex flex-col gap-6">
           <div className="flex items-center justify-between ">
@@ -84,7 +84,7 @@ export default async function ItemPage({
             {fileKeys.map((key, index) => (
               <Image
                 key={index}
-                className="rounded-xl w-full h-64"
+                className="rounded-xl w-full h-56"
                 src={getImageUrl(key.trim())} // Trim any extra spaces
                 alt={`${item.name} - Image ${index + 1}`}
                 width={400}
@@ -121,7 +121,7 @@ export default async function ItemPage({
             {item.transactionConditions}
           </p>
         </div>
-        <section className="col-span-2 fixed right-10">
+        <section className="w-[330px] fixed right-8">
           <div className=" space-y-4 p-6 rounded-lg bg-gray-200 h-[60vh] overflow-y-scroll">
             <div className="flex flex-col justify-between ">
               <h2 className="text-2xl font-semibold mb-6">Current Bids</h2>
@@ -149,7 +149,9 @@ export default async function ItemPage({
                             type="submit"
                             className="bg-blue-600 text-white py-2 px-4  rounded-md"
                           >
-                            <Link href={`/home/profiles/${bid.profileId}`}>
+                            <Link
+                              href={`/home/organisations/${bid.organisationId}`}
+                            >
                               View Profile
                             </Link>
                           </button>

@@ -26,7 +26,7 @@ export default async function ArchivedListings() {
       <h1 className="font-bold pb-10">Manage Archived Listings</h1>
 
       {hasArchivedItems ? (
-        <div className="grid grid-cols-4 gap-8">
+        <div className="grid grid-cols-3 gap-8">
           {archivedItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}

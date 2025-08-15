@@ -28,7 +28,7 @@ export const organisations = pgTable("bb_organisation", {
   postCode: text("postCode").notNull(),
 });
 
-// Users (no more organisationMembers)
+// Users
 export const users = pgTable("bb_user", {
   id: text("id")
     .primaryKey()
@@ -42,18 +42,18 @@ export const users = pgTable("bb_user", {
   organisationId: text("organisationId").references(() => organisations.id, {
     onDelete: "cascade",
   }),
-  role: text("role"), // 'administrator', 'employee', "seniorManagement".
+  role: text("role"),
 });
 
-//Reset Password Tokens
+// Password Reset Tokens
 export const passwordResetTokens = pgTable("bb_passwordResetToken", {
   id: text("id")
     .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()), // Generate UUID as default
-  token: text("token").notNull(), // Reset token
+    .$defaultFn(() => crypto.randomUUID()),
+  token: text("token").notNull(),
   email: text("email").notNull(),
-  expires: timestamp("expires", { mode: "date" }).notNull(), // Expiration timestamp
-  used: boolean("used").notNull().default(false), // Token usage status
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+  used: boolean("used").notNull().default(false),
 });
 
 // Accounts
@@ -62,7 +62,7 @@ export const accounts = pgTable(
   {
     userId: text("userId")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+      .references(() => users.id, { onDelete: "cascade" }),
     type: text("type").$type<AdapterAccount>().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
@@ -77,16 +77,16 @@ export const accounts = pgTable(
   (account) => ({
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
-    }), // Composite primary key for provider and providerAccountId
+    }),
   })
 );
 
 // Sessions
 export const sessions = pgTable("bb_session", {
-  sessionToken: text("sessionToken").primaryKey(), // Session token as primary key
+  sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+    .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
@@ -99,16 +99,41 @@ export const verificationTokens = pgTable(
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (vt) => ({
-    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }), // Composite key
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
 
-// Items
-export const items = pgTable("bb_item", {
-  id: integer("id").primaryKey(), // Changed from serial to integer
+// Bids
+export const bids = pgTable("bb_bids", {
+  id: integer("id").primaryKey(),
+  amount: integer("amount").notNull(),
+  itemId: integer("itemId")
+    .notNull()
+    .references(() => items.id, { onDelete: "cascade" }),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  organisationId: text("organisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
+  declinedOffer: boolean("declinedOffer").notNull().default(false),
+  cancelledJob: boolean("cancelledJob").notNull().default(false),
+  cancellationReason: text("cancellationReason"),
+  companyName: text("companyName"),
+  emailAddress: text("emailAddress"),
+  itemName: text("itemName"),
+});
+
+// Items
+export const items = pgTable("bb_item", {
+  id: integer("id").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  organisationId: text("organisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   startingPrice: integer("startingPrice").notNull().default(0),
   fileKey: text("fileKey").notNull(),
@@ -126,36 +151,17 @@ export const items = pgTable("bb_item", {
   winningBidId: integer("winningBidId")
     .references(() => bids.id, { onDelete: "set null" })
     .default(null),
-});
-
-// Bids
-export const bids = pgTable("bb_bids", {
-  id: integer("id").primaryKey(), // Changed from serial to integer
-  amount: integer("amount").notNull(),
-  companyName: text("companyName").notNull(),
-  emailAddress: text("emailAddress").notNull(),
-  itemName: text("itemName").notNull(),
-  itemId: integer("itemId")
-    .notNull()
-    .references(() => items.id, { onDelete: "cascade" }), // Foreign key to items
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
-  organisationId: text("organisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }), // Foreign key to organisations
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
-  declinedOffer: boolean("declinedOffer").notNull().default(false),
-  cancelledJob: boolean("cancelledJob").notNull().default(false),
-  cancellationReason: text("cancellationReason"),
+  winningOrganisationId: text("winningOrganisationId")
+    .references(() => organisations.id, { onDelete: "set null" })
+    .default(null),
 });
 
 // Profiles
 export const profiles = pgTable("bb_profile", {
-  id: integer("id").primaryKey(), // Changed from serial to integer
+  id: integer("id").primaryKey(),
   userId: text("userId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users
+    .references(() => users.id, { onDelete: "cascade" }),
   profilePicture: text("profilePicture"),
   fullName: text("fullName").notNull(),
   telephone: text("telephone").notNull(),
@@ -169,19 +175,19 @@ export const profiles = pgTable("bb_profile", {
 
 // Reviews
 export const reviews = pgTable("bb_review", {
-  id: integer("id").primaryKey(), // Changed from serial to integer
+  id: integer("id").primaryKey(),
   reviewerId: text("reviewerId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users who leave reviews
-  profileId: integer("profileId")
+    .references(() => users.id, { onDelete: "cascade" }),
+  organisationId: text("organisationId")
     .notNull()
-    .references(() => profiles.id, { onDelete: "cascade" }), // Foreign key to profiles being reviewed
-  rating: integer("rating").notNull(), // Rating, e.g., from 1 to 5
-  reviewText: text("reviewText").notNull(), // The review content
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(), // Timestamp for when the review is created
+    .references(() => organisations.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  reviewText: text("reviewText").notNull(),
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
 });
 
-//Notifications
+// Notifications
 export const notifications = pgTable("bb_notifications", {
   id: text("id")
     .primaryKey()
@@ -194,7 +200,7 @@ export const notifications = pgTable("bb_notifications", {
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 });
 
-// Define relationships for notifications
+// RELATIONS
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.receiverId],
@@ -202,7 +208,6 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
-// Define relationships for bids
 export const bidsRelations = relations(bids, ({ one }) => ({
   user: one(users, {
     fields: [bids.userId],
@@ -212,37 +217,44 @@ export const bidsRelations = relations(bids, ({ one }) => ({
     fields: [bids.itemId],
     references: [items.id],
   }),
+  organisation: one(organisations, {
+    fields: [bids.organisationId],
+    references: [organisations.id],
+  }),
 }));
 
-// Define relationships for reviews
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   reviewer: one(users, {
     fields: [reviews.reviewerId],
     references: [users.id],
   }),
-  profile: one(profiles, {
-    fields: [reviews.profileId],
-    references: [profiles.id],
+  organisation: one(organisations, {
+    fields: [reviews.organisationId],
+    references: [organisations.id],
   }),
 }));
 
-// Define relationships for items
 export const itemsRelations = relations(items, ({ one }) => ({
   user: one(users, {
     fields: [items.userId],
     references: [users.id],
   }),
-  // Correct the relationship to fetch only the bid that matches the `winningBidId`
+  organisation: one(organisations, {
+    relationName: "ownerOrganisation",
+    fields: [items.organisationId],
+    references: [organisations.id],
+  }),
+  winningOrganisation: one(organisations, {
+    relationName: "winningOrganisation",
+    fields: [items.winningOrganisationId],
+    references: [organisations.id],
+  }),
   winningBid: one(bids, {
-    fields: [items.winningBidId], // Use `winningBidId` from `items` table
-    references: [bids.id], // Referencing the primary key `id` in the `bids` table
+    fields: [items.winningBidId],
+    references: [bids.id],
   }),
 }));
 
-// Type for selecting item rows
-export type Item = typeof items.$inferSelect;
-
-// Relationships
 export const usersRelations = relations(users, ({ one }) => ({
   organisation: one(organisations, {
     fields: [users.organisationId],
@@ -251,8 +263,9 @@ export const usersRelations = relations(users, ({ one }) => ({
 }));
 
 export const organisationsRelations = relations(organisations, ({ many }) => ({
-  members: many(users, {
-    fields: [users.organisationId],
-    references: [organisations.id],
-  }),
+  members: many(users),
+  reviews: many(reviews),
+  items: many(items, { relationName: "ownerOrganisation" }),
+  winningItems: many(items, { relationName: "winningOrganisation" }),
+  bids: many(bids),
 }));

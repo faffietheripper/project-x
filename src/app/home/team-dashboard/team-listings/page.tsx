@@ -3,22 +3,21 @@ import { database } from "@/db/database";
 import { items } from "@/db/schema";
 import ItemCard from "@/components/ItemCard";
 import { EmptyState } from "./emptyState";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-//this is where you will be able to manage selected listings : Renew or Delete Listings or End Bid
-
-export default async function MyLisitngs() {
+export default async function MyListings() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.organisationId) {
     throw new Error("Unauthorized");
   }
 
-  const allItems = await database.query.items.findMany({
-    where: and(eq(items.userId, session.user.id!), eq(items.archived, false)),
+  // Fetch all items where organisationId matches the logged-in user's organisationId
+  const orgItems = await database.query.items.findMany({
+    where: eq(items.organisationId, session.user.organisationId),
   });
 
-  const hasItems = allItems.length > 0;
+  const hasItems = orgItems.length > 0;
 
   return (
     <main className="">
@@ -26,7 +25,7 @@ export default async function MyLisitngs() {
 
       {hasItems ? (
         <div className="grid grid-cols-3 gap-8">
-          {allItems.map((item) => (
+          {orgItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
         </div>

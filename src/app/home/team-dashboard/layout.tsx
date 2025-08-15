@@ -1,24 +1,32 @@
 import React from "react";
 import { auth } from "@/auth";
 import TeamNav from "@/components/app/TeamNav";
+import { getOrganisationServer } from "@/data-access/organisations";
 
-export default async function layout({
+export default async function Layout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.organisationId) {
     throw new Error("Unauthorized");
   }
 
-  const userRole = session?.user?.role; // Assuming role is available in the session data
+  // Fetch organisation server-side using organisationId
+  const org = await getOrganisationServer(session.user.organisationId);
+  const chainOfCustody = org?.chainOfCustody ?? null;
+  const userRole = session?.user?.role ?? null;
+
+  console.log("ORG FROM DB:", org);
+  console.log("CHAIN OF CUSTODY:", chainOfCustody);
+  console.log("USER ROLE:", userRole);
 
   return (
     <div className="relative">
-      <TeamNav userRole={userRole} />
-      <div className="">{children}</div>
+      <TeamNav userRole={userRole} chainOfCustody={chainOfCustody} />
+      <div className="pl-[24vw] p-10 pt-56">{children}</div>
     </div>
   );
 }

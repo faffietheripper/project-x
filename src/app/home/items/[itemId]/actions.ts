@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { bids, items, profiles } from "@/db/schema";
+import { bids, items, profiles, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { isBidOver } from "@/util/bids";
@@ -50,6 +50,14 @@ export async function createBidAction({
     return { error: "Please update your profile before placing a bid." };
   }
 
+  const userRecord = await database.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!userRecord || !userRecord.organisationId) {
+    return { error: "User must belong to an organisation to place a bid." };
+  }
+
   try {
     // Insert the new bid
     await database.insert(bids).values({
@@ -60,6 +68,7 @@ export async function createBidAction({
       itemName: item.name,
       userId,
       profileId: profile.id,
+      organisationId: userRecord.organisationId, // ✅ New field
       timestamp: new Date(),
     });
 
@@ -71,7 +80,7 @@ export async function createBidAction({
 
     // Trigger a notification for the item owner
     const receiverId = item.userId;
-    console.log("receiver", receiverId);
+
     if (receiverId) {
       const title = "New bid placed";
       const message = `Someone has placed a bid on your item "${item.name}".`;
@@ -88,59 +97,6 @@ export async function createBidAction({
     return { error: "Failed to create bid." };
   }
 }
-
-// function to assign a winning bid
-/*
-export async function handleAssignWinningBid(formData: FormData) {
-  const itemId = formData.get("itemId");
-  const bidId = formData.get("bidId");
-
-  if (!itemId || !bidId) {
-    return { success: false, message: "id is missing" };
-  }
-
-  try {
-    // Check if the item already has a winning bid
-    const item = await database.query.items.findFirst({
-      where: eq(items.id, Number(itemId)),
-    });
-
-    if (!item) {
-      return { success: false, message: "Item not found" };
-    }
-
-    if (item.assigned) {
-      return { success: false, message: "winning bid already assigned" };
-    }
-
-    // Retrieve the bid and validate it belongs to the item
-    const bid = await database.query.bids.findFirst({
-      where: eq(bids.id, Number(bidId)),
-    });
-
-    if (!bid || bid.itemId !== Number(itemId)) {
-      return { success: false, message: "invalid bid" };
-    }
-
-    // Update the item with the winning bid and set assigned to true
-    await database
-      .update(items)
-      .set({
-        winningBid: bid.id,
-        assigned: true,
-      })
-      .where(eq(items.id, Number(itemId)));
-
-    return { success: false, message: "Bid placed successfully" }; // Return success if everything is fine
-  } catch (error) {
-    console.error("Error assigning winning bid:", error);
-    return { success: false, message: "failed to assign winning bid " };
-  }
-}
-*/
-
-//function to assign a winning bid
-
 export async function handleAssignWinningBid(formData: FormData) {
   const itemId = formData.get("itemId");
   const bidId = formData.get("bidId");
@@ -150,11 +106,11 @@ export async function handleAssignWinningBid(formData: FormData) {
   }
 
   try {
-    // Fetch the item along with the winningBid relationship
+    // Fetch the item with its winningBid relationship
     const item = await database.query.items.findFirst({
       where: eq(items.id, Number(itemId)),
       with: {
-        winningBid: true, // Include the winning bid relationship
+        winningBid: true,
       },
     });
 
@@ -162,12 +118,11 @@ export async function handleAssignWinningBid(formData: FormData) {
       return { success: false, message: "Item not found" };
     }
 
-    // Check if a winning bid has already been assigned
     if (item.winningBidId) {
       return { success: false, message: "Winning bid already assigned" };
     }
 
-    // Fetch the bid and validate it belongs to the item
+    // Fetch the bid including organisationId
     const bid = await database.query.bids.findFirst({
       where: eq(bids.id, Number(bidId)),
     });
@@ -176,18 +131,17 @@ export async function handleAssignWinningBid(formData: FormData) {
       return { success: false, message: "Invalid bid" };
     }
 
-    // Assign the winning bid
+    // ✅ Update both winningBidId and winningOrganisationId
     await database
       .update(items)
       .set({
         winningBidId: bid.id,
+        winningOrganisationId: bid.organisationId, // ✅ Add this line
         assigned: true,
       })
       .where(eq(items.id, Number(itemId)));
 
-    // Trigger a notification for the bid owner
-    const receiverId = bid.userId; // Fetch directly from the bid
-    console.log("Receiver ID:", receiverId);
+    const receiverId = bid.userId;
 
     if (receiverId) {
       const title = "New Job Assigned 🎉";

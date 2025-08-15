@@ -4,7 +4,7 @@ import React from "react";
 
 export default function TeamDashboardHome() {
   return (
-    <div className=" pl-[24vw] p-10 pt-56 pr-10">
+    <div className="">
       <CompanyOverview />
     </div>
   );

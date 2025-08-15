@@ -24,7 +24,7 @@ export default async function AssignedListings() {
       <h1 className="font-bold pb-10">Manage Assigned Listings</h1>
 
       {hasAssignedItems ? (
-        <div className="grid grid-cols-4 gap-8">
+        <div className="grid grid-cols-3 gap-8">
           {assignedItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}

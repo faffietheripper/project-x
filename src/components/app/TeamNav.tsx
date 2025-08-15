@@ -6,18 +6,41 @@ import Link from "next/link";
 import { FiEdit, FiChevronDown, FiShare, FiPlusSquare } from "react-icons/fi";
 import NewMemberModal from "./TeamDashboard/NewMemberModal";
 
-export default function TeamNav({ userRole }) {
+type ChainOfCustodyType = "wasteManager" | "wasteGenerator" | null;
+
+export default function TeamNav({
+  chainOfCustody,
+  userRole,
+}: {
+  chainOfCustody: ChainOfCustodyType;
+  userRole: string | null;
+}) {
   const [showModal, setShowModal] = useState(false);
+
+  if (!chainOfCustody) return <div>Loading...</div>;
 
   return (
     <div className="pl-72 pt-[13vh] fixed">
-      <SlideTabs userRole={userRole} setShowModal={setShowModal} />
+      <SlideTabs
+        chainOfCustody={chainOfCustody}
+        userRole={userRole}
+        setShowModal={setShowModal}
+      />
       <NewMemberModal isOpen={showModal} setIsOpen={setShowModal} />
     </div>
   );
 }
 
-const SlideTabs = ({ userRole, setShowModal }) => {
+// ---------------- SlideTabs ----------------
+const SlideTabs = ({
+  chainOfCustody,
+  userRole,
+  setShowModal,
+}: {
+  chainOfCustody: ChainOfCustodyType;
+  userRole: string | null;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
 
   return (
@@ -36,33 +59,60 @@ const SlideTabs = ({ userRole, setShowModal }) => {
       </Tab>
 
       <Tab setPosition={setPosition}>
-        <ListingsDropdown setShowModal={setShowModal} />
-      </Tab>
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
-      </Tab>
-
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/reviews">Reviews</Link>
+        <ListingsDropdown
+          chainOfCustody={chainOfCustody}
+          setShowModal={setShowModal}
+        />
       </Tab>
 
-      <Tab setPosition={setPosition}>
-        <SettingsDropdown setShowModal={setShowModal} />
-      </Tab>
+      {chainOfCustody === "wasteManager" && (
+        <>
+          <Tab setPosition={setPosition}>
+            <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
+          </Tab>
+          <Tab setPosition={setPosition}>
+            <Link href="/home/my-activity/reviews">Reviews</Link>
+          </Tab>
+        </>
+      )}
+
+      {chainOfCustody === "wasteGenerator" && (
+        <>
+          <Tab setPosition={setPosition}>
+            <Link href="/home/my-activity/reviews">Reviews</Link>
+          </Tab>
+        </>
+      )}
+
+      {/* Only render SettingsDropdown if userRole is admin */}
+      {userRole === "administrator" && (
+        <Tab setPosition={setPosition}>
+          <SettingsDropdown setShowModal={setShowModal} />
+        </Tab>
+      )}
 
       <Cursor position={position} />
     </ul>
   );
 };
 
-const Tab = ({ children, setPosition }) => {
-  const ref = useRef(null);
+// ---------------- Tab ----------------
+const Tab = ({
+  children,
+  setPosition,
+}: {
+  children: React.ReactNode;
+  setPosition: React.Dispatch<
+    React.SetStateAction<{ left: number; width: number; opacity: number }>
+  >;
+}) => {
+  const ref = useRef<HTMLLIElement>(null);
 
   return (
     <li
       ref={ref}
       onMouseEnter={() => {
-        if (!ref?.current) return;
+        if (!ref.current) return;
         const { width } = ref.current.getBoundingClientRect();
         setPosition({
           left: ref.current.offsetLeft,
@@ -77,7 +127,12 @@ const Tab = ({ children, setPosition }) => {
   );
 };
 
-const Cursor = ({ position }) => {
+// ---------------- Cursor ----------------
+const Cursor = ({
+  position,
+}: {
+  position: { left: number; width: number; opacity: number };
+}) => {
   return (
     <motion.li
       animate={{ ...position }}
@@ -86,8 +141,12 @@ const Cursor = ({ position }) => {
   );
 };
 
-//Settings Dropdown
-const SettingsDropdown = ({ setShowModal }) => {
+// ---------------- SettingsDropdown ----------------
+const SettingsDropdown = ({
+  setShowModal,
+}: {
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -111,7 +170,6 @@ const SettingsDropdown = ({ setShowModal }) => {
         <Link href="/home/team-dashboard/team-profile">
           <Option setOpen={setOpen} Icon={FiEdit} text="Team Profile" />
         </Link>
-
         <Link href="/home/team-dashboard/new-template">
           <Option
             setOpen={setOpen}
@@ -119,7 +177,6 @@ const SettingsDropdown = ({ setShowModal }) => {
             text="Create New Template"
           />
         </Link>
-
         <Option setOpen={setOpen} Icon={FiShare} text="User Permissions" />
         <Option setOpen={setOpen} Icon={FiShare} text="Team Management" />
         <Option setOpen={setOpen} Icon={FiShare} text="Billing" />
@@ -128,8 +185,14 @@ const SettingsDropdown = ({ setShowModal }) => {
   );
 };
 
-// Listings Dropdown
-const ListingsDropdown = ({ setShowModal }) => {
+// ---------------- ListingsDropdown ----------------
+const ListingsDropdown = ({
+  chainOfCustody,
+  setShowModal,
+}: {
+  chainOfCustody: ChainOfCustodyType;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -150,24 +213,49 @@ const ListingsDropdown = ({ setShowModal }) => {
         style={{ originY: "top", translateX: "-50%" }}
         className="flex flex-col gap-2 p-2 rounded-lg bg-white shadow-xl absolute top-[120%] left-[50%] w-48 overflow-hidden"
       >
-        <Link href="/home/team-dashboard/team-profile">
-          <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
-        </Link>
+        {chainOfCustody === "wasteManager" && (
+          <>
+            <Link href="/home/team-dashboard/team-profile">
+              <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
+            </Link>
+            <Link href="/home/team-dashboard/new-template">
+              <Option
+                setOpen={setOpen}
+                Icon={FiPlusSquare}
+                text="Assigned Jobs"
+              />
+            </Link>
+            <Option setOpen={setOpen} Icon={FiShare} text="Active Listings" />
+            <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
+          </>
+        )}
 
-        <Link href="/home/team-dashboard/new-template">
-          <Option setOpen={setOpen} Icon={FiPlusSquare} text="Assigned Jobs" />
-        </Link>
-
-        <Option setOpen={setOpen} Icon={FiShare} text="Active Listings" />
-        <Option setOpen={setOpen} Icon={FiShare} text="Archived Listings" />
-        <Option setOpen={setOpen} Icon={FiShare} text="Jobs in Progress" />
-        <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
+        {chainOfCustody === "wasteGenerator" && (
+          <>
+            <Link href="/home/team-dashboard/team-listings">
+              <Option setOpen={setOpen} Icon={FiEdit} text="Active Listings" />
+            </Link>
+            <Option setOpen={setOpen} Icon={FiShare} text="Archived Listings" />
+            <Option setOpen={setOpen} Icon={FiShare} text="Jobs in Progress" />
+          </>
+        )}
       </motion.ul>
     </motion.div>
   );
 };
 
-const Option = ({ text, Icon, setOpen, onClick }) => {
+// ---------------- Option ----------------
+const Option = ({
+  text,
+  Icon,
+  setOpen,
+  onClick,
+}: {
+  text: string;
+  Icon: React.ComponentType;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  onClick?: () => void;
+}) => {
   return (
     <motion.li
       variants={itemVariants}
@@ -185,7 +273,7 @@ const Option = ({ text, Icon, setOpen, onClick }) => {
   );
 };
 
-// Animation Variants
+// ---------------- Animation Variants ----------------
 const wrapperVariants = {
   open: {
     scaleY: 1,
