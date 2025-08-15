@@ -12,7 +12,7 @@ export default function BidWinner({ winningBid }: BidWinner) {
   return (
     <div className="">
       {winningBid ? (
-        <div className="mt-2">
+        <div className="">
           <p>
             <strong>Bid Amount:</strong> ${winningBid.amount}
           </p>

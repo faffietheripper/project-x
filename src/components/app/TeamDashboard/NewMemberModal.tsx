@@ -14,7 +14,7 @@ export default function NewMemberModal() {
     <div className="place-content-center">
       <button
         onClick={() => setIsOpen(true)}
-        className=" bg-blue-600 m-10 absolute right-0  text-white text-sm px-4 py-3 rounded hover:opacity-90 transition-opacity"
+        className=" bg-blue-600 m-10 absolute right-0 top-[85vh] text-white text-sm px-4 py-3 rounded hover:opacity-90 transition-opacity"
       >
         Add New Member
       </button>

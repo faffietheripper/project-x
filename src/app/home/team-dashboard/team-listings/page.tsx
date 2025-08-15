@@ -5,7 +5,7 @@ import ItemCard from "@/components/ItemCard";
 import { EmptyState } from "./emptyState";
 import { eq } from "drizzle-orm";
 
-export default async function MyListings() {
+export default async function TeamListings() {
   const session = await auth();
 
   if (!session?.user?.organisationId) {

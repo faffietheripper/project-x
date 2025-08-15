@@ -42,7 +42,7 @@ export default async function UserOverview() {
               />
             </div>
           )}
-          <p className="text-4xl font-semibold">{profile.companyName}</p>
+          <p className="text-4xl font-semibold">{profile.fullName}</p>
         </section>
         <Link href="/home/me">
           <button className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-md">

@@ -139,7 +139,7 @@ const ListingsDropdown: React.FC<ListingsDropdownProps> = ({
       >
         {chainOfCustody === "wasteManager" && (
           <>
-            <Link href="/home/team-dashboard/team-profile" passHref>
+            <Link href="/home/my-activity/completed-jobs" passHref>
               <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
             </Link>
             <Link href="/home/my-activity/my-bids" passHref>
@@ -160,13 +160,16 @@ const ListingsDropdown: React.FC<ListingsDropdownProps> = ({
             <Link href="/home/my-activity/my-listings" passHref>
               <Option setOpen={setOpen} Icon={FiEdit} text="Active Listings" />
             </Link>
-            <Option setOpen={setOpen} Icon={FiShare} text="Archived Listings" />
-            <Link href="/home/my-activity/jobs-in-progress" passHref>
+            <Link href="/home/my-activity/archived-listings" passHref>
               <Option
                 setOpen={setOpen}
-                Icon={FiShare}
-                text="Jobs in Progress"
+                Icon={FiEdit}
+                text="Archived Listings"
               />
+            </Link>
+
+            <Link href="/home/my-activity/completed-jobs" passHref>
+              <Option setOpen={setOpen} Icon={FiShare} text="Completed Jobs" />
             </Link>
           </>
         )}

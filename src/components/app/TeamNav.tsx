@@ -235,8 +235,16 @@ const ListingsDropdown = ({
             <Link href="/home/team-dashboard/team-listings">
               <Option setOpen={setOpen} Icon={FiEdit} text="Active Listings" />
             </Link>
-            <Option setOpen={setOpen} Icon={FiShare} text="Archived Listings" />
-            <Option setOpen={setOpen} Icon={FiShare} text="Jobs in Progress" />
+            <Link href="/home/team-dashboard/team-archived-listings">
+              <Option
+                setOpen={setOpen}
+                Icon={FiEdit}
+                text="Archived Listings"
+              />
+            </Link>
+            <Link href="/home/team-dashboard/team-jobs-completed" passHref>
+              <Option setOpen={setOpen} Icon={FiShare} text="Completed Jobs" />
+            </Link>
           </>
         )}
       </motion.ul>

@@ -190,8 +190,8 @@ export default async function ItemPage({
               </div>
             )}
           </div>
-          <div className="rounded-lg bg-gray-200 h-[18vh] mt-4 p-6">
-            <h1 className="font-bold text-xl "> Bid Winner :</h1>
+          <div className="rounded-lg bg-blue-200 h-[19vh] mt-4 px-4 py-3">
+            <h1 className="font-bold text-md "> Bid Winner :</h1>
             <BidWinner winningBid={winningBid} />
           </div>
         </section>
