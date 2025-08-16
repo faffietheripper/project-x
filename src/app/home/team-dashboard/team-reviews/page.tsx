@@ -1,52 +1,36 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { reviews, items, bids } from "@/db/schema";
+import { reviews } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export default async function ReviewsPage() {
+export default async function TeamReviewsPage() {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session || !session.user) {
     throw new Error("Unauthorized");
   }
 
-  const userId = session.user.id;
+  // Get organisationId from the logged-in user
+  const organisationId = session.user.organisationId;
+  if (!organisationId) {
+    throw new Error("No organisation found for this user");
+  }
 
-  // Fetch all reviews + linked item + winning bid
-  const allReviews = await database.query.reviews.findMany({
+  // Fetch all reviews for the organisation
+  const organisationReviews = await database.query.reviews.findMany({
+    where: eq(reviews.organisationId, organisationId),
     with: {
-      reviewer: true,
-      organisation: true,
-      // Link review -> organisation -> item(s) where that org was reviewed
-      organisation: {
-        with: {
-          winningItems: {
-            with: {
-              winningBid: {
-                with: {
-                  user: true,
-                },
-              },
-            },
-          },
-        },
-      },
+      reviewer: true, // user who wrote the review
+      organisation: true, // organisation being reviewed
     },
   });
 
-  // Filter reviews so we only keep those where the logged-in user was the winning bidder
-  const userReviews = allReviews.filter((review) =>
-    review.organisation?.winningItems?.some(
-      (item) => item.winningBid?.userId === userId
-    )
-  );
-
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Reviews for me!</h1>
+      <h1 className="text-2xl font-bold mb-4">Completed Reviews</h1>
       <section>
-        {userReviews.length > 0 ? (
+        {organisationReviews.length > 0 ? (
           <ul className="space-y-4">
-            {userReviews.map((review) => (
+            {organisationReviews.map((review) => (
               <li
                 key={review.id}
                 className="border rounded-lg p-4 shadow-sm bg-white"
@@ -69,7 +53,7 @@ export default async function ReviewsPage() {
             ))}
           </ul>
         ) : (
-          <p>No reviews found for projects you won.</p>
+          <p>No reviews found for your organisation.</p>
         )}
       </section>
     </div>

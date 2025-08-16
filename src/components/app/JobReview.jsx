@@ -10,7 +10,7 @@ import {
 } from "framer-motion";
 import { createReviewAction } from "@/app/home/my-activity/completed-jobs/actions";
 
-export default function JobReview({ itemId, profileId }) {
+export default function JobReview({ itemId, organisationId }) {
   const [open, setOpen] = useState(false);
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
@@ -21,8 +21,8 @@ export default function JobReview({ itemId, profileId }) {
     if (reviewText.trim()) {
       try {
         const result = await createReviewAction({
-          itemId, // Pass itemId here
-          profileId,
+          itemId,
+          organisationId, // ✅ send orgId to server action
           rating,
           reviewText,
         });
@@ -89,6 +89,7 @@ export default function JobReview({ itemId, profileId }) {
   );
 }
 
+// Drawer unchanged from your original code
 const DragCloseDrawer = ({ open, setOpen, children }) => {
   const [scope, animate] = useAnimate();
   const [drawerRef, { height }] = useMeasure();

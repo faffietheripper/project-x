@@ -1,48 +1,50 @@
 "use server";
+
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { reviews, items, profiles } from "@/db/schema";
+import { reviews, items, organisations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createNotification } from "../../notifications/actions";
 
 export async function createReviewAction({
   itemId,
-  profileId,
+  organisationId, // from client
   rating,
   reviewText,
 }) {
   console.log("Received input for review action:", {
     itemId,
-    profileId,
+    organisationId,
     rating,
     reviewText,
   });
 
   const session = await auth();
   const userId = session?.user?.id;
+  const userOrganisationId = session?.user?.organisationId;
 
-  // Validate required inputs early
   if (!userId) {
     return { error: "You must be logged in to leave a review." };
   }
 
-  if (!itemId || !profileId || !rating || !reviewText) {
+  if (!itemId || !organisationId || !rating || !reviewText) {
     console.error("Missing required fields:", {
       itemId,
-      profileId,
+      organisationId,
       rating,
       reviewText,
     });
     throw new Error(
-      "All fields (itemId, profileId, rating, reviewText) must be provided."
+      "All fields (itemId, organisationId, rating, reviewText) must be provided."
     );
   }
 
-  // Fetch the item and its winning bid
+  // Fetch the item with both org relations
   const item = await database.query.items.findFirst({
     where: eq(items.id, itemId),
     with: {
-      winningBid: true,
+      organisation: true, // Owner org
+      winningOrganisation: true, // Waste handler org
     },
   });
 
@@ -50,48 +52,55 @@ export async function createReviewAction({
     return { error: "Item not found." };
   }
 
-  // Debug log to check if userId matches expected values
-  console.log("Item details:", item);
-  console.log("Item owner (userId):", item.userId);
-  console.log(
-    "Winning bid user (winningBid?.userId):",
-    item.winningBid?.userId
-  );
-
-  // Validate authorization
-  const isAuthorizedReviewer =
-    item.userId === userId || item.winningBid?.userId === userId;
-
-  if (!isAuthorizedReviewer) {
-    return { error: "You are not authorized to leave a review for this item." };
-  }
-
-  // Prevent users from reviewing themselves
-  if (userId === profileId) {
-    return { error: "You cannot review yourself." };
-  }
-
-  // Fetch the profile being reviewed to get its userId
-  const profile = await database.query.profiles.findFirst({
-    where: eq(profiles.id, profileId),
+  console.log("Item details:", {
+    ownerOrgId: item.organisationId,
+    winningOrgId: item.winningOrganisationId,
+    currentUserOrgId: userOrganisationId,
   });
 
-  if (!profile) {
-    return { error: "Profile not found." };
+  // ✅ Authorisation: reviewer must belong to one of the involved orgs
+  const isAuthorizedReviewer =
+    item.organisationId === userOrganisationId ||
+    item.winningOrganisationId === userOrganisationId;
+
+  if (!isAuthorizedReviewer) {
+    return { error: "You are not authorized to review this item." };
   }
 
-  const receiverId = profile.userId;
+  // ✅ Determine the ACTUAL target organisation from item data
+  let actualTargetOrgId: string | null = null;
 
-  // Ensure the receiver is not the reviewer
-  if (receiverId === userId) {
-    return { error: "You cannot send a notification to yourself." };
+  if (userOrganisationId === item.organisationId) {
+    // Reviewer is owner → review winning org
+    actualTargetOrgId = item.winningOrganisationId;
+  } else if (userOrganisationId === item.winningOrganisationId) {
+    // Reviewer is winning org → review owner org
+    actualTargetOrgId = item.organisationId;
   }
 
-  // Insert the review and trigger a notification
+  // Fallback to passed organisationId if above logic fails
+  if (!actualTargetOrgId) {
+    actualTargetOrgId = organisationId;
+  }
+
+  // ✅ Prevent self-review only if it’s literally the same org
+  if (actualTargetOrgId === userOrganisationId) {
+    return { error: "You cannot review your own organisation." };
+  }
+
+  // Check the target org exists
+  const targetOrganisation = await database.query.organisations.findFirst({
+    where: eq(organisations.id, actualTargetOrgId),
+  });
+
+  if (!targetOrganisation) {
+    return { error: "Organisation not found." };
+  }
+
   try {
     const reviewData = {
       reviewerId: userId,
-      profileId,
+      organisationId: actualTargetOrgId,
       rating,
       reviewText,
       timestamp: new Date(),
@@ -101,12 +110,12 @@ export async function createReviewAction({
 
     await database.insert(reviews).values(reviewData);
 
-    // Trigger a notification for the recipient of the review
+    // Notify the reviewed org
     const title = "New Review Received!";
-    const message = `You have received a review: "${reviewText}" with a rating of ${rating} stars.`;
-    const itemUrl = `/profile/${profileId}/reviews`; // Link to the recipient's reviews
+    const message = `Your organisation received a review: "${reviewText}" with a rating of ${rating} stars.`;
+    const reviewUrl = `/organisation/${actualTargetOrgId}/reviews`;
 
-    await createNotification(receiverId, title, message, itemUrl);
+    await createNotification(actualTargetOrgId, title, message, reviewUrl);
 
     return { success: true, message: "Review submitted successfully." };
   } catch (error) {

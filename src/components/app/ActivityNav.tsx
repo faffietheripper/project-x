@@ -51,9 +51,11 @@ const SlideTabs: React.FC<SlideTabsProps> = ({
         />
       </Tab>
 
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
-      </Tab>
+      {chainOfCustody === "wasteManager" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
+        </Tab>
+      )}
 
       <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/reviews">Reviews</Link>

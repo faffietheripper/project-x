@@ -77,7 +77,10 @@ export default async function CompletedJobsPage() {
                       </button>
                     </Link>
                     {item.profile ? (
-                      <JobReview itemId={item.id} profileId={item.profile.id} />
+                      <JobReview
+                        itemId={item.id}
+                        organisationId={item.organisationId} // or item.winningOrganisationId, depending on context
+                      />
                     ) : (
                       <p>No valid profile found.</p>
                     )}

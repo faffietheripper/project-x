@@ -67,11 +67,15 @@ const SlideTabs = ({
 
       {chainOfCustody === "wasteManager" && (
         <>
+          {chainOfCustody === "wasteManager" && (
+            <Tab setPosition={setPosition}>
+              <Link href="/home/team-dashboard/team-withdrawals">
+                Withdrawals
+              </Link>
+            </Tab>
+          )}
           <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/withdrawals">Withdrawals</Link>
-          </Tab>
-          <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/reviews">Reviews</Link>
+            <Link href="/home/team-dashboard/team-reviews">Reviews</Link>
           </Tab>
         </>
       )}
@@ -79,7 +83,7 @@ const SlideTabs = ({
       {chainOfCustody === "wasteGenerator" && (
         <>
           <Tab setPosition={setPosition}>
-            <Link href="/home/my-activity/reviews">Reviews</Link>
+            <Link href="/home/team-dashboard/team-reviews">Reviews</Link>
           </Tab>
         </>
       )}
@@ -225,7 +229,6 @@ const ListingsDropdown = ({
                 text="Assigned Jobs"
               />
             </Link>
-            <Option setOpen={setOpen} Icon={FiShare} text="Active Listings" />
             <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
           </>
         )}
