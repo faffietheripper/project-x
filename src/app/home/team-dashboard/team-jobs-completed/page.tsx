@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { items, profiles } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import JobReview from "@/components/app/JobReview";
 
 export default async function TeamCompletedJobsPage() {
@@ -12,30 +12,38 @@ export default async function TeamCompletedJobsPage() {
     throw new Error("Unauthorized");
   }
 
-  // Fetch completed items for this organisation
+  const organisationId = session.user.organisationId;
+
+  // Fetch completed items where the organisation was either the owner OR the winning organisation
   const completedOrgItems = await database.query.items.findMany({
     where: and(
-      eq(items.organisationId, session.user.organisationId),
-      eq(items.completed, true)
+      eq(items.completed, true),
+      or(
+        eq(items.organisationId, organisationId), // org owned the item
+        eq(items.winningOrganisationId, organisationId) // org won the item
+      )
     ),
     with: {
       winningBid: true,
+      winningOrganisation: true,
+      organisation: true,
     },
   });
 
   // Map through completedOrgItems and fetch corresponding profiles
   const itemsWithProfiles = await Promise.all(
     completedOrgItems.map(async (item) => {
+      // If organisation owns the item, then the "receiver" is the winning bidder.
+      // If organisation is the winning bidder, then the "receiver" is the item owner.
       const receiverUserId =
-        item.organisationId === session.user.organisationId
-          ? item.winningBid?.userId // If org owner, receiver is winning bidder
-          : item.userId; // Otherwise, receiver is item owner
+        item.organisationId === organisationId
+          ? item.winningBid?.userId
+          : item.userId;
 
       if (!receiverUserId) {
         return { ...item, profile: null };
       }
 
-      // Fetch profile for the receiver
       const profile = await database.query.profiles.findFirst({
         where: eq(profiles.userId, receiverUserId),
       });
@@ -63,6 +71,14 @@ export default async function TeamCompletedJobsPage() {
                       Description:{" "}
                       {item.detailedDescription || "No description provided"}
                     </h1>
+                    <p className="text-gray-600">
+                      <strong>Owner Organisation:</strong>{" "}
+                      {item.organisation?.teamName || "Unknown"}
+                    </p>
+                    <p className="text-gray-600">
+                      <strong>Winning Organisation:</strong>{" "}
+                      {item.winningOrganisation?.teamName || "Unknown"}
+                    </p>
                   </div>
                   <div className="flex space-x-4">
                     <Link href={`/home/items/${item.id}`}>

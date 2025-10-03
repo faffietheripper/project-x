@@ -32,3 +32,5 @@ export async function deleteBidAction(formData: FormData) {
   // Optionally, revalidate the path to reflect changes immediately
   revalidatePath("/home/my-activity/my-bids");
 }
+
+//not using this for now because you can always decline the offer or make another bid but they need to be told !!

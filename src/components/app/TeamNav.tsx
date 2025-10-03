@@ -219,17 +219,19 @@ const ListingsDropdown = ({
       >
         {chainOfCustody === "wasteManager" && (
           <>
-            <Link href="/home/team-dashboard/team-profile">
+            <Link href="/home/team-dashboard/team-jobs-completed">
               <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
             </Link>
-            <Link href="/home/team-dashboard/new-template">
+            <Link href="/home/team-dashboard/team-assigned-jobs">
               <Option
                 setOpen={setOpen}
                 Icon={FiPlusSquare}
                 text="Assigned Jobs"
               />
             </Link>
-            <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
+            <Link href="/home/team-dashboard/team-bids">
+              <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
+            </Link>
           </>
         )}
 
