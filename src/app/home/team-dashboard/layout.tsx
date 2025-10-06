@@ -2,6 +2,7 @@ import React from "react";
 import { auth } from "@/auth";
 import TeamNav from "@/components/app/TeamNav";
 import { getOrganisationServer } from "@/data-access/organisations";
+import { redirect } from "next/navigation";
 
 export default async function Layout({
   children,
@@ -10,11 +11,16 @@ export default async function Layout({
 }) {
   const session = await auth();
 
+  // If user not linked to an organisation, redirect to /home/me
   if (!session?.user?.organisationId) {
-    throw new Error("Unauthorized");
+    // Option 1: simple redirect
+    redirect("/home/me");
+
+    // Option 2: redirect with a query param if you want to show a message there:
+    // redirect("/home/me?setupRequired=true");
   }
 
-  // Fetch organisation server-side using organisationId
+  // Fetch organisation details
   const org = await getOrganisationServer(session.user.organisationId);
   const chainOfCustody = org?.chainOfCustody ?? null;
   const userRole = session?.user?.role ?? null;

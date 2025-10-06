@@ -81,11 +81,11 @@ export default function Header() {
           <Link href="/home/notifications" className="text-md font-semibold">
             Notifications
           </Link>
-          <Link href="/home/notifications" className="text-md font-semibold">
+          <Link href="/home/carrier-hub" className="text-md font-semibold">
             The Carrier Hub
           </Link>
           <Link href="/home/notifications" className="text-md font-semibold">
-            User Settings - to put billing
+            User Settings [me]
           </Link>
         </div>
       </div>

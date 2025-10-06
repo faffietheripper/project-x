@@ -11,7 +11,8 @@ const fontSans = FontSans({
 
 export const metadata: Metadata = {
   title: "Waste X",
-  description: "Trying out shit lol",
+  description:
+    "Digital Waste Tracking System designed by Tino ad Jethro. This is the beta version. More to come.",
 };
 
 export default async function RootLayout({
