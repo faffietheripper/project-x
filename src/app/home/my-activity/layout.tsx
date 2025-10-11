@@ -14,7 +14,7 @@ export default async function Layout({
   // Redirect if user doesn't have an organisation yet
   if (!session?.user?.organisationId) {
     // Option 1: simple redirect
-    redirect("/home/me");
+    redirect("/home/team-dashboard/team-profile?reason=no-organisation");
 
     // Option 2 (optional): redirect with query param for a message
     // redirect("/home/me?setupRequired=true");

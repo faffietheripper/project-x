@@ -44,31 +44,7 @@ export async function fetchProfileAction() {
 }
 
 // ✅ Save or update organisation and associate user
-export async function saveProfileAction({
-  profilePicture,
-  teamName,
-  chainOfCustody,
-  industry,
-  telephone,
-  emailAddress,
-  country,
-  streetAddress,
-  city,
-  region,
-  postCode,
-}: {
-  profilePicture: string;
-  teamName: string;
-  chainOfCustody: string;
-  industry: string;
-  telephone: string;
-  emailAddress: string;
-  country: string;
-  streetAddress: string;
-  city: string;
-  region: string;
-  postCode: string;
-}) {
+export async function saveProfileAction(formData: FormData) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
@@ -83,40 +59,51 @@ export async function saveProfileAction({
 
   const existingOrgId = user?.organisationId;
 
+  // 🧩 Extract all fields explicitly from the form
+  const profilePicture = formData.get("profilePicture") as string | null;
+  const teamName = formData.get("teamName") as string | null;
+  const chainOfCustody = formData.get("chainOfCustody") as string | null;
+  const industry = formData.get("industry") as string | null;
+  const telephone = formData.get("telephone") as string | null;
+  const emailAddress = formData.get("emailAddress") as string | null;
+  const country = formData.get("country") as string | null;
+  const streetAddress = formData.get("streetAddress") as string | null;
+  const city = formData.get("city") as string | null;
+  const region = formData.get("region") as string | null;
+  const postCode = formData.get("postCode") as string | null;
+
+  // 🛡 Only include values that actually exist
+  const updateData = {
+    ...(profilePicture && { profilePicture }),
+    ...(teamName && { teamName }),
+    ...(chainOfCustody && { chainOfCustody }),
+    ...(industry && { industry }),
+    ...(telephone && { telephone }),
+    ...(emailAddress && { emailAddress }),
+    ...(country && { country }),
+    ...(streetAddress && { streetAddress }),
+    ...(city && { city }),
+    ...(region && { region }),
+    ...(postCode && { postCode }),
+  };
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error(
+      "No values to set — check that your form is sending fields correctly."
+    );
+  }
+
   if (existingOrgId) {
+    // ✅ Update existing org
     await database
       .update(organisations)
-      .set({
-        profilePicture,
-        teamName,
-        chainOfCustody,
-        industry,
-        telephone,
-        emailAddress,
-        country,
-        streetAddress,
-        city,
-        region,
-        postCode,
-      })
+      .set(updateData)
       .where(eq(organisations.id, existingOrgId));
   } else {
-    // Create new organisation and update user's organisationId + role
+    // ✅ Create new org + assign user
     const [newOrg] = await database
       .insert(organisations)
-      .values({
-        profilePicture,
-        teamName,
-        chainOfCustody,
-        industry,
-        telephone,
-        emailAddress,
-        country,
-        streetAddress,
-        city,
-        region,
-        postCode,
-      })
+      .values(updateData)
       .returning();
 
     await database
@@ -128,7 +115,11 @@ export async function saveProfileAction({
       .where(eq(users.id, userId));
   }
 
-  redirect("/home/my-activity");
+  // 🧩 Wait a moment before logging out (optional UX delay)
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  // ✅ Log the user out (like assignRoleAction)
+  await signOut({ redirectTo: "/login" }); // You can change "/login" to "/" or another page
 }
 
 // ✅ Assign a role within the organisation (not global user table)

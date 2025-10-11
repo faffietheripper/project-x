@@ -12,14 +12,23 @@ export default function SetupAlert({
   const router = useRouter();
 
   useEffect(() => {
+    console.log("👀 useEffect ran", { user });
     if (!user?.role || !user?.profileCompleted) {
+      console.log("🚨 Missing setup info — showing alert");
       setShowAlert(true);
+    } else {
+      console.log("✅ User setup complete — hiding alert");
+      setShowAlert(false);
     }
   }, [user]);
 
+  console.log("👀 SetupAlert render", { showAlert, user });
+
   if (!showAlert) return null;
 
+  // 👇 Put your debugged handler here
   const handleGoToSettings = () => {
+    console.log("⚠️ handleGoToSettings fired!");
     setShowAlert(false);
     router.push("/home/me");
   };
@@ -28,7 +37,10 @@ export default function SetupAlert({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-yellow-100 border-l-8 border-yellow-600 text-yellow-900 p-6 rounded-2xl shadow-2xl max-w-md w-[90%] text-center animate-fadeIn relative">
         <button
-          onClick={() => setShowAlert(false)}
+          onClick={() => {
+            console.log("❌ Closed manually");
+            setShowAlert(false);
+          }}
           className="absolute top-3 right-3 text-yellow-800 hover:text-yellow-600"
         >
           ✕

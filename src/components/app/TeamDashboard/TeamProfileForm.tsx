@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createUploadUrlAction,
   saveProfileAction,
@@ -11,10 +11,15 @@ import { getImageUrl } from "@/util/files";
 
 export default function TeamProfileForm() {
   const [profileData, setProfileData] = useState({});
-  const [newProfilePicture, setNewProfilePicture] = useState(null);
+  const [newProfilePicture, setNewProfilePicture] = useState<File | null>(null);
   const [chainOfCustody, setChainOfCustody] = useState("wasteGenerator");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  // ✅ Get the redirect reason from query
+  const reason = searchParams.get("reason");
+
+  // Fetch existing profile
   useEffect(() => {
     async function loadProfile() {
       const profile = await fetchProfileAction();
@@ -23,23 +28,23 @@ export default function TeamProfileForm() {
         setChainOfCustody(profile.chainOfCustody);
       }
     }
-
     loadProfile();
   }, []);
 
-  const handleFileChange = (event) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { files } = event.target;
     if (files?.length > 0) {
       setNewProfilePicture(files[0]);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const form = e.currentTarget;
     const formData = new FormData(form);
 
+    // Upload file to storage
     const uploadUrls = await createUploadUrlAction(
       [newProfilePicture?.name || profileData?.profilePicture || ""],
       [newProfilePicture?.type || ""]
@@ -52,31 +57,28 @@ export default function TeamProfileForm() {
       });
     }
 
-    await saveProfileAction({
-      profilePicture:
-        newProfilePicture?.name || profileData?.profilePicture || "",
-      teamName: formData.get("teamName"),
-      chainOfCustody,
-      industry: formData.get("industry"),
-      telephone: formData.get("telephone"),
-      emailAddress: formData.get("emailAddress"),
-      country: formData.get("country"),
-      streetAddress: formData.get("streetAddress"),
-      city: formData.get("city"),
-      region: formData.get("region"),
-      postCode: formData.get("postCode"),
-    });
+    // Save profile using formData
+    await saveProfileAction(formData);
 
     alert("Profile saved successfully!");
     router.push("/home/my-activity");
   };
 
   return (
-    <main>
+    <main className="p-6">
+      {/* ✅ Show message if redirected */}
+      {reason === "no-organisation" && (
+        <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md">
+          You’ve been redirected because no organisation data was found for your
+          account. Please complete your team profile below.
+        </div>
+      )}
+
       <form
         className="flex justify-center flex-col rounded-xl space-y-5 pb-10"
         onSubmit={handleSubmit}
       >
+        {/* Profile Picture */}
         <div className="grid grid-cols-1 justify-items-center">
           <div className="mb-2 text-sm text-gray-800">
             <h1 className="pb-2 font-semibold">Profile Picture:</h1>
@@ -101,6 +103,24 @@ export default function TeamProfileForm() {
           />
         </div>
 
+        {/* Chain of Custody */}
+        <section>
+          <label className="block text-sm font-medium text-gray-700 mt-4">
+            Chain of Custody
+          </label>
+          <select
+            name="chainOfCustody"
+            value={chainOfCustody}
+            onChange={(e) => setChainOfCustody(e.target.value)}
+            className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
+          >
+            <option value="wasteGenerator">Waste Generator</option>
+            <option value="wasteManager">Waste Manager</option>
+            <option value="wasteCarrier">Waste Carrier</option>
+          </select>
+        </section>
+
+        {/* Profile Details */}
         <section>
           <div className="mb-2 text-sm text-gray-800">
             <h1 className="pb-2 font-semibold">Profile Details :</h1>
@@ -116,6 +136,7 @@ export default function TeamProfileForm() {
             placeholder="Team Name"
             defaultValue={profileData.teamName || ""}
           />
+
           <label className="block text-sm font-medium text-gray-700 mt-4">
             Industry
           </label>
@@ -128,6 +149,7 @@ export default function TeamProfileForm() {
           />
         </section>
 
+        {/* Contact Info */}
         <section>
           <div className="grid grid-cols-3 gap-4 ">
             <div>
@@ -148,7 +170,7 @@ export default function TeamProfileForm() {
               </label>
               <input
                 required
-                className="w-full border  rounded-md mt-2 px-3 py-2 text-sm"
+                className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
                 name="emailAddress"
                 placeholder="Email Address"
                 defaultValue={profileData.emailAddress || ""}
@@ -156,6 +178,7 @@ export default function TeamProfileForm() {
             </div>
           </div>
 
+          {/* Address */}
           <section className="my-10">
             <h1 className="pb-2 font-semibold mb-2 text-sm text-gray-800">
               Physical Address:

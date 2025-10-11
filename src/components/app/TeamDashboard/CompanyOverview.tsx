@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import Image from "next/image";
 import { getImageUrl } from "@/util/files";
 import Link from "next/link";
+import { redirect } from "next/navigation"; // ✅ Import redirect
 
 export default async function CompanyOverview() {
   const session = await auth();
@@ -27,8 +28,9 @@ export default async function CompanyOverview() {
 
   const organisation = result[0]?.organisation;
 
+  // ✅ Redirect if no organisation data
   if (!organisation) {
-    return <div>No organisation data found.</div>;
+    redirect("/home/team-dashboard/team-profile?reason=no-organisation");
   }
 
   return (
