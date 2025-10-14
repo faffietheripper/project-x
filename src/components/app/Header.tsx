@@ -76,16 +76,19 @@ export default function Header() {
             My Activity.
           </Link>
           <Link href="/home/team-dashboard" className="text-md font-semibold">
-            Team Dashboard
+            Team Dashboard.
           </Link>
           <Link href="/home/notifications" className="text-md font-semibold">
-            Notifications
+            Notifications.
           </Link>
           <Link href="/home/carrier-hub" className="text-md font-semibold">
-            The Carrier Hub
+            The Carrier Hub.
+          </Link>
+          <Link href="/home/waste-carriers" className="text-md font-semibold">
+            Waste Carriers.
           </Link>
           <Link href="/home/notifications" className="text-md font-semibold">
-            User Settings [me]
+            User Settings. [me]
           </Link>
         </div>
       </div>

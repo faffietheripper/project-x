@@ -1,10 +1,9 @@
-import { getOrganisation } from "@/data-access/organisations";
+import { getOrganisationServer } from "@/data-access/organisations";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getImageUrl } from "@/util/files";
 import { database } from "@/db/database";
-import { eq } from "drizzle-orm";
 
 export default async function OrganisationPage({
   params,
@@ -17,12 +16,13 @@ export default async function OrganisationPage({
     throw new Error("organisationId param is missing.");
   }
 
-  const organisation = await getOrganisation(organisationId);
+  // ✅ Use correct data-access function
+  const organisation = await getOrganisationServer(organisationId);
 
   if (!organisation) {
     return (
-      <div className=" pl-[22vw] space-y-8 py-36 px-12 flex flex-col items-center mt-12">
-        <Image src="/package.svg" width="200" height="200" alt="Package" />
+      <div className="pl-[22vw] space-y-8 py-36 px-12 flex flex-col items-center mt-12">
+        <Image src="/package.svg" width={200} height={200} alt="Package" />
         <h1 className="">Organisation not found</h1>
         <p className="text-center">
           The organisation you&apos;re trying to view is invalid.
@@ -48,10 +48,11 @@ export default async function OrganisationPage({
   );
 
   return (
-    <main className=" pl-[22vw] space-y-8 py-36 px-12">
+    <main className="pl-[22vw] space-y-8 py-36 px-12">
       <div className="grid grid-cols-6 gap-6">
+        {/* Main Info Column */}
         <div className="col-span-4 flex flex-col gap-6">
-          <div className="flex items-center gap-x-6">
+          <div className="flex items-center justify-around gap-x-6">
             <Image
               height={100}
               width={100}
@@ -67,24 +68,29 @@ export default async function OrganisationPage({
                 {organisation.region}, {organisation.country}
               </h2>
             </div>
+
+            <button className="bg-blue-600 text-white py-2 px-4 h-fit w-fit rounded-md">
+              Assign Job
+            </button>
           </div>
 
+          {/* Reviews Section */}
           <section className="p-6 bg-gray-100 rounded-lg">
             <h2 className="text-2xl font-semibold mb-4">Reviews</h2>
             {userReviews.length > 0 ? (
-              <ul className="grid grid-cols-2">
+              <ul className="grid grid-cols-2 gap-4">
                 {userReviews.map((review) => (
                   <li
                     key={review.id}
                     className="border rounded-lg p-4 shadow-sm bg-white"
                   >
                     <h2 className="text-lg font-semibold">
-                      Reviewed By: {review.reviewerId || "Anonymous"}
+                      Reviewed By: {review.reviewer?.name || "Anonymous"}
                     </h2>
                     <p className="text-gray-600 py-3">
                       <strong>Rating:</strong> {review.rating} / 5
                     </p>
-                    <p className="mt-2">" {review.reviewText} "</p>
+                    <p className="mt-2">“{review.reviewText}”</p>
                     <p className="text-sm text-right text-gray-400 mt-2">
                       {new Date(review.timestamp).toLocaleString()}
                     </p>
@@ -97,6 +103,7 @@ export default async function OrganisationPage({
           </section>
         </div>
 
+        {/* Sidebar Column */}
         <div className="col-span-2 space-y-4 p-6 rounded-lg bg-gray-100">
           <h2 className="text-2xl font-semibold">Company Details</h2>
           <p className="text-sm text-gray-500">

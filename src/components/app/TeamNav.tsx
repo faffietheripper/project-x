@@ -65,6 +65,12 @@ const SlideTabs = ({
         />
       </Tab>
 
+      <Tab setPosition={setPosition}>
+        <Link href="/home/team-dashboard/template-library">
+          Carrier Management
+        </Link>
+      </Tab>
+
       {chainOfCustody === "wasteManager" && (
         <>
           {chainOfCustody === "wasteManager" && (

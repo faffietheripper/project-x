@@ -8,7 +8,7 @@ export default function CarrierHubNav() {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div className="pl-72 pt-[13vh] w-full fixed">
+    <div className="pl-72 pt-[13vh] fixed">
       <SlideTabs setShowModal={setShowModal} />
     </div>
   );
@@ -25,7 +25,7 @@ const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
   return (
     <ul
       onMouseLeave={() => setPosition((pv) => ({ ...pv, opacity: 0 }))}
-      className="relative flex justify-around bg-gray-200 h-[13vh] pt-4 text-sm px-10"
+      className="relative flex justify-between w-[80vw] bg-gray-200 h-[13vh] pt-4 text-sm px-10"
     >
       <Tab setPosition={setPosition}>
         <Link href="/home/carrier-hub">Analytics Dashboard</Link>
