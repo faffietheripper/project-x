@@ -3,6 +3,7 @@ import PlaceBid from "@/components/app/PlaceBid";
 import { Button } from "@/components/ui/button";
 import { getBidsForItem } from "@/data-access/bids";
 import { getItem } from "@/data-access/items";
+import { getOrganisationById } from "@/data-access/organisations";
 import { getImageUrl } from "@/util/files";
 import { formatDistance } from "date-fns";
 import Image from "next/image";
@@ -19,14 +20,13 @@ function formatTimestamp(timestamp: Date) {
 }
 
 export default async function ItemPage({
-  params: { itemId, bidId },
+  params: { itemId },
 }: {
-  params: { itemId: string; bidId: string };
+  params: { itemId: string };
 }) {
   const session = await auth();
 
   const item = await getItem(parseInt(itemId));
-
   const { winningBid } = await getWinningBid(Number(itemId));
 
   if (!item) {
@@ -48,13 +48,15 @@ export default async function ItemPage({
     );
   }
 
-  const allBids = await getBidsForItem(item.id);
+  // ✅ Fetch the organisation that owns this item
+  const organisation = await getOrganisationById(item.organisationId);
 
+  const allBids = await getBidsForItem(item.id);
   const hasBids = allBids.length > 0;
 
   const canPlaceBid =
     session &&
-    session.user.role !== "wasteGenerator" && // Prevent wasteGenerator from bidding
+    session.user.role !== "wasteGenerator" &&
     item.userId !== session.user.id &&
     !(await isBidOver(item)) &&
     item.archived == false &&
@@ -62,68 +64,92 @@ export default async function ItemPage({
 
   const canAssignBid = session && item.userId == session?.user.id;
 
-  const fileKeys = item.fileKey.split(",");
+  const fileKeys = item.fileKey?.split(",") ?? [];
 
   return (
     <main className="space-y-8 py-36 px-12 pl-[22vw]">
       <div className="grid grid-cols-6 gap-6">
-        <div className=" col-span-4 flex flex-col gap-6">
-          <div className="flex items-center justify-between ">
+        <div className="col-span-4 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
             <h1 className="font-semibold text-2xl">Auction for {item.name}</h1>
             <div>
               Current Bid/ Latest Bid Value{" "}
               <span className="font-bold">${item.currentBid}</span>
             </div>
           </div>
+
           {(await isBidOver(item)) && (
             <Badge className="w-fit bg-red-400" variant="destructive">
               Bidding Over
             </Badge>
           )}
+
           <div className="grid grid-cols-3 gap-6">
             {fileKeys.map((key, index) => (
               <Image
                 key={index}
-                className="rounded-xl w-full h-56"
-                src={getImageUrl(key.trim())} // Trim any extra spaces
+                className="rounded-xl w-full h-56 object-cover"
+                src={getImageUrl(key.trim())}
                 alt={`${item.name} - Image ${index + 1}`}
                 width={400}
                 height={400}
               />
             ))}
           </div>
+
           <h2 className="font-semibold text-lg">
             Located in{" "}
             <span className="font-normal text-gray-500">{item.location}</span>
           </h2>
-          <p className="text-xs text-gray-500">
-            <span className="text-lg text-black block font-semibold">
-              Detailed Description :
-            </span>{" "}
-            {item.detailedDescription}
-          </p>
-          <p className="text-xs text-gray-500">
-            <span className="text-lg text-black block font-semibold">
-              Compliance Details :
-            </span>{" "}
-            {item.complianceDetails}
-          </p>{" "}
-          <p className="text-xs text-gray-500">
-            <span className="text-lg text-black block font-semibold">
-              Transportation Details :
-            </span>{" "}
-            {item.transportationDetails}
-          </p>{" "}
-          <p className="text-xs text-gray-500">
-            <span className="text-lg text-black block font-semibold">
-              Transaction Conditions :
-            </span>{" "}
-            {item.transactionConditions}
-          </p>
+
+          {/* ✅ Organisation Link */}
+          {organisation && (
+            <div className="text-sm text-gray-600">
+              Listed by{" "}
+              <Link
+                href={`/home/organisations/${organisation.id}`}
+                className="text-blue-600 underline font-semibold hover:text-blue-800"
+              >
+                {organisation.name}
+              </Link>
+            </div>
+          )}
+
+          <div className="space-y-3 text-xs text-gray-500">
+            <div>
+              <span className="text-lg text-black block font-semibold">
+                Detailed Description :
+              </span>
+              {item.detailedDescription}
+            </div>
+
+            <div>
+              <span className="text-lg text-black block font-semibold">
+                Compliance Details :
+              </span>
+              {item.complianceDetails}
+            </div>
+
+            <div>
+              <span className="text-lg text-black block font-semibold">
+                Transportation Details :
+              </span>
+              {item.transportationDetails}
+            </div>
+
+            <div>
+              <span className="text-lg text-black block font-semibold">
+                Transaction Conditions :
+              </span>
+              {item.transactionConditions}
+            </div>
+          </div>
         </div>
+
+        {/* ✅ Right Sidebar */}
         <section className="w-[330px] fixed right-8">
-          <div className=" space-y-4 p-6 rounded-lg bg-gray-200 h-[60vh] overflow-y-scroll">
-            <div className="flex flex-col justify-between ">
+          <div className="space-y-4 p-6 rounded-lg bg-gray-200 h-[60vh] overflow-y-scroll">
+            <div className="flex flex-col justify-between">
               <h2 className="text-2xl font-semibold mb-6">Current Bids</h2>
 
               {canPlaceBid && (
@@ -143,36 +169,32 @@ export default async function ItemPage({
                       <div className="text-xs text-gray-500 mb-6">
                         {formatTimestamp(bid.timestamp)}
                       </div>
-                      {canAssignBid && (
+
+                      {/* ✅ Organisation actions */}
+                      {canAssignBid ? (
                         <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="submit"
-                            className="bg-blue-600 text-white py-2 px-4  rounded-md"
+                          <Link
+                            href={`/home/organisations/${bid.organisationId}`}
+                            className="bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition"
                           >
-                            <Link
-                              href={`/home/organisations/${bid.organisationId}`}
-                            >
-                              View Profile
-                            </Link>
-                          </button>
+                            View Profile
+                          </Link>
+
                           <AssignListingButton
                             itemId={item.id}
                             bidId={bid.id}
-                            item={item} // Ensure 'item' is passed correctly
+                            item={item}
                             bid={bid}
-                            handleAssignWinningBid={handleAssignWinningBid} // Pass the action directly
+                            handleAssignWinningBid={handleAssignWinningBid}
                           />
                         </div>
-                      )}{" "}
-                      {!canAssignBid && (
-                        <button
-                          type="submit"
-                          className="bg-blue-600 text-white py-2 px-4  rounded-md"
+                      ) : (
+                        <Link
+                          href={`/home/organisations/${bid.organisationId}`}
+                          className="bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition"
                         >
-                          <Link href={`/home/profiles/${bid.profileId}`}>
-                            View Profile
-                          </Link>
-                        </button>
+                          View Company
+                        </Link>
                       )}
                     </div>
                   </li>
@@ -190,8 +212,9 @@ export default async function ItemPage({
               </div>
             )}
           </div>
+
           <div className="rounded-lg bg-blue-200 h-[19vh] mt-4 px-4 py-3">
-            <h1 className="font-bold text-md "> Bid Winner :</h1>
+            <h1 className="font-bold text-md">Bid Winner :</h1>
             <BidWinner winningBid={winningBid} />
           </div>
         </section>

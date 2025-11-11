@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { getOrganisationServer } from "@/data-access/organisations";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,14 +17,18 @@ export default async function OrganisationPage({
     throw new Error("organisationId param is missing.");
   }
 
-  // ✅ Use correct data-access function
+  // ✅ Get logged-in user session (not needed for logic, but useful for future features)
+  const session = await auth();
+  console.log("🧭 Session user:", session?.user);
+
+  // ✅ Fetch the organisation being viewed
   const organisation = await getOrganisationServer(organisationId);
 
   if (!organisation) {
     return (
       <div className="pl-[22vw] space-y-8 py-36 px-12 flex flex-col items-center mt-12">
         <Image src="/package.svg" width={200} height={200} alt="Package" />
-        <h1 className="">Organisation not found</h1>
+        <h1>Organisation not found</h1>
         <p className="text-center">
           The organisation you&apos;re trying to view is invalid.
           <br />
@@ -36,6 +41,7 @@ export default async function OrganisationPage({
     );
   }
 
+  // ✅ Fetch all reviews related to this organisation
   const allReviews = await database.query.reviews.findMany({
     with: {
       reviewer: true,
@@ -47,31 +53,43 @@ export default async function OrganisationPage({
     (review) => review.organisationId === organisation.id
   );
 
+  // ✅ Only show button if the viewed organisation is a carrier
+  const canAssignCarrier = organisation.chainOfCustody === "wasteCarrier";
+
+  console.log("🏢 Viewing organisation:", organisation.teamName);
+  console.log("🔗 Chain of custody:", organisation.chainOfCustody);
+  console.log("✅ canAssignCarrier:", canAssignCarrier);
+
   return (
     <main className="pl-[22vw] space-y-8 py-36 px-12">
       <div className="grid grid-cols-6 gap-6">
         {/* Main Info Column */}
         <div className="col-span-4 flex flex-col gap-6">
+          {/* Organisation Header */}
           <div className="flex items-center justify-around gap-x-6">
             <Image
               height={100}
               width={100}
               src={getImageUrl(organisation.profilePicture)}
-              alt="Logo"
+              alt={`${organisation.teamName} logo`}
               className="w-32 h-32 rounded-full object-cover"
             />
+
             <div>
               <h1 className="font-semibold text-2xl">
                 {organisation.teamName}
               </h1>
-              <h2 className="font-semibold text-lg">
+              <h2 className="font-semibold text-lg text-gray-600">
                 {organisation.region}, {organisation.country}
               </h2>
             </div>
 
-            <button className="bg-blue-600 text-white py-2 px-4 h-fit w-fit rounded-md">
-              Assign Job
-            </button>
+            {/* ✅ Only visible if the viewed organisation is a carrier */}
+            {canAssignCarrier && (
+              <button className="bg-blue-600 text-white py-2 px-4 h-fit w-fit rounded-md hover:bg-blue-700 transition">
+                Assign Carrier Job
+              </button>
+            )}
           </div>
 
           {/* Reviews Section */}
@@ -105,7 +123,8 @@ export default async function OrganisationPage({
 
         {/* Sidebar Column */}
         <div className="col-span-2 space-y-4 p-6 rounded-lg bg-gray-100">
-          <h2 className="text-2xl font-semibold">Company Details</h2>
+          <h2 className="text-2xl font-semibold mb-2">Company Details</h2>
+
           <p className="text-sm text-gray-500">
             <strong>Email Address:</strong> {organisation.emailAddress}
           </p>
@@ -123,6 +142,9 @@ export default async function OrganisationPage({
           </p>
           <p className="text-sm text-gray-500">
             <strong>Post Code:</strong> {organisation.postCode}
+          </p>
+          <p className="text-sm text-gray-500">
+            <strong>Chain of Custody:</strong> {organisation.chainOfCustody}
           </p>
         </div>
       </div>
