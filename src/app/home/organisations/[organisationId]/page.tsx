@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getImageUrl } from "@/util/files";
 import { database } from "@/db/database";
+import AssignCarrierModal from "@/components/app/WasteCarriers/AssignCarrierModal";
 
 export default async function OrganisationPage({
   params,
@@ -86,9 +87,7 @@ export default async function OrganisationPage({
 
             {/* ✅ Only visible if the viewed organisation is a carrier */}
             {canAssignCarrier && (
-              <button className="bg-blue-600 text-white py-2 px-4 h-fit w-fit rounded-md hover:bg-blue-700 transition">
-                Assign Carrier Job
-              </button>
+              <AssignCarrierModal carrierOrgId={organisation.id} />
             )}
           </div>
 

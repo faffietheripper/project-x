@@ -128,12 +128,38 @@ export const bids = pgTable("bb_bids", {
 // Items
 export const items = pgTable("bb_item", {
   id: integer("id").primaryKey(),
+
+  // Owner (usually waste generator)
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+
   organisationId: text("organisationId")
     .notNull()
     .references(() => organisations.id, { onDelete: "cascade" }),
+
+  // Waste Manager Info
+  winningBidId: integer("winningBidId")
+    .references(() => bids.id, { onDelete: "set null" })
+    .default(null),
+
+  winningOrganisationId: text("winningOrganisationId")
+    .references(() => organisations.id, { onDelete: "set null" })
+    .default(null),
+
+  // Carrier Info (NEW)
+  assignedCarrierOrganisationId: text("assignedCarrierOrganisationId")
+    .references(() => organisations.id, { onDelete: "set null" })
+    .default(null),
+
+  assignedByOrganisationId: text("assignedByOrganisationId")
+    .references(() => organisations.id, { onDelete: "set null" })
+    .default(null),
+
+  assignedAt: timestamp("assignedAt", { mode: "date" }),
+  carrierStatus: text("carrierStatus").default("pending"), // pending | accepted | rejected | completed
+
+  // Job Metadata
   name: text("name").notNull(),
   startingPrice: integer("startingPrice").notNull().default(0),
   fileKey: text("fileKey").notNull(),
@@ -148,12 +174,6 @@ export const items = pgTable("bb_item", {
   offerAccepted: boolean("offerAccepted").notNull().default(false),
   assigned: boolean("assigned").notNull().default(false),
   completed: boolean("completed").notNull().default(false),
-  winningBidId: integer("winningBidId")
-    .references(() => bids.id, { onDelete: "set null" })
-    .default(null),
-  winningOrganisationId: text("winningOrganisationId")
-    .references(() => organisations.id, { onDelete: "set null" })
-    .default(null),
 });
 
 // Profiles
@@ -235,10 +255,7 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
 }));
 
 export const itemsRelations = relations(items, ({ one }) => ({
-  user: one(users, {
-    fields: [items.userId],
-    references: [users.id],
-  }),
+  user: one(users, { fields: [items.userId], references: [users.id] }),
   organisation: one(organisations, {
     relationName: "ownerOrganisation",
     fields: [items.organisationId],
@@ -247,6 +264,16 @@ export const itemsRelations = relations(items, ({ one }) => ({
   winningOrganisation: one(organisations, {
     relationName: "winningOrganisation",
     fields: [items.winningOrganisationId],
+    references: [organisations.id],
+  }),
+  assignedCarrierOrganisation: one(organisations, {
+    relationName: "assignedCarrierOrganisation",
+    fields: [items.assignedCarrierOrganisationId],
+    references: [organisations.id],
+  }),
+  assignedByOrganisation: one(organisations, {
+    relationName: "assignedByOrganisation",
+    fields: [items.assignedByOrganisationId],
     references: [organisations.id],
   }),
   winningBid: one(bids, {
