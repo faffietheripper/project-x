@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { items } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 export async function assignCarrierAction(
   itemId: number,
