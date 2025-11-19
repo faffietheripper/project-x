@@ -28,6 +28,9 @@ const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
       className="relative flex justify-between w-[80vw] bg-gray-200 h-[13vh] pt-4 text-sm px-10"
     >
       <Tab setPosition={setPosition}>
+        <Link href="/home/carrier-hub">Home</Link>
+      </Tab>
+      <Tab setPosition={setPosition}>
         <Link href="/home/carrier-hub">Analytics Dashboard</Link>
       </Tab>
 
@@ -36,7 +39,14 @@ const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
       </Tab>
 
       <Tab setPosition={setPosition}>
+        <Link href="/home/my-activity/withdrawals">Reviews</Link>
+      </Tab>
+
+      <Tab setPosition={setPosition}>
         <Link href="/home/my-activity/reviews">Incident Reporting</Link>
+      </Tab>
+      <Tab setPosition={setPosition}>
+        <Link href="/home/my-activity/reviews">Settings</Link>
       </Tab>
 
       <Cursor position={position} />
