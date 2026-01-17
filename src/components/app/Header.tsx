@@ -10,7 +10,7 @@ import { getOrganisationByUserId } from "@/data-access/organisations";
 // -------------------------------------------------------
 function WasteGeneratorNav() {
   return (
-    <div className="flex flex-col justify-between gap-8">
+    <div className="flex flex-col justify-between font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
       <Link href="/home/items/create">Create Waste Listing.</Link>
@@ -27,13 +27,15 @@ function WasteGeneratorNav() {
 // -------------------------------------------------------
 function WasteManagerNav() {
   return (
-    <div className="flex flex-col justify-between gap-8">
+    <div className="flex flex-col justify-between font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
-      <Link href="/home/carrier-hub">Carrier Hub.</Link>
-      <Link href="/home/assignments">Assignments.</Link>
-      <Link href="/home/incident-reports">Incident Reports.</Link>
+      <Link href="/home/my-activity">My Activity.</Link>
       <Link href="/home/team-dashboard">Team Dashboard.</Link>
+      <Link href="/home/waste-carriers">Waste Carriers.</Link>
+      <Link href="/home/carrier-hub/carrier-manager/analytics">
+        Carrier Hub.
+      </Link>
       <Link href="/home/notifications">Notifications.</Link>
       <Link href="/home/settings">User Settings.</Link>
     </div>
@@ -45,13 +47,14 @@ function WasteManagerNav() {
 // -------------------------------------------------------
 function WasteCarrierNav() {
   return (
-    <div className="flex flex-col justify-between gap-8">
+    <div className="flex flex-col justify-between font-bold gap-8">
       <Link href="/home">Home Page.</Link>
-      <Link href="/home/carrier-jobs">Assigned Jobs.</Link>
-      <Link href="/home/incidents">Incidents.</Link>
+      <Link href="/home/waste-listings">Waste Listings.</Link>
       <Link href="/home/team-dashboard">Team Dashboard.</Link>
+      <Link href="/home/carrier-hub/waste-carriers/analytics">
+        Carrier Hub.
+      </Link>
       <Link href="/home/notifications">Notifications.</Link>
-      <Link href="/home/waste-carriers">Carrier Directory.</Link>
       <Link href="/home/settings">User Settings.</Link>
     </div>
   );

@@ -1,25 +1,43 @@
 "use client";
 
-import React, { useState, useRef, ReactNode } from "react";
+import React, { useState, useRef, ReactNode, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { getOrganisationByUserId } from "@/data-access/organisations";
 
 export default function CarrierHubNav() {
-  const [showModal, setShowModal] = useState(false);
+  const [organisation, setOrganisation] = useState<any>(null);
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (!session?.user?.organisationId) return;
+
+    const loadOrg = async () => {
+      const org = await getOrganisationByUserId(session.user.organisationId);
+      setOrganisation(org);
+    };
+
+    loadOrg();
+  }, [session]);
+
+  const chain = organisation?.chainOfCustody;
 
   return (
     <div className="pl-72 pt-[13vh] fixed">
-      <SlideTabs setShowModal={setShowModal} />
+      {chain === "wasteCarrier" && <CarrierTabs />}
+      {chain === "wasteManager" && <ManagerTabs />}
+      {!chain && <div>Loading navigation...</div>}
     </div>
   );
 }
 
-// ---------- SlideTabs ----------
-interface SlideTabsProps {
-  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
+//
+// ---------------------------------------------------------
+// CARRIER NAVIGATION (Your original one)
+// ---------------------------------------------------------
+//
+const CarrierTabs = () => {
   const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
 
   return (
@@ -28,25 +46,25 @@ const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
       className="relative flex justify-between w-[80vw] bg-gray-200 h-[13vh] pt-4 text-sm px-10"
     >
       <Tab setPosition={setPosition}>
-        <Link href="/home/carrier-hub">Home</Link>
-      </Tab>
-      <Tab setPosition={setPosition}>
-        <Link href="/home/carrier-hub">Analytics Dashboard</Link>
-      </Tab>
-
-      <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/withdrawals">Assigned Jobs</Link>
+        <Link href="/home/carrier-hub/waste-carriers/analytics">
+          Analytics Dashboard
+        </Link>
       </Tab>
 
       <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/withdrawals">Reviews</Link>
+        <Link href="/home/carrier-hub/waste-carriers/assigned-jobs">
+          Assigned Jobs
+        </Link>
       </Tab>
 
       <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/reviews">Incident Reporting</Link>
+        <Link href="/home/carrier-hub/waste-carriers/incidents-&-reports">
+          Incident & Reports
+        </Link>
       </Tab>
+
       <Tab setPosition={setPosition}>
-        <Link href="/home/my-activity/reviews">Settings</Link>
+        <Link href="/home/carrier-hub/waste-carriers/reviews">Reviews</Link>
       </Tab>
 
       <Cursor position={position} />
@@ -54,7 +72,54 @@ const SlideTabs: React.FC<SlideTabsProps> = ({ setShowModal }) => {
   );
 };
 
-// ---------- Tab ----------
+//
+// ---------------------------------------------------------
+// MANAGER NAVIGATION (same style, different pages)
+// ---------------------------------------------------------
+//
+const ManagerTabs = () => {
+  const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
+
+  return (
+    <ul
+      onMouseLeave={() => setPosition((pv) => ({ ...pv, opacity: 0 }))}
+      className="relative flex justify-between w-[80vw] bg-gray-200 h-[13vh] pt-4 text-sm px-10"
+    >
+      <Tab setPosition={setPosition}>
+        <Link href="/home/carrier-hub/carrier-manager/analytics">
+          Analytics Dashboard
+        </Link>
+      </Tab>
+
+      <Tab setPosition={setPosition}>
+        <Link href="/home/carrier-hub/carrier-manager/job-assignments">
+          Job Assignments
+        </Link>
+      </Tab>
+
+      <Tab setPosition={setPosition}>
+        <Link href="/home/carrier-hub/carrier-manager/reviews">
+          Carrier Reviews
+        </Link>
+      </Tab>
+
+      <Tab setPosition={setPosition}>
+        <Link href="/home/carrier-hub/carrier-manager/incident-management">
+          Incident Management
+        </Link>
+      </Tab>
+
+      <Cursor position={position} />
+    </ul>
+  );
+};
+
+//
+// ---------------------------------------------------------
+// Shared Components (Tab, Cursor, Variants)
+// ---------------------------------------------------------
+//
+
 interface TabProps {
   children: ReactNode;
   setPosition: React.Dispatch<
@@ -84,7 +149,6 @@ const Tab: React.FC<TabProps> = ({ children, setPosition }) => {
   );
 };
 
-// ---------- Cursor ----------
 interface CursorProps {
   position: { left: number; width: number; opacity: number };
 }
@@ -96,47 +160,7 @@ const Cursor: React.FC<CursorProps> = ({ position }) => (
   />
 );
 
-// ---------- Option ----------
-interface OptionProps {
-  text: string;
-  Icon: React.ComponentType;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  onClick?: () => void;
-}
-
-const Option: React.FC<OptionProps> = ({ text, Icon, setOpen, onClick }) => (
-  <motion.li
-    variants={itemVariants}
-    onClick={() => {
-      setOpen(false);
-      if (onClick) onClick();
-    }}
-    className="flex items-center gap-2 w-full p-2 text-xs font-medium whitespace-nowrap rounded-md hover:bg-indigo-100 text-slate-700 hover:text-indigo-500 transition-colors cursor-pointer"
-  >
-    <motion.span variants={actionIconVariants}>
-      <Icon />
-    </motion.span>
-    <span>{text}</span>
-  </motion.li>
-);
-
-// ---------- Animation Variants ----------
-const wrapperVariants = {
-  open: {
-    scaleY: 1,
-    transition: { when: "beforeChildren", staggerChildren: 0.1 },
-  },
-  closed: {
-    scaleY: 0,
-    transition: { when: "afterChildren", staggerChildren: 0.1 },
-  },
-};
-
-const iconVariants = {
-  open: { rotate: 180 },
-  closed: { rotate: 0 },
-};
-
+// Variants used by other dropdown or modal components if needed
 const itemVariants = {
   open: { opacity: 1, y: 0 },
   closed: { opacity: 0, y: -15 },
