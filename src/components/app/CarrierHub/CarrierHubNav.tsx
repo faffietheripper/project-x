@@ -52,7 +52,7 @@ const CarrierTabs = () => {
       </Tab>
 
       <Tab setPosition={setPosition}>
-        <Link href="/home/carrier-hub/waste-carriers/assigned-jobs">
+        <Link href="/home/carrier-hub/waste-carriers/assigned-carrier-jobs">
           Assigned Jobs
         </Link>
       </Tab>

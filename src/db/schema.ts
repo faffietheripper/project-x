@@ -78,7 +78,7 @@ export const accounts = pgTable(
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-  })
+  }),
 );
 
 // Sessions
@@ -100,7 +100,7 @@ export const verificationTokens = pgTable(
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
-  })
+  }),
 );
 
 // Bids
@@ -220,6 +220,31 @@ export const notifications = pgTable("bb_notifications", {
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 });
 
+// Carrier Assignments
+export const carrierAssignments = pgTable("bb_carrier_assignment", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  itemId: integer("itemId")
+    .notNull()
+    .references(() => items.id, { onDelete: "cascade" }),
+
+  carrierOrganisationId: text("carrierOrganisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+
+  assignedByOrganisationId: text("assignedByOrganisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+
+  status: text("status").notNull().default("pending"),
+  // pending | accepted | rejected | completed
+
+  assignedAt: timestamp("assignedAt", { mode: "date" }).defaultNow(),
+  respondedAt: timestamp("respondedAt", { mode: "date" }),
+});
+
 // RELATIONS
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
@@ -243,6 +268,28 @@ export const bidsRelations = relations(bids, ({ one }) => ({
   }),
 }));
 
+export const carrierAssignmentsRelations = relations(
+  carrierAssignments,
+  ({ one }) => ({
+    item: one(items, {
+      fields: [carrierAssignments.itemId],
+      references: [items.id],
+    }),
+
+    carrierOrganisation: one(organisations, {
+      relationName: "carrierOrganisation",
+      fields: [carrierAssignments.carrierOrganisationId],
+      references: [organisations.id],
+    }),
+
+    assignedByOrganisation: one(organisations, {
+      relationName: "assignedByOrganisation",
+      fields: [carrierAssignments.assignedByOrganisationId],
+      references: [organisations.id],
+    }),
+  }),
+);
+
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   reviewer: one(users, {
     fields: [reviews.reviewerId],
@@ -254,32 +301,40 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
-export const itemsRelations = relations(items, ({ one }) => ({
+export const itemsRelations = relations(items, ({ one, many }) => ({
   user: one(users, { fields: [items.userId], references: [users.id] }),
+
   organisation: one(organisations, {
     relationName: "ownerOrganisation",
     fields: [items.organisationId],
     references: [organisations.id],
   }),
+
   winningOrganisation: one(organisations, {
     relationName: "winningOrganisation",
     fields: [items.winningOrganisationId],
     references: [organisations.id],
   }),
+
   assignedCarrierOrganisation: one(organisations, {
     relationName: "assignedCarrierOrganisation",
     fields: [items.assignedCarrierOrganisationId],
     references: [organisations.id],
   }),
+
   assignedByOrganisation: one(organisations, {
     relationName: "assignedByOrganisation",
     fields: [items.assignedByOrganisationId],
     references: [organisations.id],
   }),
+
   winningBid: one(bids, {
     fields: [items.winningBidId],
     references: [bids.id],
   }),
+
+  // ✅ THIS WAS MISSING
+  carrierAssignments: many(carrierAssignments),
 }));
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -295,4 +350,12 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
   items: many(items, { relationName: "ownerOrganisation" }),
   winningItems: many(items, { relationName: "winningOrganisation" }),
   bids: many(bids),
+
+  carrierJobs: many(carrierAssignments, {
+    relationName: "carrierOrganisation",
+  }),
+
+  assignedCarrierJobs: many(carrierAssignments, {
+    relationName: "assignedByOrganisation",
+  }),
 }));

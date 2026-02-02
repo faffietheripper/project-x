@@ -2,40 +2,50 @@
 
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
+import { items, carrierAssignments, users } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 
 export async function assignCarrierAction(
   itemId: number,
-  carrierOrgId: string
+  carrierOrganisationId: string,
 ) {
   const session = await auth();
-  const userOrgId = session?.user?.organisationId;
-
-  if (!userOrgId) {
-    throw new Error("Not authenticated");
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
   }
 
-  const [job] = await database.select().from(items).where(eq(items.id, itemId));
+  // Fetch assigning user's organisation
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+  });
 
-  if (!job) {
-    throw new Error("Job not found");
+  if (!user?.organisationId) {
+    throw new Error("User has no organisation");
   }
 
-  if (job.winningOrganisationId !== userOrgId) {
-    throw new Error("You can only assign jobs your organisation has won.");
-  }
-
+  // 1️⃣ Update item (current assignment state)
   await database
     .update(items)
     .set({
-      assignedCarrierOrganisationId: carrierOrgId,
-      assignedByOrganisationId: userOrgId,
-      assignedAt: new Date(),
-      assigned: true,
+      assignedCarrierOrganisationId: carrierOrganisationId,
+      assignedByOrganisationId: user.organisationId,
       carrierStatus: "pending",
+      assignedAt: new Date(),
     })
     .where(eq(items.id, itemId));
+
+  // 2️⃣ INSERT carrier assignment (THIS WAS MISSING)
+  await database.insert(carrierAssignments).values({
+    itemId,
+    carrierOrganisationId,
+    assignedByOrganisationId: user.organisationId,
+    status: "pending",
+    assignedAt: new Date(),
+  });
+
+  // Revalidate carrier + assigner views
+  revalidatePath("/home/carrier-hub/waste-carriers/assigned-carrier-jobs");
+  revalidatePath("/home/my-activity/jobs-in-progress");
 
   return { success: true };
 }
@@ -54,8 +64,8 @@ export async function getWinningJobsAction() {
         eq(items.winningOrganisationId, userOrgId), // Your org won the job
         isNull(items.assignedCarrierOrganisationId), // Not yet assigned to a carrier
         eq(items.archived, false), // Not archived
-        eq(items.completed, false) // Not completed
-      )
+        eq(items.completed, false), // Not completed
+      ),
     );
 
   return jobs;

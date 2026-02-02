@@ -15,7 +15,7 @@ export default async function Layout({
   return (
     <div className={cn("font-sans antialiased", fontSans.variable)}>
       <CarrierHubNav />
-      <main className="">{children}</main>
+      <main className="pl-[24vw] p-10 pt-56">{children}</main>
     </div>
   );
 }
