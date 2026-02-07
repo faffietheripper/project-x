@@ -1,94 +1,88 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { database } from "@/db/database";
 import { notifications, users, profiles } from "@/db/schema";
 
-// Create a notification
+/** ✅ Create a notification */
 export async function createNotification(
   receiverId: string,
   title: string,
   message: string,
-  url?: string // Optional parameter for the notification link
+  url: string, // 🔒 REQUIRED by schema
 ) {
-  await database
-    .insert(notifications)
-    .values({ receiverId, title, message, url });
+  if (!receiverId) {
+    throw new Error("Receiver ID is required for notification");
+  }
+
+  await database.insert(notifications).values({
+    receiverId,
+    title,
+    message,
+    url,
+    isRead: false,
+  });
 }
 
-// Get user notifications
+/** ✅ Get user notifications */
 export async function getUserNotifications(userId: string) {
   if (!userId) {
-    throw new Error("User ID is undefined or invalid.");
+    throw new Error("User ID is required");
   }
 
   return await database
     .select()
     .from(notifications)
-    .where(eq(notifications.userId, userId));
+    .where(eq(notifications.receiverId, userId))
+    .orderBy(notifications.createdAt);
 }
 
-// Mark a notification as read
+/** ✅ Mark notification as read */
 export async function markAsRead(formData: FormData) {
-  const notificationId = formData.get("notificationId");
+  const notificationId = formData.get("notificationId") as string;
 
   if (!notificationId) {
-    throw new Error("Notification ID is required.");
+    throw new Error("Notification ID is required");
   }
 
-  try {
-    await database
-      .update(notifications)
-      .set({ isRead: true })
-      .where(eq(notifications.id, notificationId));
-  } catch (error) {
-    console.error("Error marking notification as read:", error);
-    throw new Error("Failed to mark notification as read.");
-  }
+  await database
+    .update(notifications)
+    .set({ isRead: true })
+    .where(eq(notifications.id, notificationId));
 }
 
+/** ✅ Get unread count (DB-level filter) */
 export async function getUnreadNotificationsCount(userId: string) {
-  try {
-    // Fetch all notifications with `isRead` as false
-    const allUnreadNotifications = await database.query.notifications.findMany({
-      where: (notifications, { eq }) => eq(notifications.isRead, false),
-    });
+  if (!userId) return 0;
 
-    if (!allUnreadNotifications) {
-      console.error("No unread notifications found in the database.");
-      return 0;
-    }
-
-    // Filter notifications belonging to the specific user
-    const userUnreadNotifications = allUnreadNotifications.filter(
-      (notification) => notification.receiverId === userId
+  const unread = await database
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.receiverId, userId),
+        eq(notifications.isRead, false),
+      ),
     );
 
-    // Return the count of unread notifications for the user
-    return userUnreadNotifications.length;
-  } catch (error) {
-    console.error("Error fetching unread notifications count:", error);
-    return 0; // Fallback to 0 in case of an error
-  }
+  return unread.length;
 }
 
+/** ✅ System notification check (unchanged logic, fixed safety) */
 export async function checkForSystemNotifications(
-  userId: string
+  userId: string,
 ): Promise<boolean> {
-  try {
-    const user = await database.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { role: true },
-    });
+  if (!userId) return false;
 
-    const userProfile = await database.query.profiles.findFirst({
-      where: eq(profiles.userId, userId),
-      columns: { id: true },
-    });
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { role: true },
+  });
 
-    return !user?.role || !userProfile;
-  } catch (error) {
-    console.error("Error checking for system notifications:", error);
-    return false;
-  }
+  const profile = await database.query.profiles.findFirst({
+    where: eq(profiles.userId, userId),
+    columns: { id: true },
+  });
+
+  return !user?.role || !profile;
 }

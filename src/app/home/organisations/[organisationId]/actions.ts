@@ -2,8 +2,15 @@
 
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items, carrierAssignments, users } from "@/db/schema";
+import { items, carrierAssignments, users, organisations } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { createNotification } from "../../notifications/actions";
+
+/** 🔐 6-digit token generator */
+function generateSixDigitCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export async function assignCarrierAction(
   itemId: number,
@@ -14,7 +21,7 @@ export async function assignCarrierAction(
     throw new Error("Unauthorized");
   }
 
-  // Fetch assigning user's organisation
+  /** 🔑 Fetch assigning user (waste manager) */
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
   });
@@ -23,7 +30,28 @@ export async function assignCarrierAction(
     throw new Error("User has no organisation");
   }
 
-  // 1️⃣ Update item (current assignment state)
+  /** 📦 Fetch item */
+  const item = await database.query.items.findFirst({
+    where: eq(items.id, itemId),
+  });
+
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  /** 🏢 Fetch carrier organisation */
+  const carrierOrg = await database.query.organisations.findFirst({
+    where: eq(organisations.id, carrierOrganisationId),
+  });
+
+  if (!carrierOrg) {
+    throw new Error("Carrier organisation not found");
+  }
+
+  /** 🔐 Generate verification token */
+  const verificationCode = generateSixDigitCode();
+
+  /** 1️⃣ Update item (current state) */
   await database
     .update(items)
     .set({
@@ -34,16 +62,39 @@ export async function assignCarrierAction(
     })
     .where(eq(items.id, itemId));
 
-  // 2️⃣ INSERT carrier assignment (THIS WAS MISSING)
+  /** 2️⃣ Insert carrier assignment (history + token) */
   await database.insert(carrierAssignments).values({
     itemId,
     carrierOrganisationId,
     assignedByOrganisationId: user.organisationId,
     status: "pending",
     assignedAt: new Date(),
+    verificationCode, // 👈 stored here
   });
 
-  // Revalidate carrier + assigner views
+  /** 3️⃣ Notify waste generator */
+  if (item.userId) {
+    await createNotification(
+      item.userId,
+      "Waste Carrier Assigned 🚛",
+      `
+A waste carrier has been assigned to your job "${item.name}".
+
+Carrier:
+${carrierOrg.teamName}
+📧 ${carrierOrg.emailAddress}
+📞 ${carrierOrg.telephone}
+
+Verification Code:
+🔐 ${verificationCode}
+
+Please keep this code safe — it will be required at collection and completion.
+      `.trim(),
+      "/home/my-activity/jobs-in-progress",
+    );
+  }
+
+  /** 🔁 Refresh UI */
   revalidatePath("/home/carrier-hub/waste-carriers/assigned-carrier-jobs");
   revalidatePath("/home/my-activity/jobs-in-progress");
 
@@ -52,19 +103,26 @@ export async function assignCarrierAction(
 
 export async function getWinningJobsAction() {
   const session = await auth();
-  const userOrgId = session?.user?.organisationId;
+  if (!session?.user?.id) return [];
 
-  if (!userOrgId) return [];
+  // 🔑 Always resolve org from DB
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    columns: {
+      organisationId: true,
+    },
+  });
+
+  if (!user?.organisationId) return [];
 
   const jobs = await database
     .select()
     .from(items)
     .where(
       and(
-        eq(items.winningOrganisationId, userOrgId), // Your org won the job
-        isNull(items.assignedCarrierOrganisationId), // Not yet assigned to a carrier
-        eq(items.archived, false), // Not archived
-        eq(items.completed, false), // Not completed
+        eq(items.winningOrganisationId, user.organisationId), // you won it
+        eq(items.offerAccepted, true), // ✅ YOU accepted it
+        eq(items.archived, false), // still active
       ),
     );
 

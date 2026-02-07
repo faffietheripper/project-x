@@ -51,11 +51,16 @@ export default async function OrganisationPage({
   });
 
   const userReviews = allReviews.filter(
-    (review) => review.organisationId === organisation.id
+    (review) => review.organisationId === organisation.id,
   );
 
   // ✅ Only show button if the viewed organisation is a carrier
   const canAssignCarrier = organisation.chainOfCustody === "wasteCarrier";
+
+  const imageSrc =
+    typeof organisation.profilePicture === "string"
+      ? getImageUrl(organisation.profilePicture)
+      : "/placeholder-company.png";
 
   console.log("🏢 Viewing organisation:", organisation.teamName);
   console.log("🔗 Chain of custody:", organisation.chainOfCustody);
@@ -71,7 +76,7 @@ export default async function OrganisationPage({
             <Image
               height={100}
               width={100}
-              src={getImageUrl(organisation.profilePicture)}
+              src={imageSrc}
               alt={`${organisation.teamName} logo`}
               className="w-32 h-32 rounded-full object-cover"
             />

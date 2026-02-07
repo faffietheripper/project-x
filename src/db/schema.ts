@@ -225,36 +225,43 @@ export const carrierAssignments = pgTable("bb_carrier_assignment", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
 
+  // 🧾 Job being collected
   itemId: integer("itemId")
     .notNull()
     .references(() => items.id, { onDelete: "cascade" }),
 
-  // The carrier doing the job
+  // 🚚 Carrier doing the job
   carrierOrganisationId: text("carrierOrganisationId")
     .notNull()
     .references(() => organisations.id, { onDelete: "cascade" }),
 
-  // Who assigned the carrier (waste manager / generator)
+  // 🧑‍💼 Who assigned the carrier
   assignedByOrganisationId: text("assignedByOrganisationId")
     .notNull()
     .references(() => organisations.id, { onDelete: "cascade" }),
 
-  /**
-   * Lifecycle status
-   * pending → accepted → collected → completed
-   * rejected can occur from pending
-   */
   status: text("status").notNull().default("pending"),
 
-  // 📅 Timeline
+  // 🕒 Timeline
   assignedAt: timestamp("assignedAt", { mode: "date" }).defaultNow(),
   respondedAt: timestamp("respondedAt", { mode: "date" }),
   collectedAt: timestamp("collectedAt", { mode: "date" }),
   completedAt: timestamp("completedAt", { mode: "date" }),
 
-  // 🔐 Completion flow
-  completionToken: text("completionToken"), // 6-digit code
-  tokenGeneratedAt: timestamp("tokenGeneratedAt", { mode: "date" }),
+  /**
+   * 🔐 Verification code
+   *
+   * 6-digit numeric code
+   * Generated when carrier ACCEPTS the job
+   * Used for:
+   *  - carrier collection confirmation
+   *  - manager completion confirmation
+   */
+  verificationCode: text("verificationCode"),
+  codeGeneratedAt: timestamp("codeGeneratedAt", { mode: "date" }),
+
+  // Optional: prevent reuse / audit
+  codeUsedAt: timestamp("codeUsedAt", { mode: "date" }),
 });
 
 // RELATIONS

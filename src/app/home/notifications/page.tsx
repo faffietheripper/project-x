@@ -1,21 +1,21 @@
 import React from "react";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { notifications, users, profiles } from "@/db/schema";
 import { markAsRead } from "./actions";
 
 export default async function NotificationsPage() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
   const userId = session.user.id;
 
   try {
-    // Fetch user details (role & profile status)
+    // Fetch user details
     const user = await database.query.users.findFirst({
       where: eq(users.id, userId),
       columns: { role: true },
@@ -31,11 +31,10 @@ export default async function NotificationsPage() {
       where: eq(notifications.receiverId, userId),
     });
 
-    // Generate missing role notification
     const needsRoleSetup = !user?.role;
     const needsProfileSetup = !userProfile;
 
-    const systemNotifications = [];
+    const systemNotifications: any[] = [];
 
     if (needsRoleSetup) {
       systemNotifications.push({
@@ -43,7 +42,8 @@ export default async function NotificationsPage() {
         title: "Complete Your Profile",
         message: "You haven't selected a role yet. Please update your profile.",
         url: "/home/me",
-        isRead: false, // Always unread until they fix it
+        isRead: false,
+        createdAt: new Date(), // 👈 force to top
       });
     }
 
@@ -53,22 +53,37 @@ export default async function NotificationsPage() {
         title: "Profile Setup Needed",
         message: "You need to set up your profile. Complete it now.",
         url: "/home/me",
-        isRead: false, // Always unread until they fix it
+        isRead: false,
+        createdAt: new Date(), // 👈 force to top
       });
     }
 
-    // Combine stored notifications with system-generated ones
+    // Combine notifications
     const allNotifications = [...systemNotifications, ...userNotifications];
+
+    // ✅ SORT: unread first, newest first
+    const sortedNotifications = allNotifications.sort((a, b) => {
+      // 1️⃣ Unread first
+      if (a.isRead !== b.isRead) {
+        return a.isRead ? 1 : -1;
+      }
+
+      // 2️⃣ Newest first
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+      return dateB - dateA;
+    });
 
     return (
       <div className="pt-[18vh] pr-10 pl-[24vw]">
         <h1 className="text-2xl font-bold mb-8">Your Notifications</h1>
 
-        {allNotifications.length === 0 ? (
+        {sortedNotifications.length === 0 ? (
           <p>No notifications found.</p>
         ) : (
           <div className="space-y-4">
-            {allNotifications.map((notification) => (
+            {sortedNotifications.map((notification) => (
               <div
                 key={notification.id}
                 className={`p-6 border rounded-lg shadow-sm flex justify-between ${
@@ -81,7 +96,7 @@ export default async function NotificationsPage() {
                 </div>
 
                 {notification.url && (
-                  <form action={markAsRead} method="post">
+                  <form action={markAsRead}>
                     <input
                       type="hidden"
                       name="notificationId"
@@ -91,14 +106,14 @@ export default async function NotificationsPage() {
                       {!notification.isRead && (
                         <button
                           type="submit"
-                          className="text-white hover:underline bg-blue-500 p-2 rounded-lg"
+                          className="text-white bg-blue-500 p-2 rounded-lg hover:opacity-90"
                         >
                           Mark as Read
                         </button>
                       )}
                       <a
                         href={notification.url}
-                        className="text-white hover:underline bg-blue-500 p-2 rounded-lg"
+                        className="text-white bg-blue-500 p-2 rounded-lg hover:opacity-90"
                       >
                         View Details
                       </a>
