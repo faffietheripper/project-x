@@ -1,7 +1,7 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items, carrierAssignments } from "@/db/schema";
+import { items, carrierAssignments, users } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -129,4 +129,62 @@ export async function rejectCarrierJobAction(formData: FormData) {
     .where(eq(items.id, itemId));
 
   revalidatePath("/home/my-activity/assigned-jobs");
+}
+export async function markCollectedAction(_prevState: any, formData: FormData) {
+  const itemId = Number(formData.get("itemId"));
+  const verificationCode = formData.get("verificationCode")?.toString();
+
+  if (!itemId || !verificationCode) {
+    return {
+      success: false,
+      message: "Verification code is required.",
+    };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return {
+      success: false,
+      message: "You are not authorised.",
+    };
+  }
+
+  // 🔍 Find matching assignment
+  const assignment = await database.query.carrierAssignments.findFirst({
+    where: and(
+      eq(carrierAssignments.itemId, itemId),
+      eq(carrierAssignments.verificationCode, verificationCode),
+      eq(carrierAssignments.status, "accepted"),
+    ),
+  });
+
+  if (!assignment) {
+    return {
+      success: false,
+      message: "❌ Incorrect verification code. Please check and try again.",
+    };
+  }
+
+  // ✅ Update assignment
+  await database
+    .update(carrierAssignments)
+    .set({
+      status: "collected",
+      collectedAt: new Date(),
+      codeUsedAt: new Date(),
+    })
+    .where(eq(carrierAssignments.id, assignment.id));
+
+  // ✅ Update item
+  await database
+    .update(items)
+    .set({ carrierStatus: "collected" })
+    .where(eq(items.id, itemId));
+
+  revalidatePath("/home/carrier-hub/assigned-jobs");
+
+  return {
+    success: true,
+    message: "✅ Waste successfully marked as collected.",
+  };
 }

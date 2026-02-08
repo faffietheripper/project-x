@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { items, carrierAssignments, users, organisations } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "../../notifications/actions";
 
@@ -105,7 +105,7 @@ export async function getWinningJobsAction() {
   const session = await auth();
   if (!session?.user?.id) return [];
 
-  // 🔑 Always resolve org from DB
+  // 🔑 Resolve organisation from DB
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
     columns: {
@@ -120,9 +120,20 @@ export async function getWinningJobsAction() {
     .from(items)
     .where(
       and(
-        eq(items.winningOrganisationId, user.organisationId), // you won it
-        eq(items.offerAccepted, true), // ✅ YOU accepted it
-        eq(items.archived, false), // still active
+        // 🏆 You won the job
+        eq(items.winningOrganisationId, user.organisationId),
+
+        // ✅ You accepted the offer
+        eq(items.offerAccepted, true),
+
+        // 📦 Still active
+        eq(items.archived, false),
+
+        // 🚚 Carrier logic
+        or(
+          isNull(items.assignedCarrierOrganisationId), // never assigned
+          eq(items.carrierStatus, "rejected"), // rejected → comes back
+        ),
       ),
     );
 

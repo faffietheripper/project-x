@@ -4,7 +4,12 @@ import { database } from "@/db/database";
 import { eq } from "drizzle-orm";
 import { items, users, carrierAssignments } from "@/db/schema";
 import Link from "next/link";
-import { acceptCarrierJobAction, rejectCarrierJobAction } from "./actions";
+import {
+  acceptCarrierJobAction,
+  rejectCarrierJobAction,
+  markCollectedAction,
+} from "./actions";
+import CollectedForm from "@/components/app/WasteCarriers/CollectedForm";
 
 export default async function AssignedCarrierJobs() {
   console.log("🟡 AssignedCarrierJobs page loaded");
@@ -32,8 +37,6 @@ export default async function AssignedCarrierJobs() {
 
   console.log("🟢 Organisation ID:", dbUser.organisationId);
 
-  console.log("🟡 Available query tables:", Object.keys(database.query));
-
   let assignments = [];
 
   try {
@@ -49,7 +52,6 @@ export default async function AssignedCarrierJobs() {
     });
 
     console.log("🟢 Carrier assignments found:", assignments.length);
-    console.log("🟢 Assignments data:", assignments);
   } catch (error) {
     console.error("🔴 Error querying carrierAssignments:", error);
   }
@@ -84,6 +86,7 @@ export default async function AssignedCarrierJobs() {
                 </button>
               </Link>
 
+              {/* 🔵 Pending → Accept / Reject */}
               {status === "pending" && (
                 <>
                   <form action={acceptCarrierJobAction}>
@@ -100,6 +103,11 @@ export default async function AssignedCarrierJobs() {
                     </button>
                   </form>
                 </>
+              )}
+
+              {/* 🟢 Accepted → Collected (verification code) */}
+              {status === "accepted" && item?.id && (
+                <CollectedForm itemId={item.id} />
               )}
             </div>
           </div>
