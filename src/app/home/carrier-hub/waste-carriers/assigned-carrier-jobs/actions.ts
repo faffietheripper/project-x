@@ -6,6 +6,10 @@ import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Assign a carrier to an item
+ * Creates ONE pending assignment
+ */
 export async function assignCarrierAction(
   itemId: number,
   carrierOrgId: string,
@@ -21,7 +25,7 @@ export async function assignCarrierAction(
     throw new Error("User has no organisation");
   }
 
-  // 1️⃣ Create assignment history record
+  // ✅ Create assignment (single source of truth)
   await database.insert(carrierAssignments).values({
     itemId,
     carrierOrganisationId: carrierOrgId,
@@ -29,7 +33,7 @@ export async function assignCarrierAction(
     status: "pending",
   });
 
-  // 2️⃣ Update item (current state)
+  // ✅ Update item current state
   await database
     .update(items)
     .set({
@@ -43,9 +47,12 @@ export async function assignCarrierAction(
   revalidatePath("/home/my-activity/assigned-jobs");
 }
 
+/**
+ * Carrier accepts the job
+ * Only updates a PENDING assignment
+ */
 export async function acceptCarrierJobAction(formData: FormData) {
   const itemId = Number(formData.get("itemId"));
-
   if (!itemId) throw new Error("Item ID required");
 
   const session = await auth();
@@ -59,7 +66,7 @@ export async function acceptCarrierJobAction(formData: FormData) {
     throw new Error("Item not found or not assigned");
   }
 
-  // Update latest assignment
+  // ✅ Update ONLY the pending assignment
   await database
     .update(carrierAssignments)
     .set({
@@ -73,10 +80,11 @@ export async function acceptCarrierJobAction(formData: FormData) {
           carrierAssignments.carrierOrganisationId,
           item.assignedCarrierOrganisationId,
         ),
+        eq(carrierAssignments.status, "pending"),
       ),
     );
 
-  // Update item current state
+  // ✅ Update item state
   await database
     .update(items)
     .set({ carrierStatus: "accepted" })
@@ -85,9 +93,12 @@ export async function acceptCarrierJobAction(formData: FormData) {
   revalidatePath("/home/my-activity/assigned-jobs");
 }
 
+/**
+ * Carrier rejects the job
+ * HARD DELETE assignment to avoid duplicates
+ */
 export async function rejectCarrierJobAction(formData: FormData) {
   const itemId = Number(formData.get("itemId"));
-
   if (!itemId) throw new Error("Item ID required");
 
   const session = await auth();
@@ -101,13 +112,9 @@ export async function rejectCarrierJobAction(formData: FormData) {
     throw new Error("Item not found or not assigned");
   }
 
-  // Update assignment history
+  // 🗑️ DELETE assignment instead of marking rejected
   await database
-    .update(carrierAssignments)
-    .set({
-      status: "rejected",
-      respondedAt: new Date(),
-    })
+    .delete(carrierAssignments)
     .where(
       and(
         eq(carrierAssignments.itemId, itemId),
@@ -118,7 +125,7 @@ export async function rejectCarrierJobAction(formData: FormData) {
       ),
     );
 
-  // Clear item so it can be reassigned
+  // 🧹 Reset item so it can be reassigned
   await database
     .update(items)
     .set({
@@ -130,6 +137,10 @@ export async function rejectCarrierJobAction(formData: FormData) {
 
   revalidatePath("/home/my-activity/assigned-jobs");
 }
+
+/**
+ * Carrier marks waste as collected using 6-digit code
+ */
 export async function markCollectedAction(_prevState: any, formData: FormData) {
   const itemId = Number(formData.get("itemId"));
   const verificationCode = formData.get("verificationCode")?.toString();
@@ -149,7 +160,7 @@ export async function markCollectedAction(_prevState: any, formData: FormData) {
     };
   }
 
-  // 🔍 Find matching assignment
+  // 🔍 Find the ONE accepted assignment
   const assignment = await database.query.carrierAssignments.findFirst({
     where: and(
       eq(carrierAssignments.itemId, itemId),
@@ -165,7 +176,7 @@ export async function markCollectedAction(_prevState: any, formData: FormData) {
     };
   }
 
-  // ✅ Update assignment
+  // ✅ Mark as collected
   await database
     .update(carrierAssignments)
     .set({
@@ -175,7 +186,7 @@ export async function markCollectedAction(_prevState: any, formData: FormData) {
     })
     .where(eq(carrierAssignments.id, assignment.id));
 
-  // ✅ Update item
+  // ✅ Update item state
   await database
     .update(items)
     .set({ carrierStatus: "collected" })
