@@ -50,7 +50,7 @@ export default async function Layout({
         />
       </div>
 
-      <div className="pl-[24vw] pt-32">{children}</div>
+      <div className="">{children}</div>
     </div>
   );
 }

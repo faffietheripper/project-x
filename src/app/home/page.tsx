@@ -50,7 +50,7 @@ export default async function AppHome() {
   const completedJobs = orgAssignments.filter((a) => a.status === "completed");
 
   return (
-    <div className="p-8 space-y-10">
+    <div className="p-8 space-y-10 pl-[24vw] pt-32">
       {/* ===== HEADER ===== */}
       <div className="bg-gradient-to-r from-indigo-600 to-blue-700 text-white p-8 rounded-2xl shadow-xl">
         <h1 className="text-3xl font-bold mb-2">Welcome back, {dbUser.name}</h1>

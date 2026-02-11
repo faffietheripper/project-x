@@ -5,6 +5,7 @@ import { eq, isNotNull } from "drizzle-orm";
 import { items } from "@/db/schema";
 import Link from "next/link";
 import { acceptOfferAction, declineOfferAction } from "./actions";
+import CancelJob from "@/components/app/CancelJob";
 
 export default async function MyWinningBids() {
   const session = await auth();
@@ -36,6 +37,12 @@ export default async function MyWinningBids() {
         const assignment = item.carrierAssignments[0];
 
         const showOfferActions = !item.offerAccepted && !assignment;
+
+        // ✅ MOVE IT HERE
+        const canCancel =
+          item.offerAccepted &&
+          !item.assignedCarrierOrganisationId &&
+          !assignment;
 
         return (
           <div
@@ -95,6 +102,10 @@ export default async function MyWinningBids() {
                     </button>
                   </form>
                 </>
+              )}
+
+              {canCancel && (
+                <CancelJob itemId={item.id} bidId={item.winningBid.id} />
               )}
             </div>
           </div>
