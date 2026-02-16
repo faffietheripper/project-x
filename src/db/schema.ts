@@ -264,6 +264,79 @@ export const carrierAssignments = pgTable("bb_carrier_assignment", {
   codeUsedAt: timestamp("codeUsedAt", { mode: "date" }),
 });
 
+// Incidents
+export const incidents = pgTable("bb_incident", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  /**
+   * 🔗 Link to the carrier assignment
+   * Incidents are tied to the movement of waste,
+   * not directly to bidding.
+   */
+  assignmentId: text("assignmentId")
+    .notNull()
+    .references(() => carrierAssignments.id, { onDelete: "cascade" }),
+
+  /**
+   * 🔗 Redundant reference to item
+   * Makes dashboard queries & analytics easier.
+   */
+  itemId: integer("itemId")
+    .notNull()
+    .references(() => items.id, { onDelete: "cascade" }),
+
+  /**
+   * 👤 User who submitted the incident
+   */
+  reportedByUserId: text("reportedByUserId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  /**
+   * 🏢 Organisation that reported it (carrier)
+   */
+  reportedByOrganisationId: text("reportedByOrganisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+
+  /**
+   * 📂 Structured type
+   */
+  type: text("type").notNull(),
+
+  /**
+   * 📝 Detailed explanation
+   */
+  description: text("description").notNull(),
+
+  /**
+   * 📊 Lifecycle
+   *
+   * open → carrier submitted
+   * under_review → manager reviewing
+   * resolved → accepted & handled
+   * rejected → manager rejected claim
+   */
+  status: text("status")
+    .$type<"open" | "under_review" | "resolved" | "rejected">()
+    .notNull()
+    .default("open"),
+
+  /**
+   * 🧾 Manager/admin resolution notes
+   */
+  resolutionNotes: text("resolutionNotes"),
+
+  /**
+   * 🕒 Timeline
+   */
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+
+  resolvedAt: timestamp("resolvedAt", { mode: "date" }),
+});
+
 // RELATIONS
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
@@ -289,7 +362,7 @@ export const bidsRelations = relations(bids, ({ one }) => ({
 
 export const carrierAssignmentsRelations = relations(
   carrierAssignments,
-  ({ one }) => ({
+  ({ one, many }) => ({
     item: one(items, {
       fields: [carrierAssignments.itemId],
       references: [items.id],
@@ -305,6 +378,11 @@ export const carrierAssignmentsRelations = relations(
       relationName: "assignedByOrganisation",
       fields: [carrierAssignments.assignedByOrganisationId],
       references: [organisations.id],
+    }),
+
+    incidents: many(incidents, {
+      fields: [carrierAssignments.id],
+      references: [incidents.assignmentId],
     }),
   }),
 );
@@ -352,7 +430,6 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
     references: [bids.id],
   }),
 
-  // ✅ THIS WAS MISSING
   carrierAssignments: many(carrierAssignments),
 }));
 
@@ -376,5 +453,27 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
 
   assignedCarrierJobs: many(carrierAssignments, {
     relationName: "assignedByOrganisation",
+  }),
+}));
+
+export const incidentsRelations = relations(incidents, ({ one }) => ({
+  assignment: one(carrierAssignments, {
+    fields: [incidents.assignmentId],
+    references: [carrierAssignments.id],
+  }),
+
+  item: one(items, {
+    fields: [incidents.itemId],
+    references: [items.id],
+  }),
+
+  reportedByUser: one(users, {
+    fields: [incidents.reportedByUserId],
+    references: [users.id],
+  }),
+
+  reportedByOrganisation: one(organisations, {
+    fields: [incidents.reportedByOrganisationId],
+    references: [organisations.id],
   }),
 }));

@@ -1,9 +1,9 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items, carrierAssignments, users } from "@/db/schema";
+import { items, carrierAssignments, users, incidents } from "@/db/schema";
 import { auth } from "@/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function markCompletedByManagerAction(
@@ -28,7 +28,7 @@ export async function markCompletedByManagerAction(
     };
   }
 
-  // 🔍 Find assignment that is already collected
+  // 🔍 Find collected assignment
   const assignment = await database.query.carrierAssignments.findFirst({
     where: and(
       eq(carrierAssignments.itemId, itemId),
@@ -44,7 +44,23 @@ export async function markCompletedByManagerAction(
     };
   }
 
-  // ✅ Mark completed
+  // 🚨 BLOCK COMPLETION IF OPEN INCIDENT EXISTS
+  const openIncident = await database.query.incidents.findFirst({
+    where: and(
+      eq(incidents.assignmentId, assignment.id),
+      or(eq(incidents.status, "open"), eq(incidents.status, "under_review")),
+    ),
+  });
+
+  if (openIncident) {
+    return {
+      success: false,
+      message:
+        "⚠️ This job has an open incident and cannot be completed until it is resolved.",
+    };
+  }
+
+  // ✅ Mark assignment completed
   await database
     .update(carrierAssignments)
     .set({
@@ -53,7 +69,7 @@ export async function markCompletedByManagerAction(
     })
     .where(eq(carrierAssignments.id, assignment.id));
 
-  // ✅ Update item state
+  // ✅ Update item status
   await database
     .update(items)
     .set({ carrierStatus: "completed" })

@@ -26,6 +26,7 @@ export default async function JobAssignments() {
     with: {
       item: true,
       carrierOrganisation: true,
+      incidents: true, // 👈 REQUIRED RELATION
     },
     orderBy: (ca, { desc }) => [desc(ca.collectedAt)],
   });
@@ -41,11 +42,20 @@ export default async function JobAssignments() {
       {assignments.map((assignment) => {
         const isCompleted = assignment.status === "completed";
 
+        const hasOpenIncident = assignment.incidents?.some(
+          (incident) =>
+            incident.status === "open" || incident.status === "under_review",
+        );
+
         return (
           <div
             key={assignment.id}
             className={`p-6 border rounded-xl shadow-sm mb-6 ${
-              isCompleted ? "bg-green-50 border-green-200" : ""
+              hasOpenIncident
+                ? "bg-red-50 border-red-300"
+                : isCompleted
+                  ? "bg-green-50 border-green-200"
+                  : ""
             }`}
           >
             {/* ===== JOB DETAILS ===== */}
@@ -79,12 +89,14 @@ export default async function JobAssignments() {
                 <strong>Status:</strong>{" "}
                 <span
                   className={`px-2 py-1 rounded-md text-xs capitalize ${
-                    isCompleted
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
+                    hasOpenIncident
+                      ? "bg-red-100 text-red-800"
+                      : isCompleted
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
-                  {assignment.status}
+                  {hasOpenIncident ? "incident open" : assignment.status}
                 </span>
               </div>
             </div>
@@ -95,8 +107,16 @@ export default async function JobAssignments() {
               {assignment.item?.detailedDescription}
             </div>
 
-            {/* ✅ Only show completion form if still awaiting completion */}
-            {!isCompleted && (
+            {/* 🚨 INCIDENT WARNING */}
+            {hasOpenIncident && (
+              <div className="mb-4 text-sm font-medium text-red-700">
+                ⚠️ An incident has been reported for this job. Completion is
+                locked until it is resolved.
+              </div>
+            )}
+
+            {/* ✅ Only show completion form if no incident & not completed */}
+            {!isCompleted && !hasOpenIncident && (
               <ManagerCompletionForm itemId={assignment.itemId} />
             )}
 
