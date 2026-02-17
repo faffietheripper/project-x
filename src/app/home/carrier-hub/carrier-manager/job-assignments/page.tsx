@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { carrierAssignments, users } from "@/db/schema";
@@ -26,7 +27,7 @@ export default async function JobAssignments() {
     with: {
       item: true,
       carrierOrganisation: true,
-      incidents: true, // 👈 REQUIRED RELATION
+      incidents: true,
     },
     orderBy: (ca, { desc }) => [desc(ca.collectedAt)],
   });
@@ -42,10 +43,14 @@ export default async function JobAssignments() {
       {assignments.map((assignment) => {
         const isCompleted = assignment.status === "completed";
 
+        const hadIncident = assignment.incidents?.length > 0;
+
         const hasOpenIncident = assignment.incidents?.some(
           (incident) =>
             incident.status === "open" || incident.status === "under_review",
         );
+
+        const hasResolvedIncident = hadIncident && !hasOpenIncident;
 
         return (
           <div
@@ -115,15 +120,31 @@ export default async function JobAssignments() {
               </div>
             )}
 
-            {/* ✅ Only show completion form if no incident & not completed */}
+            {/* ✅ Completion Form */}
             {!isCompleted && !hasOpenIncident && (
               <ManagerCompletionForm itemId={assignment.itemId} />
             )}
 
-            {/* ✅ Completed indicator */}
-            {isCompleted && (
+            {/* ✅ Completed Indicator */}
+            {isCompleted && !hadIncident && (
               <div className="text-sm font-medium text-green-700">
                 ✅ Transfer fully completed.
+              </div>
+            )}
+
+            {/* 📄 Completed WITH Incident History */}
+            {isCompleted && hasResolvedIncident && (
+              <div className="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <div className="text-sm font-medium text-blue-800">
+                  ⚠️ This job previously had an incident.
+                </div>
+
+                <Link
+                  href={`/home/carrier-hub/carrier-manager/incident-management?assignmentId=${assignment.id}`}
+                  className="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline"
+                >
+                  View Incident Resolution Report →
+                </Link>
               </div>
             )}
           </div>
