@@ -1,16 +1,15 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
+import { auth } from "@/auth";
+import { database } from "@/db/database";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { getOrganisationByUserId } from "@/data-access/organisations";
 
 // -------------------------------------------------------
 //  NAV 1 — Waste Generator Navigation
 // -------------------------------------------------------
 function WasteGeneratorNav() {
   return (
-    <div className="flex flex-col justify-between font-bold gap-8">
+    <div className="flex flex-col font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
       <Link href="/home/items/create">Create Waste Listing.</Link>
@@ -27,7 +26,7 @@ function WasteGeneratorNav() {
 // -------------------------------------------------------
 function WasteManagerNav() {
   return (
-    <div className="flex flex-col justify-between font-bold gap-8">
+    <div className="flex flex-col font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
       <Link href="/home/my-activity">My Activity.</Link>
@@ -47,7 +46,7 @@ function WasteManagerNav() {
 // -------------------------------------------------------
 function WasteCarrierNav() {
   return (
-    <div className="flex flex-col justify-between font-bold gap-8">
+    <div className="flex flex-col font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
       <Link href="/home/team-dashboard">Team Dashboard.</Link>
@@ -61,26 +60,21 @@ function WasteCarrierNav() {
 }
 
 // -------------------------------------------------------
-//  MAIN HEADER COMPONENT
+//  MAIN HEADER COMPONENT (SERVER)
 // -------------------------------------------------------
-export default function Header() {
-  const { data: session, status } = useSession();
-  const [organisation, setOrganisation] = useState<any>(null);
+export default async function Header() {
+  const session = await auth();
 
-  useEffect(() => {
-    const fetchOrganisation = async () => {
-      if (!session?.user?.organisationId) return;
+  if (!session?.user?.id) return null;
 
-      const org = await getOrganisationByUserId(session.user.organisationId);
-      setOrganisation(org);
-    };
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    with: {
+      organisation: true,
+    },
+  });
 
-    fetchOrganisation();
-  }, [session]);
-
-  if (status === "loading") return <div>Loading...</div>;
-
-  const chain = organisation?.chainOfCustody;
+  const chain = user?.organisation?.chainOfCustody;
 
   const renderNav = () => {
     switch (chain) {
@@ -91,13 +85,15 @@ export default function Header() {
       case "wasteCarrier":
         return <WasteCarrierNav />;
       default:
-        return <div>No navigation available.</div>;
+        return (
+          <div className="text-sm text-gray-400">No navigation available.</div>
+        );
     }
   };
 
   return (
     <div className="bg-black text-white shadow-md p-12 fixed w-[20vw] flex z-50 h-full">
-      <div className="flex flex-col justify-between">
+      <div className="flex flex-col justify-between w-full">
         {/* LOGO */}
         <Link
           href="/home"
@@ -120,7 +116,7 @@ export default function Header() {
           Waste X
         </Link>
 
-        {/* CONDITIONAL NAVS */}
+        {/* ROLE-BASED NAVIGATION */}
         {renderNav()}
       </div>
     </div>

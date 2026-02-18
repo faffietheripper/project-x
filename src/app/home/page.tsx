@@ -4,7 +4,7 @@ import { database } from "@/db/database";
 import {
   users,
   organisations,
-  items,
+  wasteListings, // ✅ renamed
   carrierAssignments,
   notifications,
 } from "@/db/schema";
@@ -19,7 +19,22 @@ export default async function AppHome() {
     where: eq(users.id, session.user.id),
   });
 
-  if (!dbUser?.organisationId) throw new Error("No organisation found");
+  if (!dbUser?.organisationId) {
+    return (
+      <div className="p-96">
+        <h1 className="text-2xl font-semibold mb-4">Welcome 👋</h1>
+        <p className="mb-6 text-gray-600">
+          You need to create your organisation before accessing the dashboard.
+        </p>
+        <Link
+          href="/home/team-dashboard"
+          className="bg-blue-600 text-white px-6 py-3 rounded-md"
+        >
+          Create Organisation
+        </Link>
+      </div>
+    );
+  }
 
   const organisation = await database.query.organisations.findFirst({
     where: eq(organisations.id, dbUser.organisationId),
@@ -27,8 +42,9 @@ export default async function AppHome() {
 
   // ===== METRICS =====
 
-  const orgItems = await database.query.items.findMany({
-    where: eq(items.organisationId, dbUser.organisationId),
+  const orgListings = await database.query.wasteListings.findMany({
+    // ✅ renamed
+    where: eq(wasteListings.organisationId, dbUser.organisationId),
   });
 
   const orgAssignments = await database.query.carrierAssignments.findMany({
@@ -40,18 +56,18 @@ export default async function AppHome() {
 
   const unreadNotifications = await database.query.notifications.findMany({
     where: and(
-      eq(notifications.receiverId, session.user.id),
+      eq(notifications.recipientId, session.user.id), // ✅ renamed
       eq(notifications.isRead, false),
     ),
   });
 
-  const activeJobs = orgItems.filter((i) => !i.archived);
+  const activeJobs = orgListings.filter((i) => !i.archived); // ✅ renamed variable
   const collectedJobs = orgAssignments.filter((a) => a.status === "collected");
   const completedJobs = orgAssignments.filter((a) => a.status === "completed");
 
   return (
     <div className="p-8 space-y-10 pl-[24vw] pt-32">
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <div className="bg-gradient-to-r from-indigo-600 to-blue-700 text-white p-8 rounded-2xl shadow-xl">
         <h1 className="text-3xl font-bold mb-2">Welcome back, {dbUser.name}</h1>
         <p className="text-sm opacity-90">{organisation?.teamName}</p>
@@ -60,7 +76,7 @@ export default async function AppHome() {
         </p>
       </div>
 
-      {/* ===== KPI GRID ===== */}
+      {/* KPI GRID */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <DashboardCard
           title="Active Jobs"
@@ -84,9 +100,9 @@ export default async function AppHome() {
         />
       </div>
 
-      {/* ===== MAIN CONTENT GRID ===== */}
+      {/* MAIN GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ===== LEFT – Recent Job Activity ===== */}
+        {/* LEFT */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border">
           <h2 className="text-lg font-semibold mb-6">
             Recent Assignment Activity
@@ -111,7 +127,7 @@ export default async function AppHome() {
                 >
                   <div>
                     <div className="font-medium text-sm">
-                      Job #{assignment.itemId}
+                      Job #{assignment.listingId} {/* ✅ renamed */}
                     </div>
                     <div className="text-xs text-gray-500">
                       Assigned {assignment.assignedAt?.toLocaleDateString()}
@@ -124,9 +140,8 @@ export default async function AppHome() {
           </div>
         </div>
 
-        {/* ===== RIGHT – Quick Actions & Insights ===== */}
+        {/* RIGHT */}
         <div className="space-y-6">
-          {/* Quick Actions */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
 
@@ -154,10 +169,8 @@ export default async function AppHome() {
             </div>
           </div>
 
-          {/* Industry News (Static but cool) */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <h2 className="text-lg font-semibold mb-4">Industry Updates</h2>
-
             <ul className="text-sm space-y-3">
               <li>♻️ UK Digital Waste Tracking rollout expanding</li>
               <li>🚛 Transport emissions compliance tightening in 2026</li>
@@ -167,15 +180,12 @@ export default async function AppHome() {
         </div>
       </div>
 
-      {/* ===== FOOTER STATUS ===== */}
       <div className="bg-gray-50 p-4 rounded-xl border text-xs text-gray-500 text-center">
         Secure Chain of Custody Active · All Systems Operational
       </div>
     </div>
   );
 }
-
-/* ===== COMPONENTS ===== */
 
 function DashboardCard({
   title,
@@ -191,34 +201,8 @@ function DashboardCard({
       href={href}
       className="bg-white p-6 rounded-2xl shadow-sm border hover:shadow-md transition"
     >
-      <div className="text-sm text-gray-500 mb-2">{title}</div>
-      <div className="text-3xl font-bold">{value}</div>
+      <div className="text-sm text-gray-500">{title}</div>
+      <div className="text-3xl font-bold mt-2">{value}</div>
     </Link>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const base = "px-3 py-1 rounded-full text-xs font-medium capitalize";
-
-  if (status === "pending")
-    return (
-      <span className={`${base} bg-yellow-100 text-yellow-800`}>Pending</span>
-    );
-
-  if (status === "accepted")
-    return (
-      <span className={`${base} bg-blue-100 text-blue-800`}>Accepted</span>
-    );
-
-  if (status === "collected")
-    return (
-      <span className={`${base} bg-orange-100 text-orange-800`}>Collected</span>
-    );
-
-  if (status === "completed")
-    return (
-      <span className={`${base} bg-green-100 text-green-800`}>Completed</span>
-    );
-
-  return <span className={`${base} bg-gray-100 text-gray-800`}>{status}</span>;
 }

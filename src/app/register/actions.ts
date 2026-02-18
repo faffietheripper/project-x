@@ -44,7 +44,7 @@ export async function registerUser({
   confirmPassword: string;
 }) {
   try {
-    // Validate the input data against the schema
+    // Validate input
     RegisterSchema.parse({
       name,
       email,
@@ -52,30 +52,37 @@ export async function registerUser({
       confirmPassword,
     });
 
-    // Check if the user already exists
-    const existedUser = await getUserFromDb(email);
-    if (existedUser.success) {
+    // Check if user exists
+    const existingUser = await database.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (existingUser) {
       return {
         success: false,
         message: "User already exists.",
       };
     }
 
-    // Hash the password
-    const hash = await bcryptjs.hash(password, 10);
+    // Hash password
+    const passwordHash = await bcryptjs.hash(password, 10);
 
-    // Insert the new user into the database
+    // Insert user
     const [user] = await database
       .insert(users)
       .values({
         name,
         email,
-        password: hash,
+        passwordHash, // ✅ FIXED
+        role: "employee",
+        isActive: true,
+        isSuspended: false,
       })
       .returning({
         id: users.id,
         email: users.email,
         name: users.name,
+        role: users.role,
       });
 
     return {
@@ -85,7 +92,7 @@ export async function registerUser({
   } catch (error: any) {
     return {
       success: false,
-      message: error.message,
+      message: error.message || "Registration failed.",
     };
   }
 }

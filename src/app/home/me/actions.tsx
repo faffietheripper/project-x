@@ -1,129 +1,114 @@
 "use server";
 
 import { database } from "@/db/database";
-import { profiles, users } from "@/db/schema";
-import { auth } from "@/auth";
+import { userProfiles, users } from "@/db/schema";
+import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { getSignedUrlForS3Object } from "@/lib/s3";
 import { eq } from "drizzle-orm";
-import { signOut } from "@/auth";
 
-// Create the upload URL action for Cloudflare R2 or any S3-compatible service
-export async function createUploadUrlAction(keys: string[], types: string[]) {
-  if (keys.length !== types.length) {
-    throw new Error("Keys and types array must be of the same length.");
-  }
+/* =========================================================
+   CREATE SIGNED UPLOAD URL
+========================================================= */
 
-  const signedUrls = await Promise.all(
-    keys.map((key, index) => getSignedUrlForS3Object(key, types[index]))
-  );
+export async function createUploadUrlAction(key: string, type: string) {
+  if (!key || !type) return null;
 
-  return signedUrls;
+  const signedUrl = await getSignedUrlForS3Object(key, type);
+  return signedUrl;
 }
 
-// Fetch the existing profile action
+/* =========================================================
+   FETCH PROFILE
+========================================================= */
+
 export async function fetchProfileAction() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  const userId = session.user.id;
+  const profile = await database.query.userProfiles.findFirst({
+    where: eq(userProfiles.userId, session.user.id),
+  });
 
-  const profileArray = await database
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId));
-
-  return profileArray[0] || null;
+  return profile ?? null;
 }
 
-// Save or update the profile action
-export async function saveProfileAction({
-  profilePicture,
-  fullName,
-  telephone,
-  emailAddress,
-  country,
-  streetAddress,
-  city,
-  region,
-  postCode,
-}: {
-  profilePicture: string;
+/* =========================================================
+   SAVE / UPDATE PROFILE
+========================================================= */
+
+export async function saveProfileAction(data: {
+  profilePicture?: string;
   fullName: string;
-  telephone: string;
-  emailAddress: string;
-  country: string;
-  streetAddress: string;
-  city: string;
-  region: string;
-  postCode: string;
+  telephone?: string;
+  emailAddress?: string;
+  country?: string;
+  streetAddress?: string;
+  city?: string;
+  region?: string;
+  postCode?: string;
 }) {
   const session = await auth();
 
-  if (!session) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
   const userId = session.user.id;
 
-  const existingProfile = await fetchProfileAction();
+  const existingProfile = await database.query.userProfiles.findFirst({
+    where: eq(userProfiles.userId, userId),
+  });
 
   if (existingProfile) {
     await database
-      .update(profiles)
+      .update(userProfiles)
       .set({
-        profilePicture,
-        fullName,
-        telephone,
-        emailAddress,
-        country,
-        streetAddress,
-        city,
-        region,
-        postCode,
+        ...data,
+        updatedAt: new Date(),
       })
-      .where(eq(profiles.userId, userId));
+      .where(eq(userProfiles.userId, userId));
   } else {
-    await database.insert(profiles).values({
-      userId: userId,
-      profilePicture,
-      fullName,
-      telephone,
-      emailAddress,
-      country,
-      streetAddress,
-      city,
-      region,
-      postCode,
+    await database.insert(userProfiles).values({
+      userId,
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
-  redirect("/home/my-activity");
+  redirect("/home");
 }
 
-export async function assignRoleAction({ role }: { role: string }) {
+/* =========================================================
+   ASSIGN ROLE
+========================================================= */
+
+export async function assignRoleAction(role: string) {
   const session = await auth();
 
-  if (!session) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  const user = session.user;
-
-  if (!user || !user.id) {
-    throw new Error("Unauthorized");
-  }
-
-  if (!["administrator", "seniorMember", "teamMember"].includes(role)) {
+  if (
+    ![
+      "administrator",
+      "seniorManagement",
+      "employee",
+      "platform_admin",
+    ].includes(role)
+  ) {
     throw new Error("Invalid role selected");
   }
 
-  await database.update(users).set({ role }).where(eq(users.id, user.id));
-
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await database
+    .update(users)
+    .set({ role })
+    .where(eq(users.id, session.user.id));
 
   await signOut({
     redirectTo: "/",

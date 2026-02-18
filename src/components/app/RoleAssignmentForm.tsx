@@ -1,61 +1,177 @@
 "use client";
 
-import React, { useState } from "react";
-import { assignRoleAction } from "@/app/home/me/actions";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  createUploadUrlAction,
+  saveProfileAction,
+  fetchProfileAction,
+} from "@/app/home/me/actions";
+import { getImageUrl } from "@/util/files";
 
-export default function RoleAssignmentForm() {
-  const [role, setRole] = useState("administrator");
-  const [message, setMessage] = useState("");
+export default function ProfileForm() {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newProfilePicture, setNewProfilePicture] = useState<File | null>(null);
 
-  const handleRoleChange = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const router = useRouter();
 
-    try {
-      await assignRoleAction({ role });
-      setMessage("Role updated successfully.");
-    } catch (err: any) {
-      setMessage(err.message || "An error occurred while updating the role.");
+  useEffect(() => {
+    async function loadProfile() {
+      const profile = await fetchProfileAction();
+      setProfileData(profile); // can be null
+      setIsLoading(false);
+    }
+
+    loadProfile();
+  }, []);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files?.[0]) {
+      setNewProfilePicture(event.target.files[0]);
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    let uploadedFileName = profileData?.profilePicture || "";
+
+    if (newProfilePicture) {
+      const signedUrl = await createUploadUrlAction(
+        newProfilePicture.name,
+        newProfilePicture.type,
+      );
+
+      if (signedUrl) {
+        await fetch(signedUrl, {
+          method: "PUT",
+          body: newProfilePicture,
+        });
+
+        uploadedFileName = newProfilePicture.name;
+      }
+    }
+
+    await saveProfileAction({
+      profilePicture: uploadedFileName,
+      fullName: formData.get("fullName") as string,
+      telephone: formData.get("telephone") as string,
+      emailAddress: formData.get("emailAddress") as string,
+      country: formData.get("country") as string,
+      streetAddress: formData.get("streetAddress") as string,
+      city: formData.get("city") as string,
+      region: formData.get("region") as string,
+      postCode: formData.get("postCode") as string,
+    });
+
+    router.refresh();
+  };
+
+  if (isLoading) {
+    return <div className="p-8">Loading profile...</div>;
+  }
+
   return (
-    <div className="max-w-lg mx-auto p-6 bg-white shadow-md rounded-lg">
-      <h1 className="text-2xl font-bold mb-4">Role Assignment Form</h1>
-      <p className="text-gray-700 mb-6">
-        We have noticed that you hve no role assigned to you which means you
-        either need to get in contact with your administrator or you are the
-        administrator. Select your role below and then proceed to the Team
-        Dashboard. If you need any help, please contact our support team.
-      </p>
-      <form onSubmit={handleRoleChange}>
-        <label htmlFor="role" className="block mb-2 text-gray-700">
-          Select Role:
-        </label>
-        <select
-          id="role"
-          name="role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full mb-4 p-2 border rounded"
-        >
-          <option value="administrator">Administrator</option>
-        </select>
+    <main className="max-w-3xl mx-auto p-8">
+      <form
+        className="flex flex-col space-y-6 bg-white p-8 rounded-xl shadow"
+        onSubmit={handleSubmit}
+      >
+        <div className="text-center">
+          <h2 className="font-semibold mb-4">Profile Picture</h2>
+
+          {profileData?.profilePicture && (
+            <img
+              src={getImageUrl(profileData.profilePicture)}
+              alt="Profile"
+              className="rounded-full h-32 w-32 object-cover mx-auto mb-4"
+            />
+          )}
+
+          <input type="file" onChange={handleFileChange} />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Full Name</label>
+          <input
+            required
+            name="fullName"
+            defaultValue={profileData?.fullName || ""}
+            className="w-full border rounded-md px-3 py-2"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            required
+            name="telephone"
+            placeholder="Telephone"
+            defaultValue={profileData?.telephone || ""}
+            className="border rounded-md px-3 py-2"
+          />
+
+          <input
+            required
+            name="emailAddress"
+            placeholder="Email Address"
+            defaultValue={profileData?.emailAddress || ""}
+            className="border rounded-md px-3 py-2"
+          />
+        </div>
+
+        <input
+          required
+          name="streetAddress"
+          placeholder="Street Address"
+          defaultValue={profileData?.streetAddress || ""}
+          className="border rounded-md px-3 py-2"
+        />
+
+        <div className="grid grid-cols-3 gap-4">
+          <input
+            required
+            name="postCode"
+            placeholder="Post Code"
+            defaultValue={profileData?.postCode || ""}
+            className="border rounded-md px-3 py-2"
+          />
+
+          <input
+            required
+            name="city"
+            placeholder="City"
+            defaultValue={profileData?.city || ""}
+            className="border rounded-md px-3 py-2"
+          />
+
+          <input
+            required
+            name="region"
+            placeholder="Region"
+            defaultValue={profileData?.region || ""}
+            className="border rounded-md px-3 py-2"
+          />
+        </div>
+
+        <input
+          required
+          name="country"
+          placeholder="Country"
+          defaultValue={profileData?.country || ""}
+          className="border rounded-md px-3 py-2"
+        />
+
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+          className="bg-blue-600 text-white px-6 py-3 rounded-md self-end"
         >
-          Update Role
+          Save Profile
         </button>
       </form>
-      {message && (
-        <p
-          className={`text-sm ${
-            message.includes("success") ? "text-green-500" : "text-red-500"
-          } mt-4`}
-        >
-          {message}
-        </p>
-      )}
-    </div>
+    </main>
   );
 }

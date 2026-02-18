@@ -1,17 +1,18 @@
 "use server";
 
 import { database } from "@/db/database";
-import { organisations } from "@/db/schema";
+import { organisations, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function getOrganisationByUserId(organisationId: string) {
-  if (!organisationId) return null;
-
-  const organisation = await database.query.organisations.findFirst({
-    where: eq(organisations.id, organisationId),
+export async function getOrganisationByUserId(userId: string) {
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, userId),
+    with: {
+      organisation: true,
+    },
   });
 
-  return organisation;
+  return user?.organisation ?? null;
 }
 
 export async function getOrganisationById(id: string) {

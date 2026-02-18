@@ -10,27 +10,25 @@ import {
 import { getImageUrl } from "@/util/files";
 
 export default function ProfileForm() {
-  // Initialize profileData as an empty object to avoid null errors
-  const [profileData, setProfileData] = useState<any>({});
-  const [files, setFiles] = useState<File[]>([]);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [newProfilePicture, setNewProfilePicture] = useState<File | null>(null);
+
   const router = useRouter();
 
   useEffect(() => {
     async function loadProfile() {
       const profile = await fetchProfileAction();
-      setProfileData(profile || {}); // Ensure profileData is always an object
+      setProfileData(profile); // can be null
+      setIsLoading(false);
     }
 
     loadProfile();
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = event.target;
-    if (files) {
-      if (name === "profilePicture") {
-        setNewProfilePicture(files[0]);
-      }
+    if (event.target.files?.[0]) {
+      setNewProfilePicture(event.target.files[0]);
     }
   };
 
@@ -40,21 +38,26 @@ export default function ProfileForm() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    const uploadUrls = await createUploadUrlAction(
-      [newProfilePicture?.name || profileData?.profilePicture || ""],
-      [newProfilePicture?.type || ""]
-    );
+    let uploadedFileName = profileData?.profilePicture || "";
 
     if (newProfilePicture) {
-      await fetch(uploadUrls[0], {
-        method: "PUT",
-        body: newProfilePicture,
-      });
+      const signedUrl = await createUploadUrlAction(
+        newProfilePicture.name,
+        newProfilePicture.type,
+      );
+
+      if (signedUrl) {
+        await fetch(signedUrl, {
+          method: "PUT",
+          body: newProfilePicture,
+        });
+
+        uploadedFileName = newProfilePicture.name;
+      }
     }
 
     await saveProfileAction({
-      profilePicture:
-        newProfilePicture?.name || profileData?.profilePicture || "",
+      profilePicture: uploadedFileName,
       fullName: formData.get("fullName") as string,
       telephone: formData.get("telephone") as string,
       emailAddress: formData.get("emailAddress") as string,
@@ -65,153 +68,106 @@ export default function ProfileForm() {
       postCode: formData.get("postCode") as string,
     });
 
-    alert("Profile saved successfully!");
-    router.push("/home/my-activity");
+    router.refresh();
   };
 
+  if (isLoading) {
+    return <div className="p-8">Loading profile...</div>;
+  }
+
   return (
-    <main>
+    <main className="max-w-3xl mx-auto p-8">
       <form
-        className="flex flex-col p-8 rounded-xl space-y-5"
+        className="flex flex-col space-y-6 bg-white p-8 rounded-xl shadow"
         onSubmit={handleSubmit}
       >
-        <div className="grid grid-cols-1 justify-items-center ">
-          <div className="mb-2 text-sm text-gray-800">
-            <h1 className="pb-2 font-semibold">Profile Picture:</h1>
-          </div>
+        <div className="text-center">
+          <h2 className="font-semibold mb-4">Profile Picture</h2>
 
-          {/* Display existing profile picture */}
-          {profileData.profilePicture && (
-            <div className="mb-4">
-              <img
-                src={getImageUrl(profileData.profilePicture)}
-                alt="Profile"
-                className="rounded-full mb-2 h-32 w-32 object-cover"
-              />
-            </div>
+          {profileData?.profilePicture && (
+            <img
+              src={getImageUrl(profileData.profilePicture)}
+              alt="Profile"
+              className="rounded-full h-32 w-32 object-cover mx-auto mb-4"
+            />
           )}
 
-          <input
-            type="file"
-            name="profilePicture"
-            id="profilePicture"
-            onChange={handleFileChange}
-            className="mt-2 ml-32"
-          />
+          <input type="file" onChange={handleFileChange} />
         </div>
-        <section>
-          <div className="mb-2 text-sm text-gray-800">
-            <h1 className="pb-2 font-semibold">Profile Details :</h1>
-          </div>
-          <label className="block text-sm font-medium text-gray-700 mt-4">
-            Full Name
-          </label>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Full Name</label>
           <input
             required
-            className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
             name="fullName"
-            placeholder="Full Name"
-            defaultValue={profileData.fullName || ""}
+            defaultValue={profileData?.fullName || ""}
+            className="w-full border rounded-md px-3 py-2"
           />
-        </section>
+        </div>
 
-        <section>
-          <div className="grid grid-cols-3 gap-4 ">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mt-4">
-                Telephone
-              </label>
-              <input
-                required
-                className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-                name="telephone"
-                placeholder="Telephone"
-                defaultValue={profileData.telephone || ""}
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mt-4">
-                Email Address
-              </label>
-              <input
-                required
-                className="w-full border  rounded-md mt-2 px-3 py-2 text-sm"
-                name="emailAddress"
-                placeholder="Email Address"
-                defaultValue={profileData.emailAddress || ""}
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            required
+            name="telephone"
+            placeholder="Telephone"
+            defaultValue={profileData?.telephone || ""}
+            className="border rounded-md px-3 py-2"
+          />
 
-          <section className="my-10">
-            <h1 className="pb-2 font-semibold mb-2 text-sm text-gray-800">
-              Physical Address:
-            </h1>
+          <input
+            required
+            name="emailAddress"
+            placeholder="Email Address"
+            defaultValue={profileData?.emailAddress || ""}
+            className="border rounded-md px-3 py-2"
+          />
+        </div>
 
-            <label className="block text-sm font-medium text-gray-700 mt-4">
-              Street Address
-            </label>
-            <input
-              required
-              className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-              name="streetAddress"
-              placeholder="Street Address"
-              defaultValue={profileData.streetAddress || ""}
-            />
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mt-4">
-                  Post Code
-                </label>
-                <input
-                  required
-                  className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-                  name="postCode"
-                  placeholder="Post Code"
-                  defaultValue={profileData.postCode || ""}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mt-4">
-                  City
-                </label>
-                <input
-                  required
-                  className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-                  name="city"
-                  placeholder="City"
-                  defaultValue={profileData.city || ""}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mt-4">
-                  Region
-                </label>
-                <input
-                  required
-                  className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-                  name="region"
-                  placeholder="Region"
-                  defaultValue={profileData.region || ""}
-                />
-              </div>
-            </div>
-            <label className="block text-sm font-medium text-gray-700 mt-4">
-              Country
-            </label>
-            <input
-              required
-              className="w-full border rounded-md mt-2 px-3 py-2 text-sm"
-              name="country"
-              placeholder="Country"
-              defaultValue={profileData.country || ""}
-            />
-          </section>
-        </section>
+        <input
+          required
+          name="streetAddress"
+          placeholder="Street Address"
+          defaultValue={profileData?.streetAddress || ""}
+          className="border rounded-md px-3 py-2"
+        />
+
+        <div className="grid grid-cols-3 gap-4">
+          <input
+            required
+            name="postCode"
+            placeholder="Post Code"
+            defaultValue={profileData?.postCode || ""}
+            className="border rounded-md px-3 py-2"
+          />
+
+          <input
+            required
+            name="city"
+            placeholder="City"
+            defaultValue={profileData?.city || ""}
+            className="border rounded-md px-3 py-2"
+          />
+
+          <input
+            required
+            name="region"
+            placeholder="Region"
+            defaultValue={profileData?.region || ""}
+            className="border rounded-md px-3 py-2"
+          />
+        </div>
+
+        <input
+          required
+          name="country"
+          placeholder="Country"
+          defaultValue={profileData?.country || ""}
+          className="border rounded-md px-3 py-2"
+        />
 
         <button
-          className="bg-blue-600 text-white py-2 px-4 rounded-md self-end"
           type="submit"
+          className="bg-blue-600 text-white px-6 py-3 rounded-md self-end"
         >
           Save Profile
         </button>

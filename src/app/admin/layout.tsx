@@ -7,7 +7,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-black text-white flex flex-col">
         <div className="p-6 text-xl font-bold border-b border-gray-800">
-          Platform Admin
+          Waste X Admin
         </div>
 
         <nav className="flex-1 p-4 space-y-2 text-sm">

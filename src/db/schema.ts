@@ -80,6 +80,41 @@ export const users = pgTable(
 );
 
 /* =========================================================
+   USER PROFILES
+========================================================= */
+
+export const userProfiles = pgTable(
+  "bb_user_profile",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    profilePicture: text("profilePicture"),
+
+    fullName: text("fullName").notNull(),
+    telephone: text("telephone"),
+    emailAddress: text("emailAddress"),
+
+    country: text("country"),
+    streetAddress: text("streetAddress"),
+    city: text("city"),
+    region: text("region"),
+    postCode: text("postCode"),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    userUnique: uniqueIndex("user_profile_unique").on(table.userId),
+  }),
+);
+
+/* =========================================================
    PASSWORD RESET TOKENS
 ========================================================= */
 
@@ -151,11 +186,11 @@ export const verificationTokens = pgTable(
 );
 
 /* =========================================================
-   ITEMS (WASTE JOBS)
+   WASTE LISTINGS (RENAMED FROM ITEMS)
 ========================================================= */
 
-export const items = pgTable(
-  "bb_item",
+export const wasteListings = pgTable(
+  "bb_waste_listing",
   {
     id: serial("id").primaryKey(),
 
@@ -167,9 +202,7 @@ export const items = pgTable(
       .notNull()
       .references(() => organisations.id, { onDelete: "cascade" }),
 
-    winningBidId: integer("winningBidId").references(() => bids.id, {
-      onDelete: "set null",
-    }),
+    winningBidId: integer("winningBidId"),
 
     winningOrganisationId: text("winningOrganisationId").references(
       () => organisations.id,
@@ -207,9 +240,9 @@ export const items = pgTable(
     createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
   },
   (table) => ({
-    orgIdx: index("item_org_idx").on(table.organisationId),
-    userIdx: index("item_user_idx").on(table.userId),
-    archivedIdx: index("item_archived_idx").on(table.archived),
+    orgIdx: index("listing_org_idx").on(table.organisationId),
+    userIdx: index("listing_user_idx").on(table.userId),
+    archivedIdx: index("listing_archived_idx").on(table.archived),
   }),
 );
 
@@ -224,9 +257,9 @@ export const bids = pgTable(
 
     amount: integer("amount").notNull(),
 
-    itemId: integer("itemId")
+    listingId: integer("listingId")
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+      .references(() => wasteListings.id, { onDelete: "cascade" }),
 
     userId: text("userId")
       .notNull()
@@ -243,7 +276,7 @@ export const bids = pgTable(
     cancellationReason: text("cancellationReason"),
   },
   (table) => ({
-    itemIdx: index("bid_item_idx").on(table.itemId),
+    listingIdx: index("bid_listing_idx").on(table.listingId),
     orgIdx: index("bid_org_idx").on(table.organisationId),
   }),
 );
@@ -259,9 +292,9 @@ export const carrierAssignments = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
 
-    itemId: integer("itemId")
+    listingId: integer("listingId")
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+      .references(() => wasteListings.id, { onDelete: "cascade" }),
 
     carrierOrganisationId: text("carrierOrganisationId")
       .notNull()
@@ -286,36 +319,8 @@ export const carrierAssignments = pgTable(
     completedAt: timestamp("completedAt", { mode: "date" }),
   },
   (table) => ({
-    itemIdx: index("carrier_item_idx").on(table.itemId),
+    listingIdx: index("carrier_listing_idx").on(table.listingId),
     carrierIdx: index("carrier_org_idx").on(table.carrierOrganisationId),
-  }),
-);
-
-/* =========================================================
-   REVIEWS
-========================================================= */
-
-export const reviews = pgTable(
-  "bb_review",
-  {
-    id: serial("id").primaryKey(),
-
-    reviewerId: text("reviewerId")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-
-    organisationId: text("organisationId")
-      .notNull()
-      .references(() => organisations.id, { onDelete: "cascade" }),
-
-    rating: integer("rating").notNull(),
-    reviewText: text("reviewText").notNull(),
-
-    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-  },
-  (table) => ({
-    orgIdx: index("review_org_idx").on(table.organisationId),
-    reviewerIdx: index("review_user_idx").on(table.reviewerId),
   }),
 );
 
@@ -334,9 +339,9 @@ export const incidents = pgTable(
       .notNull()
       .references(() => carrierAssignments.id, { onDelete: "cascade" }),
 
-    itemId: integer("itemId")
+    listingId: integer("listingId")
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+      .references(() => wasteListings.id, { onDelete: "cascade" }),
 
     reportedByUserId: text("reportedByUserId")
       .notNull()
@@ -367,62 +372,172 @@ export const incidents = pgTable(
   }),
 );
 
+export const notifications = pgTable("bb_notification", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  recipientId: text("recipientId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  actorId: text("actorId").references(() => users.id, { onDelete: "set null" }),
+
+  listingId: text("listingId").references(() => wasteListings.id, {
+    onDelete: "cascade",
+  }),
+
+  type: text("type").notNull(), // e.g. "NEW_OFFER", "NEW_REVIEW", etc
+
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+
+  isRead: boolean("isRead").notNull().default(false),
+
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
+
+export const reviews = pgTable("bb_review", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  reviewerId: text("reviewerId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  reviewedOrganisationId: text("reviewedOrganisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+
+  listingId: text("listingId").references(() => wasteListings.id, {
+    onDelete: "set null",
+  }),
+
+  rating: integer("rating").notNull(), // 1–5
+  comment: text("comment"),
+
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
+
 /* =========================================================
-   NOTIFICATIONS
+   RELATIONS
 ========================================================= */
 
-export const notifications = pgTable(
-  "bb_notifications",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
+/* ================= USERS ================= */
 
-    receiverId: text("receiverId")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-
-    title: text("title").notNull(),
-    message: text("message").notNull(),
-    url: text("url").notNull(),
-
-    isRead: boolean("isRead").notNull().default(false),
-    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
-  },
-  (table) => ({
-    receiverIdx: index("notification_receiver_idx").on(table.receiverId),
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organisation: one(organisations, {
+    fields: [users.organisationId],
+    references: [organisations.id],
   }),
-);
 
-// RELATIONS
-export const notificationsRelations = relations(notifications, ({ one }) => ({
+  profile: one(userProfiles, {
+    fields: [users.id],
+    references: [userProfiles.userId],
+  }),
+
+  listings: many(wasteListings),
+
+  bids: many(bids),
+
+  notificationsReceived: many(notifications, {
+    relationName: "notificationRecipient",
+  }),
+
+  notificationsSent: many(notifications, {
+    relationName: "notificationActor",
+  }),
+
+  reviewsWritten: many(reviews),
+}));
+
+/* ================= USER PROFILES ================= */
+
+export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
   user: one(users, {
-    fields: [notifications.receiverId],
+    fields: [userProfiles.userId],
     references: [users.id],
   }),
 }));
 
+/* ================= ORGANISATIONS ================= */
+
+export const organisationsRelations = relations(organisations, ({ many }) => ({
+  members: many(users),
+
+  listings: many(wasteListings, {
+    relationName: "ownerOrganisation",
+  }),
+
+  bids: many(bids),
+
+  carrierJobs: many(carrierAssignments, {
+    relationName: "carrierOrganisation",
+  }),
+
+  assignedCarrierJobs: many(carrierAssignments, {
+    relationName: "assignedByOrganisation",
+  }),
+
+  reviews: many(reviews),
+}));
+
+/* ================= WASTE LISTINGS ================= */
+
+export const wasteListingsRelations = relations(
+  wasteListings,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [wasteListings.userId],
+      references: [users.id],
+    }),
+
+    organisation: one(organisations, {
+      relationName: "ownerOrganisation",
+      fields: [wasteListings.organisationId],
+      references: [organisations.id],
+    }),
+
+    bids: many(bids),
+
+    carrierAssignments: many(carrierAssignments),
+
+    incidents: many(incidents),
+
+    notifications: many(notifications),
+
+    reviews: many(reviews),
+  }),
+);
+
+/* ================= BIDS ================= */
+
 export const bidsRelations = relations(bids, ({ one }) => ({
+  listing: one(wasteListings, {
+    fields: [bids.listingId],
+    references: [wasteListings.id],
+  }),
+
   user: one(users, {
     fields: [bids.userId],
     references: [users.id],
   }),
-  item: one(items, {
-    fields: [bids.itemId],
-    references: [items.id],
-  }),
+
   organisation: one(organisations, {
     fields: [bids.organisationId],
     references: [organisations.id],
   }),
 }));
 
+/* ================= CARRIER ASSIGNMENTS ================= */
+
 export const carrierAssignmentsRelations = relations(
   carrierAssignments,
   ({ one, many }) => ({
-    item: one(items, {
-      fields: [carrierAssignments.itemId],
-      references: [items.id],
+    listing: one(wasteListings, {
+      fields: [carrierAssignments.listingId],
+      references: [wasteListings.id],
     }),
 
     carrierOrganisation: one(organisations, {
@@ -437,91 +552,21 @@ export const carrierAssignmentsRelations = relations(
       references: [organisations.id],
     }),
 
-    incidents: many(incidents, {
-      fields: [carrierAssignments.id],
-      references: [incidents.assignmentId],
-    }),
+    incidents: many(incidents),
   }),
 );
-export const reviewsRelations = relations(reviews, ({ one }) => ({
-  reviewer: one(users, {
-    fields: [reviews.reviewerId],
-    references: [users.id],
-  }),
 
-  organisation: one(organisations, {
-    fields: [reviews.organisationId],
-    references: [organisations.id],
-  }),
-}));
-
-export const itemsRelations = relations(items, ({ one, many }) => ({
-  user: one(users, { fields: [items.userId], references: [users.id] }),
-
-  organisation: one(organisations, {
-    relationName: "ownerOrganisation",
-    fields: [items.organisationId],
-    references: [organisations.id],
-  }),
-
-  winningOrganisation: one(organisations, {
-    relationName: "winningOrganisation",
-    fields: [items.winningOrganisationId],
-    references: [organisations.id],
-  }),
-
-  assignedCarrierOrganisation: one(organisations, {
-    relationName: "assignedCarrierOrganisation",
-    fields: [items.assignedCarrierOrganisationId],
-    references: [organisations.id],
-  }),
-
-  assignedByOrganisation: one(organisations, {
-    relationName: "assignedByOrganisation",
-    fields: [items.assignedByOrganisationId],
-    references: [organisations.id],
-  }),
-
-  winningBid: one(bids, {
-    fields: [items.winningBidId],
-    references: [bids.id],
-  }),
-
-  carrierAssignments: many(carrierAssignments),
-}));
-
-export const usersRelations = relations(users, ({ one }) => ({
-  organisation: one(organisations, {
-    fields: [users.organisationId],
-    references: [organisations.id],
-  }),
-}));
-
-export const organisationsRelations = relations(organisations, ({ many }) => ({
-  members: many(users),
-  reviews: many(reviews),
-  items: many(items, { relationName: "ownerOrganisation" }),
-  winningItems: many(items, { relationName: "winningOrganisation" }),
-  bids: many(bids),
-
-  carrierJobs: many(carrierAssignments, {
-    relationName: "carrierOrganisation",
-  }),
-
-  assignedCarrierJobs: many(carrierAssignments, {
-    relationName: "assignedByOrganisation",
-  }),
-}));
+/* ================= INCIDENTS ================= */
 
 export const incidentsRelations = relations(incidents, ({ one }) => ({
+  listing: one(wasteListings, {
+    fields: [incidents.listingId],
+    references: [wasteListings.id],
+  }),
+
   assignment: one(carrierAssignments, {
     fields: [incidents.assignmentId],
     references: [carrierAssignments.id],
-  }),
-
-  item: one(items, {
-    fields: [incidents.itemId],
-    references: [items.id],
   }),
 
   reportedByUser: one(users, {
@@ -532,5 +577,45 @@ export const incidentsRelations = relations(incidents, ({ one }) => ({
   reportedByOrganisation: one(organisations, {
     fields: [incidents.reportedByOrganisationId],
     references: [organisations.id],
+  }),
+}));
+
+/* ================= REVIEWS ================= */
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id],
+  }),
+
+  reviewedOrganisation: one(organisations, {
+    fields: [reviews.reviewedOrganisationId],
+    references: [organisations.id],
+  }),
+
+  listing: one(wasteListings, {
+    fields: [reviews.listingId],
+    references: [wasteListings.id],
+  }),
+}));
+
+/* ================= NOTIFICATIONS ================= */
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.recipientId],
+    references: [users.id],
+    relationName: "notificationRecipient",
+  }),
+
+  actor: one(users, {
+    fields: [notifications.actorId],
+    references: [users.id],
+    relationName: "notificationActor",
+  }),
+
+  listing: one(wasteListings, {
+    fields: [notifications.listingId],
+    references: [wasteListings.id],
   }),
 }));

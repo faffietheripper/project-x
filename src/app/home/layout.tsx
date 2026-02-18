@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { database } from "@/db/database";
-import { profiles } from "@/db/schema";
+import { userProfiles } from "@/db/schema"; // ✅ changed
 import { eq } from "drizzle-orm";
 
 export default async function Layout({
@@ -17,8 +17,9 @@ export default async function Layout({
     redirect("/login");
   }
 
-  const profile = await database.query.profiles.findFirst({
-    where: eq(profiles.userId, session.user.id),
+  const profile = await database.query.userProfiles.findFirst({
+    // ✅ changed
+    where: eq(userProfiles.userId, session.user.id), // ✅ changed
   });
 
   const profileCompleted = !!(
@@ -41,7 +42,7 @@ export default async function Layout({
       <Toaster />
       <Header2 />
 
-      <div className="">
+      <div>
         <SetupAlert
           user={{
             role: session.user.role,
@@ -50,7 +51,7 @@ export default async function Layout({
         />
       </div>
 
-      <div className="">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }

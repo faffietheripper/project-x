@@ -7,39 +7,33 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { LoginSchema } from "@/util/authSchema";
 
-export async function getUserFromDb(email: string, password: string) {
+export async function getUserFromDb(email: string, password?: string) {
   try {
-    const existedUser = await database.query.users.findFirst({
+    // Fetch user by email
+    const user = await database.query.users.findFirst({
       where: eq(users.email, email),
     });
 
-    if (!existedUser) {
-      return {
-        success: false,
-        message: "User not found.",
-      };
+    if (!user) {
+      return { success: false, message: "User not found." };
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      existedUser.password
-    );
-    if (!isPasswordValid) {
-      return {
-        success: false,
-        message: "Password entered is wrong.",
-      };
+    // If password provided, check hash
+    if (password) {
+      const isValid = await bcrypt.compare(password, user.passwordHash!);
+      if (!isValid) {
+        return { success: false, message: "Incorrect password." };
+      }
     }
 
-    return {
-      success: true,
-      data: existedUser,
-    };
+    // Check active/suspended status
+    if (!user.isActive || user.isSuspended) {
+      return { success: false, message: "Account inactive or suspended." };
+    }
+
+    return { success: true, data: user };
   } catch (error: any) {
-    return {
-      success: false,
-      message: error.message,
-    };
+    return { success: false, message: error.message };
   }
 }
 
@@ -51,18 +45,7 @@ export async function login({
   password: string;
 }) {
   try {
-    LoginSchema.parse({
-      email,
-      password,
-    });
-
-    const user = await getUserFromDb(email, password);
-    if (!user.success) {
-      return {
-        success: false,
-        message: "Email or password is incorrect.",
-      };
-    }
+    LoginSchema.parse({ email, password });
 
     const res = await signIn("credentials", {
       redirect: false,
@@ -70,14 +53,12 @@ export async function login({
       password,
     });
 
-    return {
-      success: true,
-      data: res,
-    };
+    if (!res || res.error) {
+      return { success: false, message: res?.error || "Login failed." };
+    }
+
+    return { success: true, data: res };
   } catch (error: any) {
-    return {
-      success: false,
-      message: "An error occurred during login.",
-    };
+    return { success: false, message: error.message };
   }
 }

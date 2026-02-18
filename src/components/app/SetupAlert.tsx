@@ -50,7 +50,9 @@ export default function SetupAlert({
         <p className="text-sm mb-4">
           Your account isn’t fully set up yet. You’ll have limited access until
           your <strong>role</strong> is updated by a company administrator and
-          your <strong>profile</strong> is completed.
+          your <strong>profile</strong> is completed. If you are the company
+          admin please setup your profile first and then setup your
+          organisation.
         </p>
 
         <button

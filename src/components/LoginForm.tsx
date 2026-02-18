@@ -13,6 +13,7 @@ type LoginFormInputs = z.infer<typeof LoginSchema>;
 export default function LoginForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const errorContainerRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -24,19 +25,28 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormInputs) => {
+    setServerError(null);
+    setLoading(true);
+
     const res = await login(data);
 
-    if (res.success) {
-      router.push("/home");
-    } else {
-      // Handle login error
-      setServerError("You have entered an incorrect email or password.");
-      console.error("Login failed:", res.message);
+    setLoading(false);
 
-      // Move focus to error container
+    if (!res.success) {
+      setServerError(res.message || "Invalid email or password.");
+
       if (errorContainerRef.current) {
         errorContainerRef.current.focus();
       }
+
+      return;
+    }
+
+    // 🔐 Role-based routing
+    if (res.role === "platform_admin") {
+      router.push("/admin");
+    } else {
+      router.push("/home");
     }
   };
 
@@ -45,12 +55,12 @@ export default function LoginForm() {
       onSubmit={handleSubmit(onSubmit)}
       className="mt-8 grid grid-cols-6 gap-6"
     >
-      {/* General error message */}
+      {/* Server Error */}
       {serverError && (
         <div
           ref={errorContainerRef}
           tabIndex={-1}
-          className="col-span-6 bg-red-100 border border-red-400 text-red-700 p-4 rounded relative"
+          className="col-span-6 bg-red-100 border border-red-400 text-red-700 p-4 rounded"
           role="alert"
           aria-live="polite"
         >
@@ -58,16 +68,17 @@ export default function LoginForm() {
         </div>
       )}
 
+      {/* Email */}
       <div className="col-span-6">
         <label
-          htmlFor="Email"
+          htmlFor="email"
           className="block text-sm font-medium text-gray-700"
         >
           Email
         </label>
         <input
           type="email"
-          id="Email"
+          id="email"
           {...register("email")}
           className="mt-1 w-full h-12 border p-3 rounded-md border-gray-200 bg-white text-sm text-gray-700 shadow-sm"
           aria-invalid={!!errors.email}
@@ -84,16 +95,17 @@ export default function LoginForm() {
         )}
       </div>
 
+      {/* Password */}
       <div className="col-span-6">
         <label
-          htmlFor="Password"
+          htmlFor="password"
           className="block text-sm font-medium text-gray-700"
         >
           Password
         </label>
         <input
           type="password"
-          id="Password"
+          id="password"
           {...register("password")}
           className="mt-1 w-full rounded-md h-12 border p-3 border-gray-200 bg-white text-sm text-gray-700 shadow-sm"
           aria-invalid={!!errors.password}
@@ -110,11 +122,13 @@ export default function LoginForm() {
         )}
       </div>
 
+      {/* Submit */}
       <button
         type="submit"
-        className="col-span-6 rounded-md border border-blue-600 bg-blue-600 px-12 py-3 text-sm font-medium text-white transition hover:bg-transparent hover:text-blue-600 focus:outline-none focus:ring active:text-blue-500"
+        disabled={loading}
+        className="col-span-6 rounded-md border border-blue-600 bg-blue-600 px-12 py-3 text-sm font-medium text-white transition disabled:opacity-50"
       >
-        Log In
+        {loading ? "Logging in..." : "Log In"}
       </button>
     </form>
   );

@@ -47,20 +47,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials) => {
         if (!credentials?.email || !credentials.password) {
-          throw new Error("Email and password are required");
+          return null; // Required by NextAuth
         }
 
         const userResponse = await getUserFromDb(
           credentials.email,
-          credentials.password
+          credentials.password,
         );
 
         if (!userResponse.success) {
-          throw new Error(userResponse.message);
+          return null; // Return null on failure
         }
 
-        // Return the entire user object
-        return userResponse.data as User;
+        // Return the user object for NextAuth session
+        return {
+          id: userResponse.data.id,
+          name: userResponse.data.name,
+          email: userResponse.data.email,
+          role: userResponse.data.role,
+        };
       },
     }),
   ],
