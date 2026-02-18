@@ -1,10 +1,7 @@
-import React from "react";
+import { requirePlatformAdmin } from "@/lib/adminGuard";
 
-export default function Admin() {
-  return (
-    <div className="pl-96 py-24">
-      Admin
-      <h1>Welcome to the Admin Dashboard</h1>
-    </div>
-  );
+export default async function AdminDashboard() {
+  await requirePlatformAdmin();
+
+  return <div>Admin Dashboard</div>;
 }

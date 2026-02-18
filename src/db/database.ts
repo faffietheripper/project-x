@@ -1,25 +1,32 @@
 import { env } from "@/env";
 import * as schema from "./schema";
-import { PostgresJsDatabase, drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 declare global {
-  // eslint-disable-next-line no-var -- only var works here
-  var database: PostgresJsDatabase<typeof schema> | undefined;
+  // eslint-disable-next-line no-var
+  var database: ReturnType<typeof drizzle> | undefined;
 }
 
-let database: PostgresJsDatabase<typeof schema>;
-let pg: ReturnType<typeof postgres>;
+let database: ReturnType<typeof drizzle>;
+let pool: Pool;
 
 if (env.NODE_ENV === "production") {
-  pg = postgres(env.DATABASE_URL);
-  database = drizzle(pg, { schema });
+  pool = new Pool({
+    connectionString: env.DATABASE_URL,
+  });
+
+  database = drizzle(pool, { schema });
 } else {
   if (!global.database) {
-    pg = postgres(env.DATABASE_URL);
-    global.database = drizzle(pg, { schema });
+    pool = new Pool({
+      connectionString: env.DATABASE_URL,
+    });
+
+    global.database = drizzle(pool, { schema });
   }
+
   database = global.database;
 }
 
-export { database, pg };
+export { database };

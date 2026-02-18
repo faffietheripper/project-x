@@ -5,20 +5,27 @@ import {
   text,
   boolean,
   timestamp,
+  serial,
+  uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "next-auth/adapters";
 import { relations } from "drizzle-orm";
 
-// Organisations
+/* =========================================================
+   ORGANISATIONS
+========================================================= */
+
 export const organisations = pgTable("bb_organisation", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+
   teamName: text("teamName").notNull(),
   profilePicture: text("profilePicture"),
   chainOfCustody: text("chainOfCustody"),
   industry: text("industry"),
-  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+
   telephone: text("telephone").notNull(),
   emailAddress: text("emailAddress").notNull(),
   country: text("country").notNull(),
@@ -26,46 +33,88 @@ export const organisations = pgTable("bb_organisation", {
   city: text("city").notNull(),
   region: text("region").notNull(),
   postCode: text("postCode").notNull(),
+
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
 
-// Users
-export const users = pgTable("bb_user", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: timestamp("emailVerified", { mode: "date" }),
-  image: text("image"),
-  password: text("password"),
-  confirmPassword: text("confirmPassword"),
-  organisationId: text("organisationId").references(() => organisations.id, {
-    onDelete: "cascade",
+/* =========================================================
+   USERS
+========================================================= */
+
+export const users = pgTable(
+  "bb_user",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    emailVerified: timestamp("emailVerified", { mode: "date" }),
+    image: text("image"),
+
+    passwordHash: text("passwordHash"),
+
+    organisationId: text("organisationId").references(() => organisations.id, {
+      onDelete: "cascade",
+    }),
+
+    role: text("role")
+      .$type<
+        "administrator" | "employee" | "seniorManagement" | "platform_admin"
+      >()
+      .notNull()
+      .default("employee"),
+
+    isActive: boolean("isActive").notNull().default(true),
+    isSuspended: boolean("isSuspended").notNull().default(false),
+
+    lastLoginAt: timestamp("lastLoginAt", { mode: "date" }),
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    emailIdx: uniqueIndex("user_email_unique").on(table.email),
+    orgIdx: index("user_org_idx").on(table.organisationId),
+    roleIdx: index("user_role_idx").on(table.role),
   }),
-  role: text("role"),
-});
+);
 
-// Password Reset Tokens
-export const passwordResetTokens = pgTable("bb_passwordResetToken", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  token: text("token").notNull(),
-  email: text("email").notNull(),
-  expires: timestamp("expires", { mode: "date" }).notNull(),
-  used: boolean("used").notNull().default(false),
-});
+/* =========================================================
+   PASSWORD RESET TOKENS
+========================================================= */
 
-// Accounts
+export const passwordResetTokens = pgTable(
+  "bb_passwordResetToken",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    token: text("token").notNull(),
+    email: text("email").notNull(),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
+    used: boolean("used").notNull().default(false),
+  },
+  (table) => ({
+    tokenIdx: uniqueIndex("password_token_unique").on(table.token),
+  }),
+);
+
+/* =========================================================
+   NEXTAUTH TABLES
+========================================================= */
+
 export const accounts = pgTable(
   "bb_account",
   {
     userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+
     type: text("type").$type<AdapterAccount>().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
+
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
@@ -81,7 +130,6 @@ export const accounts = pgTable(
   }),
 );
 
-// Sessions
 export const sessions = pgTable("bb_session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
@@ -90,7 +138,6 @@ export const sessions = pgTable("bb_session", {
   expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-// Verification Tokens
 export const verificationTokens = pgTable(
   "bb_verificationToken",
   {
@@ -103,239 +150,249 @@ export const verificationTokens = pgTable(
   }),
 );
 
-// Bids
-export const bids = pgTable("bb_bids", {
-  id: integer("id").primaryKey(),
-  amount: integer("amount").notNull(),
-  itemId: integer("itemId")
-    .notNull()
-    .references(() => items.id, { onDelete: "cascade" }),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  organisationId: text("organisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
-  declinedOffer: boolean("declinedOffer").notNull().default(false),
-  cancelledJob: boolean("cancelledJob").notNull().default(false),
-  cancellationReason: text("cancellationReason"),
-  companyName: text("companyName"),
-  emailAddress: text("emailAddress"),
-  itemName: text("itemName"),
-});
+/* =========================================================
+   ITEMS (WASTE JOBS)
+========================================================= */
 
-// Items
-export const items = pgTable("bb_item", {
-  id: integer("id").primaryKey(),
+export const items = pgTable(
+  "bb_item",
+  {
+    id: serial("id").primaryKey(),
 
-  // Owner (usually waste generator)
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
 
-  organisationId: text("organisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
 
-  // Waste Manager Info
-  winningBidId: integer("winningBidId")
-    .references(() => bids.id, { onDelete: "set null" })
-    .default(null),
+    winningBidId: integer("winningBidId").references(() => bids.id, {
+      onDelete: "set null",
+    }),
 
-  winningOrganisationId: text("winningOrganisationId")
-    .references(() => organisations.id, { onDelete: "set null" })
-    .default(null),
+    winningOrganisationId: text("winningOrganisationId").references(
+      () => organisations.id,
+      { onDelete: "set null" },
+    ),
 
-  // Carrier Info (NEW)
-  assignedCarrierOrganisationId: text("assignedCarrierOrganisationId")
-    .references(() => organisations.id, { onDelete: "set null" })
-    .default(null),
+    assignedCarrierOrganisationId: text(
+      "assignedCarrierOrganisationId",
+    ).references(() => organisations.id, { onDelete: "set null" }),
 
-  assignedByOrganisationId: text("assignedByOrganisationId")
-    .references(() => organisations.id, { onDelete: "set null" })
-    .default(null),
+    assignedByOrganisationId: text("assignedByOrganisationId").references(
+      () => organisations.id,
+      { onDelete: "set null" },
+    ),
 
-  assignedAt: timestamp("assignedAt", { mode: "date" }),
-  carrierStatus: text("carrierStatus").default("pending"), // pending | accepted | rejected | completed
+    assignedAt: timestamp("assignedAt", { mode: "date" }),
 
-  // Job Metadata
-  name: text("name").notNull(),
-  startingPrice: integer("startingPrice").notNull().default(0),
-  fileKey: text("fileKey").notNull(),
-  currentBid: integer("currentBid").notNull().default(0),
-  endDate: timestamp("endDate", { mode: "date" }).notNull(),
-  transactionConditions: text("transactionConditions").notNull(),
-  transportationDetails: text("transportationDetails").notNull(),
-  complianceDetails: text("complianceDetails").notNull(),
-  detailedDescription: text("detailedDescription").notNull(),
-  location: text("location").notNull(),
-  archived: boolean("archived").notNull().default(false),
-  offerAccepted: boolean("offerAccepted").notNull().default(false),
-  assigned: boolean("assigned").notNull().default(false),
-});
+    name: text("name").notNull(),
+    startingPrice: integer("startingPrice").notNull().default(0),
+    currentBid: integer("currentBid").notNull().default(0),
 
-// Profiles
-export const profiles = pgTable("bb_profile", {
-  id: integer("id").primaryKey(),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  profilePicture: text("profilePicture"),
-  fullName: text("fullName").notNull(),
-  telephone: text("telephone").notNull(),
-  emailAddress: text("emailAddress").notNull(),
-  country: text("country").notNull(),
-  streetAddress: text("streetAddress").notNull(),
-  city: text("city").notNull(),
-  region: text("region").notNull(),
-  postCode: text("postCode").notNull(),
-});
+    fileKey: text("fileKey").notNull(),
+    endDate: timestamp("endDate", { mode: "date" }).notNull(),
 
-// Reviews
-export const reviews = pgTable("bb_review", {
-  id: integer("id").primaryKey(),
-  reviewerId: text("reviewerId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  organisationId: text("organisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
-  rating: integer("rating").notNull(),
-  reviewText: text("reviewText").notNull(),
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
-});
+    transactionConditions: text("transactionConditions").notNull(),
+    transportationDetails: text("transportationDetails").notNull(),
+    complianceDetails: text("complianceDetails").notNull(),
+    detailedDescription: text("detailedDescription").notNull(),
+    location: text("location").notNull(),
 
-// Notifications
-export const notifications = pgTable("bb_notifications", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  receiverId: text("receiverId").notNull(),
-  title: text("title").notNull(),
-  message: text("message").notNull(),
-  url: text("url").notNull(),
-  isRead: boolean("isRead").notNull().default(false),
-  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-});
+    archived: boolean("archived").notNull().default(false),
+    offerAccepted: boolean("offerAccepted").notNull().default(false),
+    assigned: boolean("assigned").notNull().default(false),
 
-// Carrier Assignments
-export const carrierAssignments = pgTable("bb_carrier_assignment", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index("item_org_idx").on(table.organisationId),
+    userIdx: index("item_user_idx").on(table.userId),
+    archivedIdx: index("item_archived_idx").on(table.archived),
+  }),
+);
 
-  // 🧾 Job being collected
-  itemId: integer("itemId")
-    .notNull()
-    .references(() => items.id, { onDelete: "cascade" }),
+/* =========================================================
+   BIDS
+========================================================= */
 
-  // 🚚 Carrier doing the job
-  carrierOrganisationId: text("carrierOrganisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
+export const bids = pgTable(
+  "bb_bids",
+  {
+    id: serial("id").primaryKey(),
 
-  // 🧑‍💼 Who assigned the carrier
-  assignedByOrganisationId: text("assignedByOrganisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
 
-  status: text("status").notNull().default("pending"),
+    itemId: integer("itemId")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
 
-  // 🕒 Timeline
-  assignedAt: timestamp("assignedAt", { mode: "date" }).defaultNow(),
-  respondedAt: timestamp("respondedAt", { mode: "date" }),
-  collectedAt: timestamp("collectedAt", { mode: "date" }),
-  completedAt: timestamp("completedAt", { mode: "date" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
 
-  /**
-   * 🔐 Verification code
-   *
-   * 6-digit numeric code
-   * Generated when carrier ACCEPTS the job
-   * Used for:
-   *  - carrier collection confirmation
-   *  - manager completion confirmation
-   */
-  verificationCode: text("verificationCode"),
-  codeGeneratedAt: timestamp("codeGeneratedAt", { mode: "date" }),
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
 
-  // Optional: prevent reuse / audit
-  codeUsedAt: timestamp("codeUsedAt", { mode: "date" }),
-});
+    timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
 
-// Incidents
-export const incidents = pgTable("bb_incident", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+    declinedOffer: boolean("declinedOffer").notNull().default(false),
+    cancelledJob: boolean("cancelledJob").notNull().default(false),
+    cancellationReason: text("cancellationReason"),
+  },
+  (table) => ({
+    itemIdx: index("bid_item_idx").on(table.itemId),
+    orgIdx: index("bid_org_idx").on(table.organisationId),
+  }),
+);
 
-  /**
-   * 🔗 Link to the carrier assignment
-   * Incidents are tied to the movement of waste,
-   * not directly to bidding.
-   */
-  assignmentId: text("assignmentId")
-    .notNull()
-    .references(() => carrierAssignments.id, { onDelete: "cascade" }),
+/* =========================================================
+   CARRIER ASSIGNMENTS
+========================================================= */
 
-  /**
-   * 🔗 Redundant reference to item
-   * Makes dashboard queries & analytics easier.
-   */
-  itemId: integer("itemId")
-    .notNull()
-    .references(() => items.id, { onDelete: "cascade" }),
+export const carrierAssignments = pgTable(
+  "bb_carrier_assignment",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
 
-  /**
-   * 👤 User who submitted the incident
-   */
-  reportedByUserId: text("reportedByUserId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    itemId: integer("itemId")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
 
-  /**
-   * 🏢 Organisation that reported it (carrier)
-   */
-  reportedByOrganisationId: text("reportedByOrganisationId")
-    .notNull()
-    .references(() => organisations.id, { onDelete: "cascade" }),
+    carrierOrganisationId: text("carrierOrganisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
 
-  /**
-   * 📂 Structured type
-   */
-  type: text("type").notNull(),
+    assignedByOrganisationId: text("assignedByOrganisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
 
-  /**
-   * 📝 Detailed explanation
-   */
-  description: text("description").notNull(),
+    status: text("status")
+      .$type<"pending" | "accepted" | "rejected" | "completed">()
+      .notNull()
+      .default("pending"),
 
-  /**
-   * 📊 Lifecycle
-   *
-   * open → carrier submitted
-   * under_review → manager reviewing
-   * resolved → accepted & handled
-   * rejected → manager rejected claim
-   */
-  status: text("status")
-    .$type<"open" | "under_review" | "resolved" | "rejected">()
-    .notNull()
-    .default("open"),
+    verificationCode: text("verificationCode"),
+    codeGeneratedAt: timestamp("codeGeneratedAt", { mode: "date" }),
+    codeUsedAt: timestamp("codeUsedAt", { mode: "date" }),
 
-  /**
-   * 🧾 Manager/admin resolution notes
-   */
-  resolutionNotes: text("resolutionNotes"),
+    assignedAt: timestamp("assignedAt", { mode: "date" }).defaultNow(),
+    respondedAt: timestamp("respondedAt", { mode: "date" }),
+    collectedAt: timestamp("collectedAt", { mode: "date" }),
+    completedAt: timestamp("completedAt", { mode: "date" }),
+  },
+  (table) => ({
+    itemIdx: index("carrier_item_idx").on(table.itemId),
+    carrierIdx: index("carrier_org_idx").on(table.carrierOrganisationId),
+  }),
+);
 
-  /**
-   * 🕒 Timeline
-   */
-  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+/* =========================================================
+   REVIEWS
+========================================================= */
 
-  resolvedAt: timestamp("resolvedAt", { mode: "date" }),
-});
+export const reviews = pgTable(
+  "bb_review",
+  {
+    id: serial("id").primaryKey(),
+
+    reviewerId: text("reviewerId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    rating: integer("rating").notNull(),
+    reviewText: text("reviewText").notNull(),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index("review_org_idx").on(table.organisationId),
+    reviewerIdx: index("review_user_idx").on(table.reviewerId),
+  }),
+);
+
+/* =========================================================
+   INCIDENTS
+========================================================= */
+
+export const incidents = pgTable(
+  "bb_incident",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    assignmentId: text("assignmentId")
+      .notNull()
+      .references(() => carrierAssignments.id, { onDelete: "cascade" }),
+
+    itemId: integer("itemId")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+
+    reportedByUserId: text("reportedByUserId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    reportedByOrganisationId: text("reportedByOrganisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    type: text("type").notNull(),
+    description: text("description").notNull(),
+
+    status: text("status")
+      .$type<"open" | "under_review" | "resolved" | "rejected">()
+      .notNull()
+      .default("open"),
+
+    resolutionNotes: text("resolutionNotes"),
+
+    resolvedByUserId: text("resolvedByUserId").references(() => users.id),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    resolvedAt: timestamp("resolvedAt", { mode: "date" }),
+  },
+  (table) => ({
+    statusIdx: index("incident_status_idx").on(table.status),
+    assignmentIdx: index("incident_assignment_idx").on(table.assignmentId),
+  }),
+);
+
+/* =========================================================
+   NOTIFICATIONS
+========================================================= */
+
+export const notifications = pgTable(
+  "bb_notifications",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    receiverId: text("receiverId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    url: text("url").notNull(),
+
+    isRead: boolean("isRead").notNull().default(false),
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    receiverIdx: index("notification_receiver_idx").on(table.receiverId),
+  }),
+);
 
 // RELATIONS
 export const notificationsRelations = relations(notifications, ({ one }) => ({
@@ -386,12 +443,12 @@ export const carrierAssignmentsRelations = relations(
     }),
   }),
 );
-
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   reviewer: one(users, {
     fields: [reviews.reviewerId],
     references: [users.id],
   }),
+
   organisation: one(organisations, {
     fields: [reviews.organisationId],
     references: [organisations.id],
