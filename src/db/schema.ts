@@ -351,15 +351,33 @@ export const incidents = pgTable(
       .notNull()
       .references(() => organisations.id, { onDelete: "cascade" }),
 
+    /* ================= CORE INCIDENT INFO ================= */
+
+    incidentDate: timestamp("incidentDate", { mode: "date" }),
+    incidentLocation: text("incidentLocation"),
+
     type: text("type").notNull(),
-    description: text("description").notNull(),
+    summary: text("summary").notNull(),
+
+    /* ================= INVESTIGATION ================= */
+
+    immediateAction: text("immediateAction"),
+    investigationFindings: text("investigationFindings"),
+    correctiveActions: text("correctiveActions"),
+    preventativeMeasures: text("preventativeMeasures"),
+    complianceReview: text("complianceReview"),
+
+    /* ================= CLOSURE ================= */
+
+    responsiblePerson: text("responsiblePerson"),
+    dateClosed: timestamp("dateClosed", { mode: "date" }),
+
+    /* ================= STATUS ================= */
 
     status: text("status")
       .$type<"open" | "under_review" | "resolved" | "rejected">()
       .notNull()
       .default("open"),
-
-    resolutionNotes: text("resolutionNotes"),
 
     resolvedByUserId: text("resolvedByUserId").references(() => users.id),
 
@@ -369,6 +387,7 @@ export const incidents = pgTable(
   (table) => ({
     statusIdx: index("incident_status_idx").on(table.status),
     assignmentIdx: index("incident_assignment_idx").on(table.assignmentId),
+    listingIdx: index("incident_listing_idx").on(table.listingId),
   }),
 );
 
@@ -410,7 +429,7 @@ export const reviews = pgTable("bb_review", {
     .notNull()
     .references(() => organisations.id, { onDelete: "cascade" }),
 
-  listingId: text("listingId").references(() => wasteListings.id, {
+  listingId: integer("listingId").references(() => wasteListings.id, {
     onDelete: "set null",
   }),
 
