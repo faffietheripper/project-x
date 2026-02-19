@@ -1,7 +1,9 @@
 import React from "react";
 import { auth } from "@/auth";
+import { database } from "@/db/database";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import ActivityNav from "@/components/app/ActivityNav";
-import { getOrganisationServer } from "@/data-access/organisations";
 import { redirect } from "next/navigation";
 
 export default async function Layout({
@@ -11,21 +13,24 @@ export default async function Layout({
 }) {
   const session = await auth();
 
-  // Redirect if user doesn't have an organisation yet
-  if (!session?.user?.organisationId) {
-    // Option 1: simple redirect
-    redirect("/home/team-dashboard/team-profile?reason=no-organisation");
-
-    // Option 2 (optional): redirect with query param for a message
-    // redirect("/home/me?setupRequired=true");
+  if (!session?.user?.id) {
+    redirect("/login");
   }
 
-  // Fetch organisation details
-  const org = await getOrganisationServer(session.user.organisationId);
-  const chainOfCustody = org?.chainOfCustody ?? null;
+  // 🔹 Fetch user + organisation properly from DB
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    with: {
+      organisation: true,
+    },
+  });
 
-  console.log("ORG FROM DB:", org);
-  console.log("CHAIN OF CUSTODY:", chainOfCustody);
+  // 🔹 If no organisation in DB → redirect
+  if (!user?.organisationId || !user?.organisation) {
+    redirect("/home/team-dashboard/team-profile?reason=no-organisation");
+  }
+
+  const chainOfCustody = user.organisation.chainOfCustody ?? null;
 
   return (
     <div className="relative">

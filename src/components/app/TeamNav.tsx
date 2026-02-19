@@ -6,7 +6,15 @@ import Link from "next/link";
 import { FiEdit, FiChevronDown, FiShare, FiPlusSquare } from "react-icons/fi";
 import NewMemberModal from "./TeamDashboard/NewMemberModal";
 
-type ChainOfCustodyType = "wasteManager" | "wasteGenerator" | null;
+/* =========================================================
+   TYPES
+========================================================= */
+
+type ChainOfCustodyType =
+  | "wasteManager"
+  | "wasteGenerator"
+  | "wasteCarrier"
+  | null;
 
 export default function TeamNav({
   chainOfCustody,
@@ -17,10 +25,13 @@ export default function TeamNav({
 }) {
   const [showModal, setShowModal] = useState(false);
 
-  if (!chainOfCustody) return <div>Loading...</div>;
+  // If no chain provided, render nothing (prevents breaking layout)
+  if (!chainOfCustody) {
+    return null;
+  }
 
   return (
-    <div className="pl-72 pt-[13vh] fixed">
+    <div className="pl-72 pt-[13vh] fixed w-full">
       <SlideTabs
         chainOfCustody={chainOfCustody}
         userRole={userRole}
@@ -31,7 +42,10 @@ export default function TeamNav({
   );
 }
 
-// ---------------- SlideTabs ----------------
+/* =========================================================
+   SLIDE TABS
+========================================================= */
+
 const SlideTabs = ({
   chainOfCustody,
   userRole,
@@ -41,7 +55,11 @@ const SlideTabs = ({
   userRole: string | null;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
+  const [position, setPosition] = useState({
+    left: 0,
+    width: 0,
+    opacity: 0,
+  });
 
   return (
     <ul
@@ -66,35 +84,41 @@ const SlideTabs = ({
       </Tab>
 
       <Tab setPosition={setPosition}>
-        <Link href="/home/team-dashboard/template-library">
+        <Link href="/home/team-dashboard/carrier-management">
           Carrier Management
         </Link>
       </Tab>
 
+      {/* ================= WASTE MANAGER ================= */}
       {chainOfCustody === "wasteManager" && (
         <>
-          {chainOfCustody === "wasteManager" && (
-            <Tab setPosition={setPosition}>
-              <Link href="/home/team-dashboard/team-withdrawals">
-                Withdrawals
-              </Link>
-            </Tab>
-          )}
+          <Tab setPosition={setPosition}>
+            <Link href="/home/team-dashboard/team-withdrawals">
+              Withdrawals
+            </Link>
+          </Tab>
+
           <Tab setPosition={setPosition}>
             <Link href="/home/team-dashboard/team-reviews">Reviews</Link>
           </Tab>
         </>
       )}
 
+      {/* ================= WASTE GENERATOR ================= */}
       {chainOfCustody === "wasteGenerator" && (
-        <>
-          <Tab setPosition={setPosition}>
-            <Link href="/home/team-dashboard/team-reviews">Reviews</Link>
-          </Tab>
-        </>
+        <Tab setPosition={setPosition}>
+          <Link href="/home/team-dashboard/team-reviews">Reviews</Link>
+        </Tab>
       )}
 
-      {/* Only render SettingsDropdown if userRole is admin */}
+      {/* ================= WASTE CARRIER ================= */}
+      {chainOfCustody === "wasteCarrier" && (
+        <Tab setPosition={setPosition}>
+          <Link href="/home/team-dashboard/carrier-jobs">My Jobs</Link>
+        </Tab>
+      )}
+
+      {/* ================= ADMIN SETTINGS ================= */}
       {userRole === "administrator" && (
         <Tab setPosition={setPosition}>
           <SettingsDropdown setShowModal={setShowModal} />
@@ -106,14 +130,21 @@ const SlideTabs = ({
   );
 };
 
-// ---------------- Tab ----------------
+/* =========================================================
+   TAB
+========================================================= */
+
 const Tab = ({
   children,
   setPosition,
 }: {
   children: React.ReactNode;
   setPosition: React.Dispatch<
-    React.SetStateAction<{ left: number; width: number; opacity: number }>
+    React.SetStateAction<{
+      left: number;
+      width: number;
+      opacity: number;
+    }>
   >;
 }) => {
   const ref = useRef<HTMLLIElement>(null);
@@ -123,7 +154,9 @@ const Tab = ({
       ref={ref}
       onMouseEnter={() => {
         if (!ref.current) return;
+
         const { width } = ref.current.getBoundingClientRect();
+
         setPosition({
           left: ref.current.offsetLeft,
           width,
@@ -137,11 +170,18 @@ const Tab = ({
   );
 };
 
-// ---------------- Cursor ----------------
+/* =========================================================
+   CURSOR
+========================================================= */
+
 const Cursor = ({
   position,
 }: {
-  position: { left: number; width: number; opacity: number };
+  position: {
+    left: number;
+    width: number;
+    opacity: number;
+  };
 }) => {
   return (
     <motion.li
@@ -151,7 +191,10 @@ const Cursor = ({
   );
 };
 
-// ---------------- SettingsDropdown ----------------
+/* =========================================================
+   SETTINGS DROPDOWN
+========================================================= */
+
 const SettingsDropdown = ({
   setShowModal,
 }: {
@@ -163,7 +206,7 @@ const SettingsDropdown = ({
     <motion.div animate={open ? "open" : "closed"} className="relative">
       <button
         onClick={() => setOpen((pv) => !pv)}
-        className="flex items-center gap-2 rounded-md text-black transition-colors"
+        className="flex items-center gap-2 text-black"
       >
         <span>Settings</span>
         <motion.span variants={iconVariants}>
@@ -172,30 +215,34 @@ const SettingsDropdown = ({
       </button>
 
       <motion.ul
-        initial={wrapperVariants.closed}
+        initial="closed"
         variants={wrapperVariants}
-        style={{ originY: "top", translateX: "-50%" }}
+        style={{
+          originY: "top",
+          translateX: "-50%",
+        }}
         className="flex flex-col gap-2 p-2 rounded-lg bg-white shadow-xl absolute top-[120%] left-[50%] w-48 overflow-hidden"
       >
         <Link href="/home/team-dashboard/team-profile">
           <Option setOpen={setOpen} Icon={FiEdit} text="Team Profile" />
         </Link>
+
         <Link href="/home/team-dashboard/new-template">
           <Option
             setOpen={setOpen}
             Icon={FiPlusSquare}
-            text="Create New Template"
+            text="Create Template"
           />
         </Link>
-        <Option setOpen={setOpen} Icon={FiShare} text="User Permissions" />
-        <Option setOpen={setOpen} Icon={FiShare} text="Team Management" />
-        <Option setOpen={setOpen} Icon={FiShare} text="Billing" />
       </motion.ul>
     </motion.div>
   );
 };
 
-// ---------------- ListingsDropdown ----------------
+/* =========================================================
+   LISTINGS DROPDOWN
+========================================================= */
+
 const ListingsDropdown = ({
   chainOfCustody,
   setShowModal,
@@ -209,7 +256,7 @@ const ListingsDropdown = ({
     <motion.div animate={open ? "open" : "closed"} className="relative">
       <button
         onClick={() => setOpen((pv) => !pv)}
-        className="flex items-center gap-2 rounded-md text-black transition-colors"
+        className="flex items-center gap-2 text-black"
       >
         <span>Listings Management</span>
         <motion.span variants={iconVariants}>
@@ -218,23 +265,20 @@ const ListingsDropdown = ({
       </button>
 
       <motion.ul
-        initial={wrapperVariants.closed}
+        initial="closed"
         variants={wrapperVariants}
-        style={{ originY: "top", translateX: "-50%" }}
+        style={{
+          originY: "top",
+          translateX: "-50%",
+        }}
         className="flex flex-col gap-2 p-2 rounded-lg bg-white shadow-xl absolute top-[120%] left-[50%] w-48 overflow-hidden"
       >
         {chainOfCustody === "wasteManager" && (
           <>
-            <Link href="/home/team-dashboard/team-jobs-completed">
-              <Option setOpen={setOpen} Icon={FiEdit} text="Jobs Completed" />
-            </Link>
             <Link href="/home/team-dashboard/team-assigned-jobs">
-              <Option
-                setOpen={setOpen}
-                Icon={FiPlusSquare}
-                text="Assigned Jobs"
-              />
+              <Option setOpen={setOpen} Icon={FiEdit} text="Assigned Jobs" />
             </Link>
+
             <Link href="/home/team-dashboard/team-bids">
               <Option setOpen={setOpen} Icon={FiShare} text="Team Bids" />
             </Link>
@@ -246,15 +290,13 @@ const ListingsDropdown = ({
             <Link href="/home/team-dashboard/team-listings">
               <Option setOpen={setOpen} Icon={FiEdit} text="Active Listings" />
             </Link>
+
             <Link href="/home/team-dashboard/team-archived-listings">
               <Option
                 setOpen={setOpen}
                 Icon={FiEdit}
                 text="Archived Listings"
               />
-            </Link>
-            <Link href="/home/team-dashboard/team-jobs-completed" passHref>
-              <Option setOpen={setOpen} Icon={FiShare} text="Completed Jobs" />
             </Link>
           </>
         )}
@@ -263,26 +305,24 @@ const ListingsDropdown = ({
   );
 };
 
-// ---------------- Option ----------------
+/* =========================================================
+   OPTION
+========================================================= */
+
 const Option = ({
   text,
   Icon,
   setOpen,
-  onClick,
 }: {
   text: string;
   Icon: React.ComponentType;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  onClick?: () => void;
 }) => {
   return (
     <motion.li
       variants={itemVariants}
-      onClick={() => {
-        setOpen(false);
-        if (onClick) onClick();
-      }}
-      className="flex items-center gap-2 w-full p-2 text-xs font-medium whitespace-nowrap rounded-md hover:bg-indigo-100 text-slate-700 hover:text-indigo-500 transition-colors cursor-pointer"
+      onClick={() => setOpen(false)}
+      className="flex items-center gap-2 w-full p-2 text-xs font-medium rounded-md hover:bg-indigo-100 text-slate-700 hover:text-indigo-500 cursor-pointer"
     >
       <motion.span variants={actionIconVariants}>
         <Icon />
@@ -292,15 +332,18 @@ const Option = ({
   );
 };
 
-// ---------------- Animation Variants ----------------
+/* =========================================================
+   ANIMATION VARIANTS
+========================================================= */
+
 const wrapperVariants = {
   open: {
     scaleY: 1,
-    transition: { when: "beforeChildren", staggerChildren: 0.1 },
+    transition: { when: "beforeChildren", staggerChildren: 0.05 },
   },
   closed: {
     scaleY: 0,
-    transition: { when: "afterChildren", staggerChildren: 0.1 },
+    transition: { when: "afterChildren", staggerChildren: 0.05 },
   },
 };
 
@@ -311,10 +354,10 @@ const iconVariants = {
 
 const itemVariants = {
   open: { opacity: 1, y: 0 },
-  closed: { opacity: 0, y: -15 },
+  closed: { opacity: 0, y: -10 },
 };
 
 const actionIconVariants = {
-  open: { scale: 1, y: 0 },
-  closed: { scale: 0, y: -7 },
+  open: { scale: 1 },
+  closed: { scale: 0.8 },
 };

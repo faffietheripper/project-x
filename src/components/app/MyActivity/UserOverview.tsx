@@ -1,6 +1,6 @@
 import React from "react";
 import { database } from "@/db/database";
-import { profiles } from "@/db/schema";
+import { userProfiles } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq } from "drizzle-orm";
 import Image from "next/image";
@@ -10,7 +10,7 @@ import Link from "next/link";
 export default async function UserOverview() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
@@ -18,8 +18,8 @@ export default async function UserOverview() {
 
   const profileArray = await database
     .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId));
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId));
 
   const profile = profileArray[0];
 
@@ -44,6 +44,7 @@ export default async function UserOverview() {
           )}
           <p className="text-4xl font-semibold">{profile.fullName}</p>
         </section>
+
         <Link href="/home/me">
           <button className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-md">
             Edit Profile
@@ -53,32 +54,27 @@ export default async function UserOverview() {
 
       <section className="space-y-8">
         <div className="p-6 bg-gray-100 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">User Overview</h2>
-
-          <p className="text-md">{profile.companyOverview}</p>
-        </div>
-
-        <div className="p-6 bg-gray-100 rounded-lg">
           <h2 className="text-2xl font-semibold mb-4">Contact Information</h2>
-          <p className="text-lg">
+
+          <p>
             <strong>Telephone:</strong> {profile.telephone}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>Email Address:</strong> {profile.emailAddress}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>Country:</strong> {profile.country}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>Street Address:</strong> {profile.streetAddress}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>City:</strong> {profile.city}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>Region:</strong> {profile.region}
           </p>
-          <p className="text-lg">
+          <p>
             <strong>Post Code:</strong> {profile.postCode}
           </p>
         </div>

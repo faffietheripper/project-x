@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
-import { createBidAction } from "@/app/home/items/[itemId]/actions";
+import { createBidAction } from "@/app/home/create-waste-listings/[wasteListingId]/actions";
 import { Input } from "../ui/input";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -81,7 +81,7 @@ const BidForm = ({ itemId, currentBid, closeFlyout }) => {
   const validateBidAmount = (amount) => {
     if (amount <= currentBid) {
       setError(
-        `Bid amount must be higher than the current bid of $${currentBid}`
+        `Bid amount must be higher than the current bid of $${currentBid}`,
       );
       return false;
     }

@@ -1,7 +1,9 @@
 import React from "react";
 import { auth } from "@/auth";
+import { database } from "@/db/database";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import TeamNav from "@/components/app/TeamNav";
-import { getOrganisationServer } from "@/data-access/organisations";
 import { redirect } from "next/navigation";
 
 export default async function Layout({
@@ -11,14 +13,24 @@ export default async function Layout({
 }) {
   const session = await auth();
 
-  // Fetch organisation details
-  const org = await getOrganisationServer(session.user.organisationId);
-  const chainOfCustody = org?.chainOfCustody ?? null;
-  const userRole = session?.user?.role ?? null;
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
-  console.log("ORG FROM DB:", org);
-  console.log("CHAIN OF CUSTODY:", chainOfCustody);
-  console.log("USER ROLE:", userRole);
+  // ✅ Fetch user + organisation properly
+  const user = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    with: {
+      organisation: true,
+    },
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const chainOfCustody = user.organisation?.chainOfCustody ?? null;
+  const userRole = user.role ?? null;
 
   return (
     <div className="relative">

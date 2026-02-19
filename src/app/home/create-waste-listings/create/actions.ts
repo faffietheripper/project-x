@@ -2,23 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { database } from "@/db/database";
-import { items, users } from "@/db/schema";
+import { wasteListings, users } from "@/db/schema";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getSignedUrlForS3Object } from "@/lib/s3";
 import { eq } from "drizzle-orm";
 
+/* ===============================
+   Generate Upload URLs
+================================ */
+
 export async function createUploadUrlAction(keys: string[], types: string[]) {
   if (keys.length !== types.length) {
-    throw new Error("Keys and types array must be of the same length.");
+    throw new Error("Keys and types array must be the same length.");
   }
 
   const signedUrls = await Promise.all(
-    keys.map((key, index) => getSignedUrlForS3Object(key, types[index]))
+    keys.map((key, index) => getSignedUrlForS3Object(key, types[index])),
   );
 
   return signedUrls;
 }
+
+/* ===============================
+   Create Waste Listing
+================================ */
 
 export async function createItemAction({
   fileName,
@@ -43,7 +51,7 @@ export async function createItemAction({
 }) {
   const session = await auth();
 
-  if (!session || !session.user?.id) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
@@ -51,24 +59,30 @@ export async function createItemAction({
     where: eq(users.id, session.user.id),
   });
 
-  if (!user || !user.organisationId) {
-    throw new Error("User or organisation not found.");
+  if (!user?.organisationId) {
+    throw new Error("User organisation not found.");
   }
 
-  await database.insert(items).values({
+  await database.insert(wasteListings).values({
+    name,
+    startingPrice,
+    currentBid: startingPrice,
+
     location,
     transportationDetails,
     transactionConditions,
     complianceDetails,
     detailedDescription,
-    name,
-    startingPrice,
+
     fileKey: fileName.join(","),
-    currentBid: startingPrice,
+
     userId: user.id,
     organisationId: user.organisationId,
+
     endDate,
   });
+
+  revalidatePath("/home/waste-listings");
 
   redirect("/home/waste-listings");
 }

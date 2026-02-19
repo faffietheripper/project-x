@@ -1,51 +1,62 @@
 import React from "react";
 import { database } from "@/db/database";
-import ItemCard from "@/components/ItemCard";
 import { eq } from "drizzle-orm";
-import { items } from "@/db/schema";
+import { wasteListings } from "@/db/schema";
+import ListingCard from "@/components/ListingCard";
 
-// Ensure you're in the `/app/filtered-items/` directory
-export default async function FilteredItemsPage({ searchParams }) {
+export default async function FilteredListingsPage({
+  searchParams,
+}: {
+  searchParams: {
+    endDate?: string;
+    minBid?: string;
+    location?: string;
+  };
+}) {
   const { endDate, minBid, location } = searchParams;
 
-  const allItems = await database.query.items.findMany({
-    where: eq(items.archived, false),
+  // ✅ Fetch non-archived listings
+  const allListings = await database.query.wasteListings.findMany({
+    where: eq(wasteListings.archived, false),
   });
 
-  // Filter items based on query parameters
-  const filteredItems = allItems
-    .filter((item) => {
+  // ✅ Filter client-side (we’ll optimise later)
+  const filteredListings = allListings
+    .filter((listing) => {
       if (endDate) {
-        return new Date(item.endDate) <= new Date(endDate);
+        return new Date(listing.endDate) <= new Date(endDate);
       }
       return true;
     })
-    .filter((item) => {
+    .filter((listing) => {
       if (minBid) {
-        return item.startingPrice >= parseFloat(minBid);
+        return listing.startingPrice >= parseFloat(minBid);
       }
       return true;
     })
-    .filter((item) => {
+    .filter((listing) => {
       if (location) {
-        return item.location === location;
+        return listing.location === location;
       }
       return true;
     });
 
   return (
-    <main className="">
+    <main>
       <h1 className="font-bold text-3xl text-center mt-8 mb-14">
         Waste Listings
       </h1>
-      <div className="grid grid-cols-3 gap-4 mt-6">
-        {filteredItems.length > 0 ? (
-          filteredItems
+
+      <div className="grid grid-cols-3 gap-6 mt-6">
+        {filteredListings.length > 0 ? (
+          filteredListings
             .slice()
             .reverse()
-            .map((item) => <ItemCard key={item.id} item={item} />)
+            .map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))
         ) : (
-          <p>No items match your criteria.</p>
+          <p>No listings match your criteria.</p>
         )}
       </div>
     </main>

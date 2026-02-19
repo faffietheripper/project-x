@@ -2,38 +2,36 @@
 
 import { eq, and } from "drizzle-orm";
 import { database } from "@/db/database";
-import { notifications, users, profiles } from "@/db/schema";
+import { notifications, users, userProfiles } from "@/db/schema";
 
 /** ✅ Create a notification */
 export async function createNotification(
-  receiverId: string,
+  recipientId: string,
   title: string,
   message: string,
-  url: string, // 🔒 REQUIRED by schema
+  type: string,
+  listingId?: number,
 ) {
-  if (!receiverId) {
-    throw new Error("Receiver ID is required for notification");
+  if (!recipientId) {
+    throw new Error("Recipient ID is required");
   }
 
   await database.insert(notifications).values({
-    receiverId,
+    recipientId,
     title,
     message,
-    url,
+    type,
+    listingId: listingId ?? null,
     isRead: false,
   });
 }
 
 /** ✅ Get user notifications */
 export async function getUserNotifications(userId: string) {
-  if (!userId) {
-    throw new Error("User ID is required");
-  }
-
   return await database
     .select()
     .from(notifications)
-    .where(eq(notifications.receiverId, userId))
+    .where(eq(notifications.recipientId, userId))
     .orderBy(notifications.createdAt);
 }
 
@@ -51,16 +49,14 @@ export async function markAsRead(formData: FormData) {
     .where(eq(notifications.id, notificationId));
 }
 
-/** ✅ Get unread count (DB-level filter) */
+/** ✅ Get unread count */
 export async function getUnreadNotificationsCount(userId: string) {
-  if (!userId) return 0;
-
   const unread = await database
     .select()
     .from(notifications)
     .where(
       and(
-        eq(notifications.receiverId, userId),
+        eq(notifications.recipientId, userId),
         eq(notifications.isRead, false),
       ),
     );
@@ -68,19 +64,17 @@ export async function getUnreadNotificationsCount(userId: string) {
   return unread.length;
 }
 
-/** ✅ System notification check (unchanged logic, fixed safety) */
+/** ✅ System notification check */
 export async function checkForSystemNotifications(
   userId: string,
 ): Promise<boolean> {
-  if (!userId) return false;
-
   const user = await database.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { role: true },
   });
 
-  const profile = await database.query.profiles.findFirst({
-    where: eq(profiles.userId, userId),
+  const profile = await database.query.userProfiles.findFirst({
+    where: eq(userProfiles.userId, userId),
     columns: { id: true },
   });
 

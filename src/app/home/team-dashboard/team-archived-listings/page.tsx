@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { items } from "@/db/schema";
-import ItemCard from "@/components/ItemCard";
+import ItemCard from "@/components/ListingCard";
 import { EmptyState } from "./emptyState";
 import { and, eq } from "drizzle-orm";
 
@@ -16,7 +16,7 @@ export default async function TeamArchivedListings() {
   const archivedOrgItems = await database.query.items.findMany({
     where: and(
       eq(items.organisationId, session.user.organisationId),
-      eq(items.archived, true)
+      eq(items.archived, true),
     ),
   });
 

@@ -57,7 +57,7 @@ export default function RegisterForm() {
 
       <div className="col-span-6">
         <label className="block text-sm font-medium text-gray-700">
-          Company Name
+          Full Name
         </label>
         <input
           type="text"

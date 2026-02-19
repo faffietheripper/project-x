@@ -12,7 +12,9 @@ function WasteGeneratorNav() {
     <div className="flex flex-col font-bold gap-8">
       <Link href="/home">Home Page.</Link>
       <Link href="/home/waste-listings">Waste Listings.</Link>
-      <Link href="/home/items/create">Create Waste Listing.</Link>
+      <Link href="/home/create-waste-listings/create">
+        Create Waste Listing.
+      </Link>
       <Link href="/home/my-activity">My Activity.</Link>
       <Link href="/home/team-dashboard">Team Dashboard.</Link>
       <Link href="/home/notifications">Notifications.</Link>

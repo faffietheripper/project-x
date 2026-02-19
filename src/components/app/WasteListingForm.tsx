@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   createUploadUrlAction,
   createItemAction,
-} from "@/app/home/items/create/actions";
+} from "@/app/home/create-waste-listings/create/actions";
 import { Input } from "../ui/input";
 import { DatePickerDemo } from "../DatePicker";
 import SelectDropdown from "./SelectDropdown";
@@ -43,7 +43,7 @@ export default function WasteListingForm() {
 
           const uploadUrls = await createUploadUrlAction(
             files.map((file) => file.name),
-            files.map((file) => file.type)
+            files.map((file) => file.type),
           );
 
           await Promise.all(
@@ -51,25 +51,25 @@ export default function WasteListingForm() {
               fetch(uploadUrls[index], {
                 method: "PUT",
                 body: file,
-              })
-            )
+              }),
+            ),
           );
 
           const name = formData.get("name") as string;
           const location = formData.get("location") as string;
           const transportationDetails = formData.get(
-            "transportationDetails"
+            "transportationDetails",
           ) as string;
           const transactionConditions = formData.get(
-            "transactionConditions"
+            "transactionConditions",
           ) as string;
           const complianceDetails = formData.get("complianceDetails") as string;
           const detailedDescription = formData.get(
-            "detailedDescription"
+            "detailedDescription",
           ) as string;
 
           const startingPrice = parseInt(
-            formData.get("startingPrice") as string
+            formData.get("startingPrice") as string,
           );
           const startingPriceInCents = Math.floor(startingPrice);
 

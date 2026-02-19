@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { items } from "@/db/schema";
-import ItemCard from "@/components/ItemCard";
+import ItemCard from "@/components/ListingCard";
 import { EmptyState } from "./emptyState";
 import { and, eq } from "drizzle-orm";
 
