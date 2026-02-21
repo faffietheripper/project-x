@@ -1,11 +1,15 @@
 "use server";
+"use server";
 
 import { database } from "@/db/database";
-import { incidents, carrierAssignments, items } from "@/db/schema";
+import { incidents, carrierAssignments, wasteListings } from "@/db/schema";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { eq, and, desc } from "drizzle-orm";
 
+/**
+ * Get incidents reported by this carrier organisation
+ */
 export async function getCarrierIncidents() {
   const session = await auth();
 
@@ -17,14 +21,14 @@ export async function getCarrierIncidents() {
     .select({
       id: incidents.id,
       type: incidents.type,
-      description: incidents.description,
+      summary: incidents.summary, // ✅ correct field
       status: incidents.status,
       createdAt: incidents.createdAt,
 
-      // Item info
-      itemName: items.name,
-      location: items.location,
-      itemId: items.id,
+      // Listing info
+      listingName: wasteListings.name,
+      location: wasteListings.location,
+      listingId: wasteListings.id,
 
       // Assignment info
       assignmentId: carrierAssignments.id,
@@ -34,11 +38,17 @@ export async function getCarrierIncidents() {
       carrierAssignments,
       eq(incidents.assignmentId, carrierAssignments.id),
     )
-    .innerJoin(items, eq(carrierAssignments.itemId, items.id))
+    .innerJoin(
+      wasteListings,
+      eq(carrierAssignments.listingId, wasteListings.id),
+    )
     .where(eq(incidents.reportedByOrganisationId, session.user.organisationId))
     .orderBy(desc(incidents.createdAt));
 }
 
+/**
+ * Get active collected assignments for carrier
+ */
 export async function getCarrierActiveAssignments() {
   const session = await auth();
 
@@ -49,28 +59,34 @@ export async function getCarrierActiveAssignments() {
   return await database
     .select({
       assignmentId: carrierAssignments.id,
-      itemId: items.id,
-      itemName: items.name,
-      location: items.location,
+      listingId: wasteListings.id,
+      listingName: wasteListings.name,
+      location: wasteListings.location,
       assignedAt: carrierAssignments.assignedAt,
     })
     .from(carrierAssignments)
-    .innerJoin(items, eq(carrierAssignments.itemId, items.id))
+    .innerJoin(
+      wasteListings,
+      eq(carrierAssignments.listingId, wasteListings.id),
+    )
     .where(
       and(
         eq(
           carrierAssignments.carrierOrganisationId,
           session.user.organisationId,
         ),
-        eq(carrierAssignments.status, "collected"), // ✅ FIXED
+        eq(carrierAssignments.status, "collected"),
       ),
     );
 }
 
+/**
+ * Create a new incident (carrier side)
+ */
 export async function createIncident(data: {
   assignmentId: string;
   type: string;
-  description: string;
+  summary: string;
 }) {
   const session = await auth();
 
@@ -99,9 +115,9 @@ export async function createIncident(data: {
 
   await database.insert(incidents).values({
     assignmentId: assignment.id,
-    itemId: assignment.itemId,
+    listingId: assignment.listingId, // ✅ correct FK
     type: data.type,
-    description: data.description,
+    summary: data.summary, // ✅ correct field
     reportedByUserId: session.user.id,
     reportedByOrganisationId: session.user.organisationId,
   });

@@ -1,54 +1,54 @@
-"use client"; // Ensures the component works on the client-side
+"use client";
 
 import { useToast } from "@/components/ui/use-toast";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface AssignListingButtonProps {
-  itemId: number;
+  listingId: number;
   bidId: number;
-  item?: {
-    assigned: boolean;
+  listing?: {
+    offerAccepted: boolean;
+    assignedCarrierOrganisationId: string | null;
   };
   bid?: {
     declinedOffer: boolean;
     cancelledJob: boolean;
-    cancellationReason?: string;
   };
   handleAssignWinningBid: (
-    formData: FormData
+    formData: FormData,
   ) => Promise<{ success: boolean; message: string }>;
 }
 
 export default function AssignListingButton({
-  itemId,
+  listingId,
   bidId,
-  item,
+  listing,
   bid,
   handleAssignWinningBid,
 }: AssignListingButtonProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Log item and bid to inspect the data
-  useEffect(() => {
-    console.log("Bid:", bid);
-    console.log("Item:", item);
-  }, [bid, item]);
+  if (!bid || !listing) {
+    return null;
+  }
 
   const handleAssign = async () => {
     setIsSubmitting(true);
+
     const formData = new FormData();
-    formData.append("itemId", itemId.toString());
+    formData.append("listingId", listingId.toString());
     formData.append("bidId", bidId.toString());
 
     try {
       const result = await handleAssignWinningBid(formData);
+
       toast({
         title: result.success ? "Success" : "Error",
         description: result.message,
         variant: result.success ? "default" : "destructive",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "An error occurred while assigning the listing.",
@@ -59,41 +59,35 @@ export default function AssignListingButton({
     }
   };
 
-  // Log the data at this point to check values before making any decisions
-  console.log("Bid after action:", bid);
-  console.log("Item after action:", item);
-
-  // If bid and item are undefined, prevent any further logic.
-  if (!bid || !item) {
-    console.log("Data is not yet available or missing");
-    return <div>Loading...</div>; // Or render any fallback UI
-  }
-
-  // Determine if the button should be disabled
+  // 🔥 Correct disable logic
   const disableAssign =
-    bid?.declinedOffer || bid?.cancelledJob || item?.assigned;
+    bid.declinedOffer ||
+    bid.cancelledJob ||
+    listing.offerAccepted ||
+    listing.assignedCarrierOrganisationId !== null;
 
   return (
     <div>
-      {/* Conditionally render the button */}
       {disableAssign ? (
         <button
-          className="bg-gray-400 text-white py-2 px-4 rounded-md"
           disabled
+          className="bg-gray-400 text-white py-2 px-4 rounded-md"
         >
-          {bid?.declinedOffer
+          {bid.declinedOffer
             ? "Offer Declined"
-            : bid?.cancelledJob
-            ? "Job Canceled"
-            : item?.assigned
-            ? "Already Assigned"
-            : "Error"}
+            : bid.cancelledJob
+              ? "Job Cancelled"
+              : listing.offerAccepted
+                ? "Offer Accepted"
+                : listing.assignedCarrierOrganisationId
+                  ? "Carrier Assigned"
+                  : "Unavailable"}
         </button>
       ) : (
         <button
           onClick={handleAssign}
           disabled={isSubmitting}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md"
+          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
         >
           {isSubmitting ? "Assigning..." : "Assign Listing"}
         </button>

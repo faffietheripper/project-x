@@ -1,112 +1,105 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { bids } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { bids, users } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export default async function TeamWithdrawalsPage() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  // Get organisationId from the logged-in user
-  const organisationId = session.user.organisationId;
-  if (!organisationId) {
+  // ✅ Get organisation from DB (not session)
+  const dbUser = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    columns: {
+      organisationId: true,
+    },
+  });
+
+  if (!dbUser?.organisationId) {
     throw new Error("No organisation found for this user");
   }
 
-  // Fetch declined offers for the organisation (either as item owner or bidder)
-  const declinedOffers = await database.query.bids.findMany({
-    where: eq(bids.declinedOffer, true),
+  const organisationId = dbUser.organisationId;
+
+  // ✅ Single query instead of two
+  const relevantBids = await database.query.bids.findMany({
     with: {
-      item: true,
+      listing: true,
       organisation: true,
     },
+    where: and(eq(bids.organisationId, organisationId)),
   });
 
-  // Fetch cancelled jobs for the organisation
-  const cancelledJobs = await database.query.bids.findMany({
-    where: eq(bids.cancelledJob, true),
-    with: {
-      item: true,
-      organisation: true,
-    },
-  });
-
-  // Filter so we only keep bids relevant to this organisation
-  const organisationDeclinedOffers = declinedOffers.filter(
-    (bid) =>
-      bid.organisationId === organisationId || // Organisation placed the bid
-      bid.item.organisationId === organisationId // Organisation owns the item
+  const declinedOffers = relevantBids.filter(
+    (bid) => bid.declinedOffer === true,
   );
 
-  const organisationCancelledJobs = cancelledJobs.filter(
-    (bid) =>
-      bid.organisationId === organisationId || // Organisation placed the bid
-      bid.item.organisationId === organisationId // Organisation owns the item
-  );
+  const cancelledJobs = relevantBids.filter((bid) => bid.cancelledJob === true);
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Withdrawals</h1>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Withdrawals</h1>
 
-      {/* Declined Offers Section */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">Declined Offers</h2>
-        {organisationDeclinedOffers.length > 0 ? (
-          <ul>
-            {organisationDeclinedOffers.map((bid) => (
-              <li key={bid.id} className="p-6 border rounded-lg shadow-sm mb-4">
-                <div>
-                  <strong>Bid for:</strong> {bid.itemName}
-                </div>
-                <div>
-                  <strong>Amount:</strong> ${bid.amount}
-                </div>
-                <div>
-                  <strong>Status:</strong> Declined
-                </div>
-                <div>
-                  <strong>Organisation:</strong>{" "}
-                  {bid.organisation?.teamName || "Unknown"}
-                </div>
-              </li>
-            ))}
-          </ul>
+      {/* Declined Offers */}
+      <section className="mb-10">
+        <h2 className="text-xl font-semibold mb-4">Declined Offers</h2>
+
+        {declinedOffers.length > 0 ? (
+          declinedOffers.map((bid) => (
+            <div key={bid.id} className="p-6 border rounded-lg shadow-sm mb-4">
+              <div>
+                <strong>Listing:</strong> {bid.listing?.name ?? "Unknown"}
+              </div>
+
+              <div>
+                <strong>Amount:</strong> £{bid.amount}
+              </div>
+
+              <div className="text-red-600 font-semibold">Declined</div>
+
+              <div>
+                <strong>Organisation:</strong>{" "}
+                {bid.organisation?.teamName ?? "Unknown"}
+              </div>
+            </div>
+          ))
         ) : (
-          <p>No declined offers found for your organisation.</p>
+          <p className="text-gray-500">No declined offers found.</p>
         )}
       </section>
 
-      {/* Cancelled Jobs Section */}
+      {/* Cancelled Jobs */}
       <section>
-        <h2 className="text-xl font-semibold mb-2">Cancelled Jobs</h2>
-        {organisationCancelledJobs.length > 0 ? (
-          <ul>
-            {organisationCancelledJobs.map((bid) => (
-              <li key={bid.id} className="p-6 border rounded-lg shadow-sm mb-4">
-                <div>
-                  <strong>Bid for:</strong> {bid.itemName}
-                </div>
-                <div>
-                  <strong>Amount:</strong> ${bid.amount}
-                </div>
-                <div>
-                  <strong>Status:</strong> Cancelled
-                </div>
-                <div>
-                  <strong>Reason:</strong> {bid.cancellationReason || "N/A"}
-                </div>
-                <div>
-                  <strong>Organisation:</strong>{" "}
-                  {bid.organisation?.teamName || "Unknown"}
-                </div>
-              </li>
-            ))}
-          </ul>
+        <h2 className="text-xl font-semibold mb-4">Cancelled Jobs</h2>
+
+        {cancelledJobs.length > 0 ? (
+          cancelledJobs.map((bid) => (
+            <div key={bid.id} className="p-6 border rounded-lg shadow-sm mb-4">
+              <div>
+                <strong>Listing:</strong> {bid.listing?.name ?? "Unknown"}
+              </div>
+
+              <div>
+                <strong>Amount:</strong> £{bid.amount}
+              </div>
+
+              <div className="text-red-600 font-semibold">Cancelled</div>
+
+              <div>
+                <strong>Reason:</strong> {bid.cancellationReason ?? "N/A"}
+              </div>
+
+              <div>
+                <strong>Organisation:</strong>{" "}
+                {bid.organisation?.teamName ?? "Unknown"}
+              </div>
+            </div>
+          ))
         ) : (
-          <p>No cancelled jobs found for your organisation.</p>
+          <p className="text-gray-500">No cancelled jobs found.</p>
         )}
       </section>
     </div>

@@ -17,13 +17,12 @@ export default async function IncidentManagement() {
 
   const organisationId = dbUser.organisationId;
 
-  // 🔥 IMPORTANT FIX:
-  // Fetch incidents where the assignment was assigned by this organisation
+  // Fetch incidents linked to assignments created by this organisation
   const organisationIncidents = await database.query.incidents.findMany({
     with: {
       assignment: {
         with: {
-          item: true,
+          listing: true, // ✅ Correct relation
           carrierOrganisation: true,
         },
       },
@@ -67,14 +66,14 @@ export default async function IncidentManagement() {
                 : "bg-red-50 border-red-200"
             }`}
           >
-            {/* ===== JOB DETAILS ===== */}
+            {/* ================= JOB DETAILS ================= */}
             <div className="mb-4 space-y-1">
               <div className="text-lg font-semibold">
-                {incident.assignment?.item?.name}
+                {incident.assignment?.listing?.name}
               </div>
 
               <div className="text-sm text-gray-600">
-                📍 {incident.assignment?.item?.location}
+                📍 {incident.assignment?.listing?.location}
               </div>
 
               <div className="text-sm">
@@ -104,12 +103,38 @@ export default async function IncidentManagement() {
               </div>
             </div>
 
-            {/* ===== INCIDENT DESCRIPTION ===== */}
+            {/* ================= INCIDENT DETAILS ================= */}
             <div className="mb-4 text-sm">
-              <strong>Description:</strong> {incident.description}
+              <strong>Summary:</strong> {incident.summary}
             </div>
 
-            {/* ===== RESOLUTION SECTION ===== */}
+            {incident.immediateAction && (
+              <div className="mb-2 text-sm">
+                <strong>Immediate Action:</strong> {incident.immediateAction}
+              </div>
+            )}
+
+            {incident.investigationFindings && (
+              <div className="mb-2 text-sm">
+                <strong>Investigation Findings:</strong>{" "}
+                {incident.investigationFindings}
+              </div>
+            )}
+
+            {incident.preventativeMeasures && (
+              <div className="mb-2 text-sm">
+                <strong>Preventative Measures:</strong>{" "}
+                {incident.preventativeMeasures}
+              </div>
+            )}
+
+            {incident.complianceReview && (
+              <div className="mb-2 text-sm">
+                <strong>Compliance Review:</strong> {incident.complianceReview}
+              </div>
+            )}
+
+            {/* ================= RESOLUTION SECTION ================= */}
             {!isResolved && (
               <IncidentResolutionForm
                 incidentId={incident.id}
@@ -118,14 +143,23 @@ export default async function IncidentManagement() {
             )}
 
             {isResolved && (
-              <div className="text-sm text-green-700 font-medium">
-                ✅ Incident resolved
-                <div className="mt-2">
-                  <strong>Resolution Notes:</strong>
+              <div className="mt-4 p-4 bg-green-100 border border-green-300 rounded-lg">
+                <div className="text-sm font-semibold text-green-800">
+                  ✅ Incident Resolved
+                </div>
+
+                <div className="mt-2 text-sm">
+                  <strong>Corrective Actions:</strong>
                   <p className="mt-1 text-gray-700">
-                    {incident.resolutionNotes}
+                    {incident.correctiveActions}
                   </p>
                 </div>
+
+                {incident.dateClosed && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    Closed on {incident.dateClosed.toLocaleDateString()}
+                  </div>
+                )}
               </div>
             )}
           </div>

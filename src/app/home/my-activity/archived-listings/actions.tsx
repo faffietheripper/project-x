@@ -1,34 +1,35 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
+import { wasteListings } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-// Delete an item by ID
-export async function deleteItemAction(formData: FormData) {
+export async function deleteListingAction(formData: FormData) {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  // Get the itemId from the form data
-  const itemId = formData.get("itemId");
+  const listingIdRaw = formData.get("listingId");
 
-  // Ensure itemId is a string (from FormData) and convert it to an integer
-  if (typeof itemId !== "string" || isNaN(parseInt(itemId))) {
-    throw new Error("Invalid item ID");
+  if (typeof listingIdRaw !== "string" || isNaN(parseInt(listingIdRaw))) {
+    throw new Error("Invalid listing ID");
   }
 
-  // Delete the item only if it belongs to the authenticated user
+  const listingId = parseInt(listingIdRaw);
+
+  // Delete only if it belongs to authenticated user
   await database
-    .delete(items)
+    .delete(wasteListings)
     .where(
-      and(eq(items.id, parseInt(itemId)), eq(items.userId, session.user.id!))
+      and(
+        eq(wasteListings.id, listingId),
+        eq(wasteListings.userId, session.user.id),
+      ),
     );
 
-  // Revalidate the path to reflect changes immediately
   revalidatePath("/home/my-activity/archived-listings");
 }

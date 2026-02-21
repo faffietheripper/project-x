@@ -2,7 +2,12 @@
 
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items, carrierAssignments, users, organisations } from "@/db/schema";
+import {
+  wasteListings,
+  carrierAssignments,
+  users,
+  organisations,
+} from "@/db/schema";
 import { eq, and, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "../../notifications/actions";
@@ -13,7 +18,7 @@ function generateSixDigitCode() {
 }
 
 export async function assignCarrierAction(
-  itemId: number,
+  listingId: number,
   carrierOrganisationId: string,
 ) {
   const session = await auth();
@@ -21,7 +26,7 @@ export async function assignCarrierAction(
     throw new Error("Unauthorized");
   }
 
-  /** 🔑 Fetch assigning user (waste manager) */
+  /** 🔑 Fetch assigning user */
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
   });
@@ -30,13 +35,13 @@ export async function assignCarrierAction(
     throw new Error("User has no organisation");
   }
 
-  /** 📦 Fetch item */
-  const item = await database.query.items.findFirst({
-    where: eq(items.id, itemId),
+  /** 📦 Fetch listing */
+  const listing = await database.query.wasteListings.findFirst({
+    where: eq(wasteListings.id, listingId),
   });
 
-  if (!item) {
-    throw new Error("Item not found");
+  if (!listing) {
+    throw new Error("Listing not found");
   }
 
   /** 🏢 Fetch carrier organisation */
@@ -51,34 +56,34 @@ export async function assignCarrierAction(
   /** 🔐 Generate verification token */
   const verificationCode = generateSixDigitCode();
 
-  /** 1️⃣ Update item (current state) */
+  /** 1️⃣ Update listing state */
   await database
-    .update(items)
+    .update(wasteListings)
     .set({
       assignedCarrierOrganisationId: carrierOrganisationId,
       assignedByOrganisationId: user.organisationId,
-      carrierStatus: "pending",
       assignedAt: new Date(),
+      assigned: true,
     })
-    .where(eq(items.id, itemId));
+    .where(eq(wasteListings.id, listingId));
 
-  /** 2️⃣ Insert carrier assignment (history + token) */
+  /** 2️⃣ Insert carrier assignment */
   await database.insert(carrierAssignments).values({
-    itemId,
+    listingId,
     carrierOrganisationId,
     assignedByOrganisationId: user.organisationId,
     status: "pending",
     assignedAt: new Date(),
-    verificationCode, // 👈 stored here
+    verificationCode,
   });
 
   /** 3️⃣ Notify waste generator */
-  if (item.userId) {
+  if (listing.userId) {
     await createNotification(
-      item.userId,
+      listing.userId,
       "Waste Carrier Assigned 🚛",
       `
-A waste carrier has been assigned to your job "${item.name}".
+A waste carrier has been assigned to your job "${listing.name}".
 
 Carrier:
 ${carrierOrg.teamName}
@@ -88,51 +93,44 @@ ${carrierOrg.teamName}
 Verification Code:
 🔐 ${verificationCode}
 
-Please keep this code safe — it will be required at collection and completion.
+Please keep this code safe — it will be required at collection.
       `.trim(),
       "/home/my-activity/jobs-in-progress",
     );
   }
 
-  /** 🔁 Refresh UI */
   revalidatePath("/home/carrier-hub/waste-carriers/assigned-carrier-jobs");
   revalidatePath("/home/my-activity/jobs-in-progress");
 
   return { success: true };
 }
 
+/**
+ * Get jobs that this organisation won
+ * and are eligible for carrier assignment
+ */
 export async function getWinningJobsAction() {
   const session = await auth();
   if (!session?.user?.id) return [];
 
-  // 🔑 Resolve organisation from DB
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
-    columns: {
-      organisationId: true,
-    },
+    columns: { organisationId: true },
   });
 
   if (!user?.organisationId) return [];
 
   const jobs = await database
     .select()
-    .from(items)
+    .from(wasteListings)
     .where(
       and(
-        // 🏆 You won the job
-        eq(items.winningOrganisationId, user.organisationId),
-
-        // ✅ You accepted the offer
-        eq(items.offerAccepted, true),
-
-        // 📦 Still active
-        eq(items.archived, false),
-
-        // 🚚 Carrier logic
+        eq(wasteListings.winningOrganisationId, user.organisationId),
+        eq(wasteListings.offerAccepted, true),
+        eq(wasteListings.archived, false),
         or(
-          isNull(items.assignedCarrierOrganisationId), // never assigned
-          eq(items.carrierStatus, "rejected"), // rejected → comes back
+          isNull(wasteListings.assignedCarrierOrganisationId),
+          eq(wasteListings.assigned, false),
         ),
       ),
     );

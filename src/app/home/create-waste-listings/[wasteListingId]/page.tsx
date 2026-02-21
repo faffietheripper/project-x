@@ -10,10 +10,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { isBidOver } from "@/util/bids";
-import { handleAssignWinningBid } from "./actions";
 import BidWinner from "@/components/app/BidWinner";
 import { getWinningBid } from "@/data-access/getWinningBid";
 import AssignListingButton from "@/components/app/AssignListingButton";
+import { handleAssignWinningBid } from "./actions";
 
 function formatTimestamp(timestamp: Date) {
   return formatDistance(timestamp, new Date(), { addSuffix: true });

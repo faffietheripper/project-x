@@ -1,7 +1,7 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items, carrierAssignments, users, incidents } from "@/db/schema";
+import { wasteListings, carrierAssignments, incidents } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq, and, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -10,10 +10,10 @@ export async function markCompletedByManagerAction(
   _prevState: any,
   formData: FormData,
 ) {
-  const itemId = Number(formData.get("itemId"));
+  const listingId = Number(formData.get("itemId"));
   const verificationCode = formData.get("verificationCode")?.toString();
 
-  if (!itemId || !verificationCode) {
+  if (!listingId || !verificationCode) {
     return {
       success: false,
       message: "Verification code is required.",
@@ -31,7 +31,7 @@ export async function markCompletedByManagerAction(
   // 🔍 Find collected assignment
   const assignment = await database.query.carrierAssignments.findFirst({
     where: and(
-      eq(carrierAssignments.itemId, itemId),
+      eq(carrierAssignments.listingId, listingId),
       eq(carrierAssignments.verificationCode, verificationCode),
       eq(carrierAssignments.status, "collected"),
     ),
@@ -69,13 +69,16 @@ export async function markCompletedByManagerAction(
     })
     .where(eq(carrierAssignments.id, assignment.id));
 
-  // ✅ Update item status
+  // ✅ Mark listing as assigned + completed
   await database
-    .update(items)
-    .set({ carrierStatus: "completed" })
-    .where(eq(items.id, itemId));
+    .update(wasteListings)
+    .set({
+      assigned: true,
+      offerAccepted: true,
+    })
+    .where(eq(wasteListings.id, listingId));
 
-  revalidatePath("/home/manager-hub/active-jobs");
+  revalidatePath("/home/carrier-hub/carrier-manager/job-assignments");
 
   return {
     success: true,

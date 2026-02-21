@@ -1,90 +1,101 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items, bids, notifications } from "@/db/schema";
+import { wasteListings, bids } from "@/db/schema";
 import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "../../notifications/actions";
 
+/* =========================================================
+   ACCEPT OFFER
+========================================================= */
+
 export async function acceptOfferAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const itemId = Number(formData.get("itemId"));
-  if (!itemId) throw new Error("Item ID required");
+  const listingId = Number(formData.get("listingId"));
+  if (!listingId) throw new Error("Listing ID required");
 
-  const item = await database.query.items.findFirst({
-    where: eq(items.id, itemId),
+  const listing = await database.query.wasteListings.findFirst({
+    where: eq(wasteListings.id, listingId),
   });
 
-  if (!item) throw new Error("Item not found");
+  if (!listing) throw new Error("Listing not found");
 
   await database
-    .update(items)
+    .update(wasteListings)
     .set({ offerAccepted: true })
-    .where(eq(items.id, itemId));
+    .where(eq(wasteListings.id, listingId));
 
-  if (item.userId) {
+  if (listing.userId) {
     await createNotification(
-      item.userId,
+      listing.userId,
       "Job Accepted 🎉",
-      `Your job "${item.name}" has been accepted and will be assigned to a carrier shortly.`,
-      "/home/my-activity/jobs-in-progress",
+      `Your listing "${listing.name}" has been accepted and will be assigned to a carrier shortly.`,
+      `/home/waste-listings/${listingId}`,
     );
   }
 
-  // 🔁 Refresh UI
   revalidatePath("/home/my-activity/my-bids");
   revalidatePath("/home/my-activity/jobs-in-progress");
 }
+
+/* =========================================================
+   DECLINE OFFER
+========================================================= */
 
 export async function declineOfferAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const itemId = Number(formData.get("itemId"));
+  const listingId = Number(formData.get("listingId"));
   const bidId = Number(formData.get("bidId"));
 
-  if (!itemId || !bidId) throw new Error("Missing IDs");
+  if (!listingId || !bidId) throw new Error("Missing IDs");
 
   await database
-    .update(items)
+    .update(wasteListings)
     .set({
       assigned: false,
       winningBidId: null,
+      winningOrganisationId: null,
       offerAccepted: false,
     })
-    .where(eq(items.id, itemId));
+    .where(eq(wasteListings.id, listingId));
 
   await database
     .update(bids)
     .set({ declinedOffer: true })
     .where(eq(bids.id, bidId));
 
-  const item = await database.query.items.findFirst({
-    where: eq(items.id, itemId),
+  const listing = await database.query.wasteListings.findFirst({
+    where: eq(wasteListings.id, listingId),
   });
 
-  if (item?.userId) {
+  if (listing?.userId) {
     await createNotification(
-      item.userId,
+      listing.userId,
       "Offer Declined ❌",
-      `The offer for "${item.name}" was declined.`,
-      "/home/my-activity/my-listings",
+      `The offer for "${listing.name}" was declined.`,
+      `/home/waste-listings/${listingId}`,
     );
   }
 
-  // 🔁 Refresh UI
   revalidatePath("/home/my-activity/my-bids");
 }
 
+/* =========================================================
+   CANCEL JOB (Relist Listing)
+========================================================= */
+
 export async function cancelJobAction({
-  itemId,
+  listingId,
   bidId,
   cancellationReason,
 }: {
-  itemId: number;
+  listingId: number;
   bidId: number;
   cancellationReason: string;
 }) {
@@ -98,7 +109,6 @@ export async function cancelJobAction({
   }
 
   try {
-    // 🔍 Ensure this bid belongs to this user
     const bid = await database.query.bids.findFirst({
       where: and(eq(bids.id, bidId), eq(bids.userId, session.user.id)),
     });
@@ -116,9 +126,9 @@ export async function cancelJobAction({
       })
       .where(eq(bids.id, bidId));
 
-    // 2️⃣ Reset item so it goes back to marketplace
+    // 2️⃣ Reset listing so it returns to marketplace
     await database
-      .update(items)
+      .update(wasteListings)
       .set({
         winningBidId: null,
         winningOrganisationId: null,
@@ -126,19 +136,24 @@ export async function cancelJobAction({
         assigned: false,
         assignedCarrierOrganisationId: null,
         assignedByOrganisationId: null,
-        carrierStatus: "pending",
       })
-      .where(eq(items.id, itemId));
+      .where(eq(wasteListings.id, listingId));
 
-    // 3️⃣ Notify item owner (waste generator)
-    await database.insert(notifications).values({
-      receiverId: bid.userId,
-      title: "Job Cancelled",
-      message: `The winning bid for "${bid.itemName}" has been cancelled. The item is now relisted.`,
-      url: `/home/items/${itemId}`,
+    // 3️⃣ Notify listing owner
+    const listing = await database.query.wasteListings.findFirst({
+      where: eq(wasteListings.id, listingId),
     });
 
-    revalidatePath("/home/items");
+    if (listing?.userId) {
+      await createNotification(
+        listing.userId,
+        "Job Cancelled",
+        `The winning bid for "${listing.name}" has been cancelled. The listing is now relisted.`,
+        `/home/waste-listings/${listingId}`,
+      );
+    }
+
+    revalidatePath("/home/waste-listings");
     revalidatePath("/home/my-activity");
 
     return {

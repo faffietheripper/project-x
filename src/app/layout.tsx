@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter as FontSans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { SessionProvider } from "next-auth/react";
+import Providers from "@/components/Providers";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -11,21 +11,18 @@ const fontSans = FontSans({
 
 export const metadata: Metadata = {
   title: "Waste X",
-  description:
-    "Digital Waste Tracking System designed by Tino ad Jethro. This is the beta version. More to come.",
+  description: "Digital Waste Tracking System designed by Tino and Jethro.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className={cn("  font-sans antialiased", fontSans.variable)}>
-        <SessionProvider>
-          <div className="">{children}</div>
-        </SessionProvider>
+      <body className={cn("font-sans antialiased", fontSans.variable)}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

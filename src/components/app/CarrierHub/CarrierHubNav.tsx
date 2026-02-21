@@ -1,42 +1,30 @@
 "use client";
 
-import React, { useState, useRef, ReactNode, useEffect } from "react";
+import React, { useState, useRef, ReactNode } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { getOrganisationByUserId } from "@/data-access/organisations";
 
-export default function CarrierHubNav() {
-  const [organisation, setOrganisation] = useState<any>(null);
-  const { data: session } = useSession();
-
-  useEffect(() => {
-    if (!session?.user?.organisationId) return;
-
-    const loadOrg = async () => {
-      const org = await getOrganisationByUserId(session.user.organisationId);
-      setOrganisation(org);
-    };
-
-    loadOrg();
-  }, [session]);
-
-  const chain = organisation?.chainOfCustody;
+export default function CarrierHubNav({
+  chainOfCustody,
+}: {
+  chainOfCustody: string | null;
+}) {
+  if (!chainOfCustody) return null;
 
   return (
     <div className="pl-72 pt-[13vh] fixed">
-      {chain === "wasteCarrier" && <CarrierTabs />}
-      {chain === "wasteManager" && <ManagerTabs />}
-      {!chain && <div>Loading navigation...</div>}
+      {chainOfCustody === "wasteCarrier" && <CarrierTabs />}
+      {chainOfCustody === "wasteManager" && <ManagerTabs />}
     </div>
   );
 }
 
 //
 // ---------------------------------------------------------
-// CARRIER NAVIGATION (Your original one)
+// CARRIER NAVIGATION
 // ---------------------------------------------------------
 //
+
 const CarrierTabs = () => {
   const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
 
@@ -74,9 +62,10 @@ const CarrierTabs = () => {
 
 //
 // ---------------------------------------------------------
-// MANAGER NAVIGATION (same style, different pages)
+// MANAGER NAVIGATION
 // ---------------------------------------------------------
 //
+
 const ManagerTabs = () => {
   const [position, setPosition] = useState({ left: 0, width: 0, opacity: 0 });
 
@@ -116,7 +105,7 @@ const ManagerTabs = () => {
 
 //
 // ---------------------------------------------------------
-// Shared Components (Tab, Cursor, Variants)
+// Shared Components
 // ---------------------------------------------------------
 //
 
@@ -149,24 +138,13 @@ const Tab: React.FC<TabProps> = ({ children, setPosition }) => {
   );
 };
 
-interface CursorProps {
+const Cursor = ({
+  position,
+}: {
   position: { left: number; width: number; opacity: number };
-}
-
-const Cursor: React.FC<CursorProps> = ({ position }) => (
+}) => (
   <motion.li
     animate={{ ...position }}
     className="absolute z-0 h-7 rounded-full bg-blue-600 md:h-12"
   />
 );
-
-// Variants used by other dropdown or modal components if needed
-const itemVariants = {
-  open: { opacity: 1, y: 0 },
-  closed: { opacity: 0, y: -15 },
-};
-
-const actionIconVariants = {
-  open: { scale: 1, y: 0 },
-  closed: { scale: 0, y: -7 },
-};

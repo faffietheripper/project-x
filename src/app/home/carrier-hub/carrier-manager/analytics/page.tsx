@@ -34,9 +34,10 @@ export default async function Analytics() {
     (a) => a.status === "completed",
   ).length;
 
+  // ✅ FIXED recipientId
   const unreadNotifications = await database.query.notifications.findMany({
     where: and(
-      eq(notifications.receiverId, session.user.id),
+      eq(notifications.recipientId, session.user.id),
       eq(notifications.isRead, false),
     ),
   });
@@ -48,10 +49,10 @@ export default async function Analytics() {
   const recentAssignments = await database.query.carrierAssignments.findMany({
     where: eq(carrierAssignments.assignedByOrganisationId, organisationId),
     with: {
-      item: true,
+      listing: true, // ✅ FIXED (was item)
       carrierOrganisation: true,
     },
-    orderBy: (ca, { desc }) => [desc(ca.assignedAt)],
+    orderBy: desc(carrierAssignments.assignedAt),
     limit: 5,
   });
 
@@ -95,7 +96,8 @@ export default async function Analytics() {
                 key={assignment.id}
                 className="p-4 rounded-xl border hover:shadow-sm transition"
               >
-                <div className="font-medium">{assignment.item?.name}</div>
+                {/* ✅ FIXED listing instead of item */}
+                <div className="font-medium">{assignment.listing?.name}</div>
 
                 <div className="text-sm text-gray-600">
                   Carrier: {assignment.carrierOrganisation?.teamName}

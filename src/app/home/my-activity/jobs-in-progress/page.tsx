@@ -1,32 +1,35 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
-import ItemCard from "@/components/ListingCard";
+import { wasteListings } from "@/db/schema";
+import ListingCard from "@/components/ListingCard";
 import { EmptyState } from "./emptyState";
 import { and, eq } from "drizzle-orm";
 
 export default async function AssignedListings() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  // Fetch only assigned items where userId matches the logged-in user
-  const assignedItems = await database.query.items.findMany({
-    where: and(eq(items.userId, session.user.id!), eq(items.assigned, true)),
+  // Fetch only assigned listings owned by logged-in user
+  const assignedListings = await database.query.wasteListings.findMany({
+    where: and(
+      eq(wasteListings.userId, session.user.id),
+      eq(wasteListings.assigned, true),
+    ),
   });
 
-  const hasAssignedItems = assignedItems.length > 0;
+  const hasAssignedListings = assignedListings.length > 0;
 
   return (
-    <main className="">
+    <main>
       <h1 className="font-bold pb-10">Manage Assigned Listings</h1>
 
-      {hasAssignedItems ? (
+      {hasAssignedListings ? (
         <div className="grid grid-cols-3 gap-8">
-          {assignedItems.map((item) => (
-            <ItemCard key={item.id} item={item} />
+          {assignedListings.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       ) : (

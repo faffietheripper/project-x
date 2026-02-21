@@ -78,3 +78,54 @@ export async function createBidAction({
 
   return { success: true };
 }
+
+export async function handleAssignWinningBid(formData: FormData) {
+  const listingId = Number(formData.get("listingId"));
+  const bidId = Number(formData.get("bidId"));
+
+  if (!listingId || !bidId) {
+    return { success: false, message: "Invalid request." };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, message: "Unauthorized." };
+  }
+
+  // Get listing
+  const listing = await database.query.wasteListings.findFirst({
+    where: eq(wasteListings.id, listingId),
+  });
+
+  if (!listing) {
+    return { success: false, message: "Listing not found." };
+  }
+
+  // Ensure user owns listing
+  if (listing.userId !== session.user.id) {
+    return { success: false, message: "Not allowed." };
+  }
+
+  // Get bid
+  const bid = await database.query.bids.findFirst({
+    where: eq(bids.id, bidId),
+  });
+
+  if (!bid) {
+    return { success: false, message: "Bid not found." };
+  }
+
+  // Update listing
+  await database
+    .update(wasteListings)
+    .set({
+      winningBidId: bid.id,
+      winningOrganisationId: bid.organisationId,
+      assigned: true,
+    })
+    .where(eq(wasteListings.id, listingId));
+
+  revalidatePath(`/home/create-waste-listings/${listingId}`);
+
+  return { success: true, message: "Winning bid assigned." };
+}

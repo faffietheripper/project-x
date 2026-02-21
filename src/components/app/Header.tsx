@@ -18,7 +18,7 @@ function WasteGeneratorNav() {
       <Link href="/home/my-activity">My Activity.</Link>
       <Link href="/home/team-dashboard">Team Dashboard.</Link>
       <Link href="/home/notifications">Notifications.</Link>
-      <Link href="/home/settings">User Settings.</Link>
+      <Link href="/home/me/account">User Settings.</Link>
     </div>
   );
 }
@@ -38,7 +38,7 @@ function WasteManagerNav() {
         Carrier Hub.
       </Link>
       <Link href="/home/notifications">Notifications.</Link>
-      <Link href="/home/settings">User Settings.</Link>
+      <Link href="/home/me/account">User Settings.</Link>
     </div>
   );
 }
@@ -56,7 +56,7 @@ function WasteCarrierNav() {
         Carrier Hub.
       </Link>
       <Link href="/home/notifications">Notifications.</Link>
-      <Link href="/home/settings">User Settings.</Link>
+      <Link href="/home/me/account">User Settings.</Link>
     </div>
   );
 }

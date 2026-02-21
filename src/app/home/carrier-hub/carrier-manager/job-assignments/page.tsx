@@ -25,7 +25,7 @@ export default async function JobAssignments() {
       ),
     ),
     with: {
-      item: true,
+      listing: true, // ✅ Correct relation
       carrierOrganisation: true,
       incidents: true,
     },
@@ -66,11 +66,11 @@ export default async function JobAssignments() {
             {/* ===== JOB DETAILS ===== */}
             <div className="mb-4 space-y-1">
               <div className="text-lg font-semibold">
-                {assignment.item?.name}
+                {assignment.listing?.name}
               </div>
 
               <div className="text-sm text-gray-600">
-                📍 {assignment.item?.location}
+                📍 {assignment.listing?.location}
               </div>
 
               <div className="text-sm">
@@ -109,7 +109,7 @@ export default async function JobAssignments() {
             {/* ===== DESCRIPTION ===== */}
             <div className="mb-4 text-sm">
               <strong>Description:</strong>{" "}
-              {assignment.item?.detailedDescription}
+              {assignment.listing?.detailedDescription}
             </div>
 
             {/* 🚨 INCIDENT WARNING */}
@@ -122,7 +122,7 @@ export default async function JobAssignments() {
 
             {/* ✅ Completion Form */}
             {!isCompleted && !hasOpenIncident && (
-              <ManagerCompletionForm itemId={assignment.itemId} />
+              <ManagerCompletionForm listingId={assignment.listingId} />
             )}
 
             {/* ✅ Completed Indicator */}

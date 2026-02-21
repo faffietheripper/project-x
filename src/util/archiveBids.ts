@@ -1,58 +1,58 @@
 "use server";
+
 import { database } from "@/db/database";
 import { eq } from "drizzle-orm";
-import { items, bids } from "@/db/schema";
+import { wasteListings, bids } from "@/db/schema";
 import { createNotification } from "@/app/home/notifications/actions";
 import { redirect } from "next/navigation";
 
 export async function archiveBids(formData: FormData) {
-  const itemId = Number(formData.get("itemId"));
+  const listingId = Number(formData.get("listingId"));
 
-  if (!itemId) {
-    throw new Error("Invalid item ID");
+  if (!listingId) {
+    throw new Error("Invalid listing ID");
   }
 
   try {
-    // Step 1: Archive the item
+    // 1️⃣ Archive the listing
     await database
-      .update(items)
+      .update(wasteListings)
       .set({ archived: true })
-      .where(eq(items.id, itemId));
+      .where(eq(wasteListings.id, listingId));
 
-    // Step 2: Fetch all users who placed a bid on this item
+    // 2️⃣ Fetch all users who placed a bid on this listing
     const bidUsers = await database.query.bids.findMany({
-      where: eq(bids.itemId, itemId),
+      where: eq(bids.listingId, listingId),
       columns: { userId: true },
     });
 
-    // Step 3: Fetch item details (for notification context)
-    const item = await database.query.items.findFirst({
-      where: eq(items.id, itemId),
+    // 3️⃣ Fetch listing details for notification context
+    const listing = await database.query.wasteListings.findFirst({
+      where: eq(wasteListings.id, listingId),
       columns: { name: true },
     });
 
-    if (!item) {
-      throw new Error("Item not found");
+    if (!listing) {
+      throw new Error("Listing not found");
     }
 
-    // Step 4: Notify all users who placed a bid
+    // 4️⃣ Notify all users who placed a bid
     await Promise.all(
       bidUsers.map(async (bidUser) => {
         const receiverId = bidUser.userId;
-        const title = "Item Archived 📦";
-        const message = `The item "${item.name}" you bid on has been archived. You can no longer bid on it.`;
+        const title = "Listing Archived 📦";
+        const message = `The listing "${listing.name}" you bid on has been archived. You can no longer bid on it.`;
         const itemUrl = `/home/my-activity/my-bids`;
 
         return createNotification(receiverId, title, message, itemUrl);
-      })
+      }),
     );
 
-    console.log("Item archived and notifications sent successfully.");
+    console.log("Listing archived and notifications sent successfully.");
   } catch (error) {
-    console.error("Error archiving item:", error);
-    throw new Error("Failed to archive item.");
+    console.error("Error archiving listing:", error);
+    throw new Error("Failed to archive listing.");
   }
 
-  // Move `redirect()` outside of the try-catch block to avoid catching it as an error
   redirect("/home/my-activity/archived-listings");
 }

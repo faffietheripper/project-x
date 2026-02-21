@@ -8,7 +8,11 @@ const initialState = {
   message: "",
 };
 
-export default function ManagerCompletionForm({ itemId }: { itemId: number }) {
+export default function ManagerCompletionForm({
+  listingId,
+}: {
+  listingId: number;
+}) {
   const [state, formAction] = useFormState(
     markCompletedByManagerAction,
     initialState,
@@ -16,7 +20,7 @@ export default function ManagerCompletionForm({ itemId }: { itemId: number }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-2 mt-3">
-      <input type="hidden" name="itemId" value={itemId} />
+      <input type="hidden" name="listingId" value={listingId} />
 
       <input
         type="text"
@@ -31,7 +35,6 @@ export default function ManagerCompletionForm({ itemId }: { itemId: number }) {
         Complete Transfer
       </button>
 
-      {/* 🔔 Feedback */}
       {state.message && (
         <p
           className={`text-sm font-medium ${

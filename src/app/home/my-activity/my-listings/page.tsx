@@ -1,33 +1,34 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
-import ItemCard from "@/components/ListingCard";
+import { wasteListings } from "@/db/schema";
+import ListingCard from "@/components/ListingCard";
 import { EmptyState } from "./emptyState";
 import { and, eq } from "drizzle-orm";
 
-//this is where you will be able to manage selected listings : Renew or Delete Listings or End Bid
-
-export default async function MyLisitngs() {
+export default async function MyListings() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  const allItems = await database.query.items.findMany({
-    where: and(eq(items.userId, session.user.id!), eq(items.archived, false)),
+  const activeListings = await database.query.wasteListings.findMany({
+    where: and(
+      eq(wasteListings.userId, session.user.id),
+      eq(wasteListings.archived, false),
+    ),
   });
 
-  const hasItems = allItems.length > 0;
+  const hasListings = activeListings.length > 0;
 
   return (
-    <main className="">
+    <main>
       <h1 className="font-bold pb-10 pt-4">Manage Active Listings</h1>
 
-      {hasItems ? (
+      {hasListings ? (
         <div className="grid grid-cols-3 gap-8">
-          {allItems.map((item) => (
-            <ItemCard key={item.id} item={item} />
+          {activeListings.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       ) : (

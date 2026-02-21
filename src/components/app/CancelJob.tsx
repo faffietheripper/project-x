@@ -3,8 +3,19 @@
 import React, { useState } from "react";
 import { motion, useMotionValue, useDragControls } from "framer-motion";
 import { cancelJobAction } from "@/app/home/my-activity/assigned-jobs/actions";
+import { useToast } from "@/components/ui/use-toast";
 
-export default function CancelJobPage({ itemId, bidId }) {
+interface CancelJobPageProps {
+  listingId: number;
+  bidId: number;
+}
+
+export default function CancelJobPage({
+  listingId,
+  bidId,
+}: CancelJobPageProps) {
+  const { toast } = useToast();
+
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,30 +23,37 @@ export default function CancelJobPage({ itemId, bidId }) {
   const y = useMotionValue(0);
   const controls = useDragControls();
 
-  const handleCancel = async (e) => {
+  const handleCancel = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!reason.trim()) {
-      alert("Please provide a cancellation reason.");
+      toast({
+        title: "Missing Reason",
+        description: "Please provide a cancellation reason.",
+        variant: "destructive",
+      });
       return;
     }
 
     setLoading(true);
 
     const result = await cancelJobAction({
-      itemId,
+      listingId,
       bidId,
       cancellationReason: reason,
     });
 
     setLoading(false);
 
+    toast({
+      title: result.success ? "Success" : "Error",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+
     if (result.success) {
-      alert(result.message);
       setOpen(false);
       setReason("");
-    } else {
-      alert(result.message);
     }
   };
 
@@ -46,7 +64,6 @@ export default function CancelJobPage({ itemId, bidId }) {
 
   return (
     <div className="relative">
-      {/* Cancel Button */}
       <button
         onClick={() => setOpen(true)}
         className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 transition"
@@ -54,7 +71,6 @@ export default function CancelJobPage({ itemId, bidId }) {
         Cancel Job
       </button>
 
-      {/* Drawer */}
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -78,7 +94,6 @@ export default function CancelJobPage({ itemId, bidId }) {
             onClick={(e) => e.stopPropagation()}
             className="absolute bottom-0 w-full h-[75vh] rounded-t-3xl bg-neutral-900 border-t border-neutral-800 shadow-2xl"
           >
-            {/* Drag Handle */}
             <div className="flex justify-center pt-4">
               <button
                 onPointerDown={(e) => controls.start(e)}
@@ -86,25 +101,21 @@ export default function CancelJobPage({ itemId, bidId }) {
               />
             </div>
 
-            {/* Content */}
             <div className="max-w-2xl mx-auto px-6 pt-8 pb-12 overflow-y-auto h-full">
-              {/* Header */}
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-white mb-2">
                   Cancel This Job
                 </h2>
                 <p className="text-sm text-neutral-400">
-                  This will relist the waste item and allow new bids.
+                  This will relist the waste listing and allow new bids.
                 </p>
               </div>
 
-              {/* Warning */}
               <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm p-4 rounded-xl mb-6">
                 ⚠️ This action cannot be undone. Please provide a valid reason
                 for audit and compliance purposes.
               </div>
 
-              {/* Form */}
               <form onSubmit={handleCancel} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-neutral-300 mb-2">
@@ -120,7 +131,6 @@ export default function CancelJobPage({ itemId, bidId }) {
                   />
                 </div>
 
-                {/* Buttons */}
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"

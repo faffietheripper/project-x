@@ -1,28 +1,28 @@
 "use server";
 
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
+import { wasteListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 export async function unarchivedBids(formData: FormData) {
-  const itemId = Number(formData.get("itemId"));
+  const listingId = Number(formData.get("listingId"));
 
-  if (!itemId) {
-    throw new Error("Invalid item ID");
+  if (!listingId) {
+    throw new Error("Invalid listing ID");
   }
 
-  // Calculate new endDate (add 14 days from the current date)
+  // Add 14 days from now
   const newEndDate = new Date();
   newEndDate.setDate(newEndDate.getDate() + 14);
 
   await database
-    .update(items)
+    .update(wasteListings)
     .set({
       archived: false,
       endDate: newEndDate,
     })
-    .where(eq(items.id, itemId));
+    .where(eq(wasteListings.id, listingId));
 
   redirect("/home/my-activity/my-listings");
 }

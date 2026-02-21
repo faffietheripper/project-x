@@ -8,12 +8,12 @@ const initialState = {
   message: "",
 };
 
-export default function CollectedForm({ itemId }: { itemId: number }) {
+export default function CollectedForm({ listingId }: { listingId: number }) {
   const [state, formAction] = useFormState(markCollectedAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-2">
-      <input type="hidden" name="itemId" value={itemId} />
+    <form action={formAction} className="flex flex-col gap-2 mt-2">
+      <input type="hidden" name="listingId" value={listingId} />
 
       <input
         type="text"
@@ -21,14 +21,18 @@ export default function CollectedForm({ itemId }: { itemId: number }) {
         placeholder="Enter 6-digit code"
         maxLength={6}
         required
+        pattern="\d{6}"
+        inputMode="numeric"
         className="border rounded-md px-3 py-2"
       />
 
-      <button className="bg-blue-600 text-white px-4 py-2 rounded-md">
+      <button
+        type="submit"
+        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+      >
         Mark as Collected
       </button>
 
-      {/* 🔔 Feedback messages */}
       {state.message && (
         <p
           className={`text-sm font-medium ${

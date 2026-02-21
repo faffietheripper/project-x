@@ -1,106 +1,81 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 
-export default function HomePage({ items }) {
+export default function WasteListingsFilterBar() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // State for the filters
-  const [endDateFilter, setEndDateFilter] = useState("");
-  const [minBidFilter, setMinBidFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [endDate, setEndDate] = useState(searchParams.get("endDate") ?? "");
+  const [minBid, setMinBid] = useState(searchParams.get("minBid") ?? "");
+  const [location, setLocation] = useState(searchParams.get("location") ?? "");
 
-  // Get unique locations for the select input
-  const uniqueLocations = useMemo(() => {
-    const locations = items.map((item) => item.location);
-    return [...new Set(locations)];
-  }, [items]);
+  const applyFilters = () => {
+    const params = new URLSearchParams();
 
-  // Clear filters on initial render
-  useEffect(() => {
-    setEndDateFilter("");
-    setMinBidFilter("");
-    setLocationFilter("");
-    router.replace(`/home/waste-listings`); // Replace history entry without query params
-  }, []); // Empty dependency array ensures this runs only once on mount
+    if (endDate) params.set("endDate", endDate);
+    if (minBid) params.set("minBid", minBid);
+    if (location) params.set("location", location);
 
-  const handleFilterSubmit = () => {
-    const query = new URLSearchParams({
-      endDate: endDateFilter,
-      minBid: minBidFilter,
-      location: locationFilter,
-    }).toString();
-
-    // Navigate to the results page with the filter query parameters
-    router.push(`/home/waste-listings?${query}`);
+    router.push(`/home/waste-listings?${params.toString()}`);
   };
 
-  const handleClearFilters = () => {
-    setEndDateFilter("");
-    setMinBidFilter("");
-    setLocationFilter("");
-    router.push(`/home/waste-listings`); // Navigate to the filtered-items page without any query params
+  const clearFilters = () => {
+    setEndDate("");
+    setMinBid("");
+    setLocation("");
+    router.push(`/home/waste-listings`);
   };
 
   return (
-    <main className="h-[13vh] flex justify-between">
-      <h1 className="font-bold text-center text-xl my-auto">
-        Filter Your Search
-      </h1>
-
-      {/* Filter Form */}
-      <div className="p-6 flex justify-between gap-x-6">
-        <div>
-          <h1 className="mb-2">End Date:</h1>
-          <input
-            type="date"
-            value={endDateFilter}
-            onChange={(e) => setEndDateFilter(e.target.value)}
-            className="p-2 w-full border rounded-md"
-          />
-        </div>
-
-        <div className="">
-          <h1 className="mb-2">Minimum Bid:</h1>
-          <input
-            type="number"
-            value={minBidFilter}
-            onChange={(e) => setMinBidFilter(e.target.value)}
-            placeholder="Enter a value"
-            className=" p-2 w-full rounded-md border"
-          />
-        </div>
-
-        <div className="">
-          <h1 className="mb-2">Location:</h1>
-          <select
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-            className=" p-2 w-full rounded-md border"
-          >
-            <option value="">All Locations</option>
-            {uniqueLocations.map((location) => (
-              <option key={location} value={location}>
-                {location}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          onClick={handleFilterSubmit}
-          className="bg-blue-600 text-white p-2 h-fit rounded-md"
-        >
-          Apply Filters
-        </button>
-        <button
-          onClick={handleClearFilters}
-          className="bg-gray-600 text-white p-2 h-fit rounded-md"
-        >
-          Clear Filters
-        </button>
+    <div className="flex items-end gap-6 px-6 py-4 border-b">
+      <div>
+        <label className="block text-sm font-medium mb-2">End Before</label>
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="border rounded-md p-2"
+        />
       </div>
-    </main>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Minimum Bid (£)
+        </label>
+        <input
+          type="number"
+          value={minBid}
+          onChange={(e) => setMinBid(e.target.value)}
+          className="border rounded-md p-2"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">Location</label>
+        <input
+          type="text"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="e.g. London"
+          className="border rounded-md p-2"
+        />
+      </div>
+
+      <button
+        onClick={applyFilters}
+        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+      >
+        Apply
+      </button>
+
+      <button
+        onClick={clearFilters}
+        className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition"
+      >
+        Clear
+      </button>
+    </div>
   );
 }

@@ -1,27 +1,25 @@
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
+import { wasteListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { Item } from "@/db/schema";
+import { InferSelectModel } from "drizzle-orm";
+import { wasteListings as wasteListingsTable } from "@/db/schema";
 
-// Function to check if a bid is over and optionally archive the item
-export async function isBidOver(item: Item) {
-  // Ensure that item.endDate is properly parsed as a Date object (if it's not already)
-  const bidEndDate = new Date(item.endDate);
+type WasteListing = InferSelectModel<typeof wasteListingsTable>;
+
+// Function to check if bidding is over and auto-archive the listing
+export async function isBidOver(listing: WasteListing) {
+  const bidEndDate = new Date(listing.endDate);
   const currentDate = new Date();
 
-  console.log("Bid End Date:", bidEndDate);
-  console.log("Current Date:", currentDate);
-  // Check if the bid end date is in the past
   const isOver = bidEndDate < currentDate;
 
-  // If the bid is over and the item is not archived, archive it
-  if (isOver && !item.archived) {
+  // Auto-archive if bidding ended and not already archived
+  if (isOver && !listing.archived) {
     await database
-      .update(items)
+      .update(wasteListings)
       .set({ archived: true })
-      .where(eq(items.id, item.id));
+      .where(eq(wasteListings.id, listing.id));
   }
 
-  // Return whether the bid is over
   return isOver;
 }

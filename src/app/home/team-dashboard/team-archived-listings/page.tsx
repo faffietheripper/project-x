@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items } from "@/db/schema";
-import ItemCard from "@/components/ListingCard";
+import { wasteListings } from "@/db/schema";
+import ListingCard from "@/components/ListingCard";
 import { EmptyState } from "./emptyState";
 import { and, eq } from "drizzle-orm";
 
@@ -12,24 +12,24 @@ export default async function TeamArchivedListings() {
     throw new Error("Unauthorized");
   }
 
-  // Fetch only archived items where organisationId matches the logged-in user's organisationId
-  const archivedOrgItems = await database.query.items.findMany({
+  // Fetch archived listings for this organisation
+  const archivedListings = await database.query.wasteListings.findMany({
     where: and(
-      eq(items.organisationId, session.user.organisationId),
-      eq(items.archived, true),
+      eq(wasteListings.organisationId, session.user.organisationId),
+      eq(wasteListings.archived, true),
     ),
   });
 
-  const hasArchivedItems = archivedOrgItems.length > 0;
+  const hasArchivedListings = archivedListings.length > 0;
 
   return (
-    <main className="">
+    <main>
       <h1 className="font-bold pb-10">Manage Archived Listings</h1>
 
-      {hasArchivedItems ? (
+      {hasArchivedListings ? (
         <div className="grid grid-cols-3 gap-8">
-          {archivedOrgItems.map((item) => (
-            <ItemCard key={item.id} item={item} />
+          {archivedListings.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       ) : (

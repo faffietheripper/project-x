@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { items, profiles } from "@/db/schema";
-import { eq, and, or } from "drizzle-orm";
+import { wasteListings, carrierAssignments, userProfiles } from "@/db/schema";
+import { and, eq, or } from "drizzle-orm";
 import JobReview from "@/components/app/JobReview";
 
 export default async function TeamCompletedJobsPage() {
@@ -14,92 +14,119 @@ export default async function TeamCompletedJobsPage() {
 
   const organisationId = session.user.organisationId;
 
-  // Fetch completed items where the organisation was either the owner OR the winning organisation
-  const completedOrgItems = await database.query.items.findMany({
-    where: and(
-      eq(items.completed, true),
-      or(
-        eq(items.organisationId, organisationId), // org owned the item
-        eq(items.winningOrganisationId, organisationId) // org won the item
-      )
-    ),
-    with: {
-      winningBid: true,
-      winningOrganisation: true,
-      organisation: true,
+  // ✅ Fetch completed assignments linked to this organisation
+  const completedAssignments = await database.query.carrierAssignments.findMany(
+    {
+      where: eq(carrierAssignments.status, "completed"),
+      with: {
+        listing: {
+          with: {
+            organisation: true,
+            winningOrganisation: true,
+            bids: true,
+          },
+        },
+      },
     },
-  });
+  );
 
-  // Map through completedOrgItems and fetch corresponding profiles
-  const itemsWithProfiles = await Promise.all(
-    completedOrgItems.map(async (item) => {
-      // If organisation owns the item, then the "receiver" is the winning bidder.
-      // If organisation is the winning bidder, then the "receiver" is the item owner.
+  // ✅ Filter assignments where this org was involved
+  const relevantAssignments = completedAssignments.filter(
+    (assignment) =>
+      assignment.listing?.organisationId === organisationId ||
+      assignment.listing?.winningOrganisationId === organisationId,
+  );
+
+  // ✅ Attach receiver profile
+  const assignmentsWithProfiles = await Promise.all(
+    relevantAssignments.map(async (assignment) => {
+      const listing = assignment.listing;
+
+      if (!listing) return { ...assignment, profile: null };
+
       const receiverUserId =
-        item.organisationId === organisationId
-          ? item.winningBid?.userId
-          : item.userId;
+        listing.organisationId === organisationId
+          ? listing.bids?.find(
+              (b) => b.organisationId === listing.winningOrganisationId,
+            )?.userId
+          : listing.userId;
 
       if (!receiverUserId) {
-        return { ...item, profile: null };
+        return { ...assignment, profile: null };
       }
 
-      const profile = await database.query.profiles.findFirst({
-        where: eq(profiles.userId, receiverUserId),
+      const profile = await database.query.userProfiles.findFirst({
+        where: eq(userProfiles.userId, receiverUserId),
       });
 
-      return { ...item, profile };
-    })
+      return { ...assignment, profile };
+    }),
   );
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Completed Organisation Jobs</h1>
 
-      <section>
-        {itemsWithProfiles.length > 0 ? (
-          <ul>
-            {itemsWithProfiles.map((item) => (
+      {assignmentsWithProfiles.length > 0 ? (
+        <ul>
+          {assignmentsWithProfiles.map((assignment) => {
+            const listing = assignment.listing;
+
+            return (
               <li
-                key={item.id}
+                key={assignment.id}
                 className="p-6 border rounded-lg shadow-sm mb-4"
               >
                 <section className="flex justify-between">
                   <div className="md:w-[700px]">
-                    <h1>Item Title: {item.name}</h1>
+                    <h1>Listing Title: {listing?.name}</h1>
                     <h1>
                       Description:{" "}
-                      {item.detailedDescription || "No description provided"}
+                      {listing?.detailedDescription ||
+                        "No description provided"}
                     </h1>
+
                     <p className="text-gray-600">
                       <strong>Owner Organisation:</strong>{" "}
-                      {item.organisation?.teamName || "Unknown"}
+                      {listing?.organisation?.teamName || "Unknown"}
                     </p>
+
                     <p className="text-gray-600">
                       <strong>Winning Organisation:</strong>{" "}
-                      {item.winningOrganisation?.teamName || "Unknown"}
+                      {listing?.winningOrganisation?.teamName || "Unknown"}
                     </p>
+
+                    <p className="text-green-600 font-bold mt-2">Completed</p>
                   </div>
+
                   <div className="flex space-x-4">
-                    <Link href={`/home/items/${item.id}`}>
+                    <Link href={`/home/listings/${listing?.id}`}>
                       <button className="bg-blue-500 w-full text-white px-4 py-2 rounded-md">
-                        View Item
+                        View Listing
                       </button>
                     </Link>
-                    {item.profile ? (
-                      <JobReview itemId={item.id} profileId={item.profile.id} />
+
+                    {assignment.profile ? (
+                      <JobReview
+                        itemId={listing?.id}
+                        organisationId={
+                          listing?.organisationId === organisationId
+                            ? listing?.winningOrganisationId!
+                            : listing?.organisationId!
+                        }
+                      />
                     ) : (
                       <p>No valid profile found.</p>
                     )}
                   </div>
                 </section>
               </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No completed organisation jobs found.</p>
-        )}
-      </section>
+            );
+          })}
+        </ul>
+      ) : (
+        <p>No completed organisation jobs found.</p>
+      )}
     </div>
   );
 }

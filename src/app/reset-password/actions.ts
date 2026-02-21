@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 export async function validateTokenAndResetPassword(
   url: string,
   newPassword: string,
-  confirmPassword: string
+  confirmPassword: string,
 ) {
   if (!url || !newPassword || !confirmPassword) {
     return {
@@ -31,15 +31,18 @@ export async function validateTokenAndResetPassword(
     };
   }
 
-  // Extract token from the query string
+  // Extract token
   const urlObject = new URL(url);
   const token = urlObject.searchParams.get("token");
 
   if (!token) {
-    return { success: false, message: "Invalid reset link. Token is missing." };
+    return {
+      success: false,
+      message: "Invalid reset link. Token is missing.",
+    };
   }
 
-  // Check token in the database
+  // Fetch token record
   const tokenRecord = await database
     .select()
     .from(passwordResetTokens)
@@ -51,32 +54,34 @@ export async function validateTokenAndResetPassword(
     tokenRecord[0].expires < new Date() ||
     tokenRecord[0].used
   ) {
-    return { success: false, message: "Invalid or expired token." };
+    return {
+      success: false,
+      message: "Invalid or expired token.",
+    };
   }
 
   const email = tokenRecord[0].email;
 
   try {
-    // Hash the new password
+    // Hash password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update the user's password
-    const updatedUser = await database
+    // ✅ Correct field: passwordHash
+    const result = await database
       .update(users)
       .set({
-        password: hashedPassword,
-        confirmPassword: hashedPassword,
+        passwordHash: hashedPassword,
       })
       .where(eq(users.email, email));
 
-    if (!updatedUser) {
+    if (!result) {
       return {
         success: false,
         message: "Failed to update password. User not found.",
       };
     }
 
-    // Mark the token as used
+    // Mark token as used
     await database
       .update(passwordResetTokens)
       .set({ used: true })
