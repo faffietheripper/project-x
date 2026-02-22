@@ -102,7 +102,7 @@ export async function handleAssignWinningBid(formData: FormData) {
   }
 
   // Ensure user owns listing
-  if (listing.userId !== session.user.id) {
+  if (listing.organisationId !== session.user.organisationId) {
     return { success: false, message: "Not allowed." };
   }
 
@@ -125,7 +125,7 @@ export async function handleAssignWinningBid(formData: FormData) {
     })
     .where(eq(wasteListings.id, listingId));
 
-  revalidatePath(`/home/create-waste-listings/${listingId}`);
+  revalidatePath(`/home/waste-listings/${listingId}`);
 
   return { success: true, message: "Winning bid assigned." };
 }

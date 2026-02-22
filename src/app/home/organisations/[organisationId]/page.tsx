@@ -1,10 +1,13 @@
 import { auth } from "@/auth";
 import { getOrganisationServer } from "@/data-access/organisations";
+import { database } from "@/db/database";
+import { reviews } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getImageUrl } from "@/util/files";
-import { database } from "@/db/database";
 import AssignCarrierModal from "@/components/app/WasteCarriers/AssignCarrierModal";
 
 export default async function OrganisationPage({
@@ -18,11 +21,12 @@ export default async function OrganisationPage({
     throw new Error("organisationId param is missing.");
   }
 
-  // ✅ Get logged-in user session (not needed for logic, but useful for future features)
+  // Optional — useful for future permission logic
   const session = await auth();
-  console.log("🧭 Session user:", session?.user);
 
-  // ✅ Fetch the organisation being viewed
+  /* ===============================
+     Fetch Organisation
+  ================================= */
   const organisation = await getOrganisationServer(organisationId);
 
   if (!organisation) {
@@ -42,36 +46,36 @@ export default async function OrganisationPage({
     );
   }
 
-  // ✅ Fetch all reviews related to this organisation
-  const allReviews = await database.query.reviews.findMany({
+  /* ===============================
+     Fetch Reviews (DB Filtered)
+  ================================= */
+  const userReviews = await database.query.reviews.findMany({
+    where: eq(reviews.reviewedOrganisationId, organisation.id),
     with: {
       reviewer: true,
-      organisation: true,
     },
+    orderBy: (reviews, { desc }) => [desc(reviews.createdAt)],
   });
 
-  const userReviews = allReviews.filter(
-    (review) => review.organisationId === organisation.id,
-  );
-
-  // ✅ Only show button if the viewed organisation is a carrier
+  /* ===============================
+     Carrier Logic
+  ================================= */
   const canAssignCarrier = organisation.chainOfCustody === "wasteCarrier";
 
   const imageSrc =
-    typeof organisation.profilePicture === "string"
+    typeof organisation.profilePicture === "string" &&
+    organisation.profilePicture.length > 0
       ? getImageUrl(organisation.profilePicture)
       : "/placeholder-company.png";
-
-  console.log("🏢 Viewing organisation:", organisation.teamName);
-  console.log("🔗 Chain of custody:", organisation.chainOfCustody);
-  console.log("✅ canAssignCarrier:", canAssignCarrier);
 
   return (
     <main className="pl-[22vw] space-y-8 py-36 px-12">
       <div className="grid grid-cols-6 gap-6">
-        {/* Main Info Column */}
+        {/* ===============================
+            MAIN COLUMN
+        ================================ */}
         <div className="col-span-4 flex flex-col gap-6">
-          {/* Organisation Header */}
+          {/* Header */}
           <div className="flex items-center justify-around gap-x-6">
             <Image
               height={100}
@@ -90,15 +94,15 @@ export default async function OrganisationPage({
               </h2>
             </div>
 
-            {/* ✅ Only visible if the viewed organisation is a carrier */}
             {canAssignCarrier && (
               <AssignCarrierModal carrierOrgId={organisation.id} />
             )}
           </div>
 
-          {/* Reviews Section */}
+          {/* Reviews */}
           <section className="p-6 bg-gray-100 rounded-lg">
             <h2 className="text-2xl font-semibold mb-4">Reviews</h2>
+
             {userReviews.length > 0 ? (
               <ul className="grid grid-cols-2 gap-4">
                 {userReviews.map((review) => (
@@ -106,15 +110,20 @@ export default async function OrganisationPage({
                     key={review.id}
                     className="border rounded-lg p-4 shadow-sm bg-white"
                   >
-                    <h2 className="text-lg font-semibold">
+                    <h3 className="text-lg font-semibold">
                       Reviewed By: {review.reviewer?.name || "Anonymous"}
-                    </h2>
-                    <p className="text-gray-600 py-3">
+                    </h3>
+
+                    <p className="text-gray-600 py-2">
                       <strong>Rating:</strong> {review.rating} / 5
                     </p>
-                    <p className="mt-2">“{review.reviewText}”</p>
+
+                    {review.comment && (
+                      <p className="mt-2">“{review.comment}”</p>
+                    )}
+
                     <p className="text-sm text-right text-gray-400 mt-2">
-                      {new Date(review.timestamp).toLocaleString()}
+                      {new Date(review.createdAt).toLocaleString()}
                     </p>
                   </li>
                 ))}
@@ -125,7 +134,9 @@ export default async function OrganisationPage({
           </section>
         </div>
 
-        {/* Sidebar Column */}
+        {/* ===============================
+            SIDEBAR
+        ================================ */}
         <div className="col-span-2 space-y-4 p-6 rounded-lg bg-gray-100">
           <h2 className="text-2xl font-semibold mb-2">Company Details</h2>
 

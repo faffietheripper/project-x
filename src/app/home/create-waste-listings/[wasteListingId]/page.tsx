@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import PlaceBid from "@/components/app/PlaceBid";
-import { Button } from "@/components/ui/button";
 import { getBidsForListing } from "@/data-access/bids";
 import { getWasteListing } from "@/data-access/wasteListings";
 import { getOrganisationById } from "@/data-access/organisations";
@@ -32,7 +31,7 @@ export default async function ListingPage({
 
   const listing = await getWasteListing(listingId);
   const session = await auth();
-  const { winningBid } = await getWinningBid(Number(listingId));
+  const { winningBid } = await getWinningBid(listingId);
 
   if (!listing) {
     return <div className="py-36 text-center">Listing not found</div>;
@@ -41,6 +40,8 @@ export default async function ListingPage({
   const organisation = await getOrganisationById(listing.organisationId);
 
   const allBids = await getBidsForListing(listing.id);
+  // must include user + organisation in query
+
   const hasBids = allBids.length > 0;
 
   const canPlaceBid =
@@ -50,19 +51,29 @@ export default async function ListingPage({
     !listing.archived &&
     !listing.offerAccepted;
 
-  const canAssignBid = session && listing.userId === session.user.id;
+  // 🔥 Enterprise-level permission
+  const canAssignBid =
+    session &&
+    listing.organisationId === session.user.organisationId &&
+    !listing.assigned;
 
   const fileKeys = listing.fileKey?.split(",") ?? [];
+
+  console.log("Listing owner:", listing.userId);
+  console.log("Session user:", session?.user?.id);
+  console.log("Listing org:", listing.organisationId);
+  console.log("Session org:", session?.user?.organisationId);
 
   return (
     <main className="space-y-8 py-36 px-12 pl-[22vw]">
       <div className="grid grid-cols-6 gap-6">
+        {/* LEFT SIDE */}
         <div className="col-span-4 flex flex-col gap-6">
           <h1 className="text-2xl font-semibold">Auction for {listing.name}</h1>
 
           <div>
             Current Bid:{" "}
-            <span className="font-bold">${listing.currentBid}</span>
+            <span className="font-bold">£{listing.currentBid}</span>
           </div>
 
           {(await isBidOver(listing)) && (
@@ -117,7 +128,7 @@ export default async function ListingPage({
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* RIGHT SIDEBAR */}
         <section className="w-[330px] fixed right-8">
           <div className="space-y-4 p-6 bg-gray-200 rounded-lg h-[60vh] overflow-y-scroll">
             <h2 className="text-xl font-semibold">Current Bids</h2>
@@ -127,14 +138,47 @@ export default async function ListingPage({
             )}
 
             {hasBids ? (
-              allBids.map((bid) => (
-                <div key={bid.id} className="bg-gray-300 p-4 rounded-lg">
-                  <div>${bid.amount}</div>
+              allBids.map((bid, index) => (
+                <div
+                  key={bid.id}
+                  className="bg-gray-300 p-4 rounded-lg space-y-2"
+                >
+                  {index === 0 && (
+                    <Badge className="bg-green-500">Highest Bid</Badge>
+                  )}
+
+                  <div className="text-lg font-semibold">£{bid.amount}</div>
+
+                  <div className="text-sm text-gray-700">
+                    Bid by {bid.user.name}
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Organisation: {bid.organisation.teamName}
+                  </div>
+
+                  <div className="text-xs text-gray-400">
+                    {formatTimestamp(bid.timestamp)}
+                  </div>
+                  <div className="pt-2">
+                    <Link
+                      href={`/home/organisations/${bid.organisation.id}`}
+                      className="inline-block bg-gray-800 hover:bg-gray-900 text-white text-sm px-3 py-2 rounded-md transition"
+                    >
+                      View Organisation →
+                    </Link>
+                  </div>
 
                   {canAssignBid && (
                     <AssignListingButton
                       listingId={listing.id}
                       bidId={bid.id}
+                      offerAccepted={listing.offerAccepted}
+                      assignedCarrierOrganisationId={
+                        listing.assignedCarrierOrganisationId
+                      }
+                      declinedOffer={bid.declinedOffer}
+                      cancelledJob={bid.cancelledJob}
                       handleAssignWinningBid={handleAssignWinningBid}
                     />
                   )}

@@ -10,14 +10,15 @@ export async function markCompletedByManagerAction(
   _prevState: any,
   formData: FormData,
 ) {
-  const listingId = Number(formData.get("itemId"));
+  const listingId = Number(formData.get("listingId"));
   const verificationCode = formData.get("verificationCode")?.toString();
 
-  if (!listingId || !verificationCode) {
-    return {
-      success: false,
-      message: "Verification code is required.",
-    };
+  if (!listingId) {
+    return { success: false, message: "Invalid listing reference." };
+  }
+
+  if (!verificationCode) {
+    return { success: false, message: "Verification code is required." };
   }
 
   const session = await auth();

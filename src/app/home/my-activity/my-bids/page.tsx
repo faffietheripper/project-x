@@ -69,7 +69,7 @@ export default async function MyBids() {
                 </section>
 
                 <div className="mt-4 flex space-x-4">
-                  <Link href={`/home/waste-listings/${bid.listingId}`}>
+                  <Link href={`/home/create-waste-listings/${bid.listingId}`}>
                     <button className="bg-blue-500 text-white px-4 py-2 rounded-md">
                       View Listing
                     </button>

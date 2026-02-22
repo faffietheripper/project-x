@@ -9,23 +9,17 @@ type BidWinner = {
 };
 
 export default function BidWinner({ winningBid }: BidWinner) {
+  if (!winningBid) {
+    return <p className="mt-2 text-red-500 font-medium">Decision Pending</p>;
+  }
+
   return (
-    <div className="">
-      {winningBid ? (
-        <div className="">
-          <p>
-            <strong>Bid Amount:</strong> ${winningBid.amount}
-          </p>
-          <p>
-            <strong>Email:</strong> {winningBid.emailAddress}
-          </p>
-          <p>
-            <strong>Name:</strong> {winningBid.companyName}
-          </p>
-        </div>
-      ) : (
-        <p className="mt-2 text-red-500">Decision Pending</p>
-      )}
+    <div className="space-y-2">
+      <p className="text-lg font-semibold">£{winningBid.amount}</p>
+
+      <p className="text-sm text-gray-700">{winningBid.companyName}</p>
+
+      <p className="text-sm text-gray-500">{winningBid.emailAddress}</p>
     </div>
   );
 }

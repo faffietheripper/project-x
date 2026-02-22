@@ -1,18 +1,50 @@
-import NextAuth, { DefaultSession, User } from "next-auth";
+import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { database } from "@/db/database";
-import { accounts, sessions, users, verificationTokens } from "@/db/schema";
-import { getUserFromDb } from "@/app/login/actions"; // Ensure this path is correct
+import {
+  accounts,
+  sessions,
+  users,
+  verificationTokens,
+  userProfiles,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getUserFromDb } from "@/app/login/actions";
+
+/* ===============================
+   Extend Session + JWT Types
+================================= */
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      organisationId: string | null;
+      role: string;
+      profileCompleted: boolean;
     } & DefaultSession["user"];
   }
+
+  interface User {
+    organisationId: string | null;
+    role: string;
+  }
 }
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    organisationId: string | null;
+    role: string;
+    profileCompleted: boolean;
+  }
+}
+
+/* ===============================
+   NextAuth Config
+================================= */
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(database, {
@@ -21,33 +53,68 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
+
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
+
   callbacks: {
-    async session({ session, token, user }) {
-      // Attach all user properties to the session.user object
-      if (token) {
-        session.user = {
-          ...token, // spread the token properties which should now include the full user object
-        };
-      }
-      return session;
-    },
+    /* ===============================
+       JWT Callback
+       Runs at login + on refresh
+    ================================= */
     async jwt({ token, user }) {
+      // On initial login
       if (user) {
-        token = { ...user }; // Spread the full user object into the token
+        const dbUser = await database.query.users.findFirst({
+          where: eq(users.id, user.id),
+        });
+
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.organisationId = dbUser.organisationId;
+          token.role = dbUser.role;
+
+          const profile = await database.query.userProfiles.findFirst({
+            where: eq(userProfiles.userId, dbUser.id),
+          });
+
+          token.profileCompleted = !!profile;
+        }
       }
+
       return token;
     },
+
+    /* ===============================
+       Session Callback
+       Controls what client receives
+    ================================= */
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.organisationId = token.organisationId;
+        session.user.role = token.role;
+        session.user.profileCompleted = token.profileCompleted;
+      }
+
+      return session;
+    },
   },
+
   providers: [
     Google,
+
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (credentials) => {
+
+      async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
-          return null; // Required by NextAuth
+          return null;
         }
 
         const userResponse = await getUserFromDb(
@@ -56,22 +123,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
 
         if (!userResponse.success) {
-          return null; // Return null on failure
+          return null;
         }
 
-        // Return the user object for NextAuth session
+        // Only return minimal required fields
         return {
           id: userResponse.data.id,
           name: userResponse.data.name,
           email: userResponse.data.email,
-          role: userResponse.data.role,
         };
       },
     }),
   ],
+
   secret: process.env.AUTH_SECRET,
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
 });

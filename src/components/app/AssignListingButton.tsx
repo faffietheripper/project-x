@@ -6,14 +6,10 @@ import { useState } from "react";
 interface AssignListingButtonProps {
   listingId: number;
   bidId: number;
-  listing?: {
-    offerAccepted: boolean;
-    assignedCarrierOrganisationId: string | null;
-  };
-  bid?: {
-    declinedOffer: boolean;
-    cancelledJob: boolean;
-  };
+  offerAccepted: boolean;
+  assignedCarrierOrganisationId: string | null;
+  declinedOffer: boolean;
+  cancelledJob: boolean;
   handleAssignWinningBid: (
     formData: FormData,
   ) => Promise<{ success: boolean; message: string }>;
@@ -22,16 +18,20 @@ interface AssignListingButtonProps {
 export default function AssignListingButton({
   listingId,
   bidId,
-  listing,
-  bid,
+  offerAccepted,
+  assignedCarrierOrganisationId,
+  declinedOffer,
+  cancelledJob,
   handleAssignWinningBid,
 }: AssignListingButtonProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!bid || !listing) {
-    return null;
-  }
+  const disableAssign =
+    declinedOffer ||
+    cancelledJob ||
+    offerAccepted ||
+    assignedCarrierOrganisationId !== null;
 
   const handleAssign = async () => {
     setIsSubmitting(true);
@@ -59,39 +59,25 @@ export default function AssignListingButton({
     }
   };
 
-  // 🔥 Correct disable logic
-  const disableAssign =
-    bid.declinedOffer ||
-    bid.cancelledJob ||
-    listing.offerAccepted ||
-    listing.assignedCarrierOrganisationId !== null;
-
-  return (
-    <div>
-      {disableAssign ? (
-        <button
-          disabled
-          className="bg-gray-400 text-white py-2 px-4 rounded-md"
-        >
-          {bid.declinedOffer
-            ? "Offer Declined"
-            : bid.cancelledJob
-              ? "Job Cancelled"
-              : listing.offerAccepted
-                ? "Offer Accepted"
-                : listing.assignedCarrierOrganisationId
-                  ? "Carrier Assigned"
-                  : "Unavailable"}
-        </button>
-      ) : (
-        <button
-          onClick={handleAssign}
-          disabled={isSubmitting}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
-        >
-          {isSubmitting ? "Assigning..." : "Assign Listing"}
-        </button>
-      )}
-    </div>
+  return disableAssign ? (
+    <button disabled className="bg-gray-400 text-white py-2 px-4 rounded-md">
+      {declinedOffer
+        ? "Offer Declined"
+        : cancelledJob
+          ? "Job Cancelled"
+          : offerAccepted
+            ? "Offer Accepted"
+            : assignedCarrierOrganisationId
+              ? "Carrier Assigned"
+              : "Unavailable"}
+    </button>
+  ) : (
+    <button
+      onClick={handleAssign}
+      disabled={isSubmitting}
+      className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
+    >
+      {isSubmitting ? "Assigning..." : "Assign Listing"}
+    </button>
   );
 }
