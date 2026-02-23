@@ -1,13 +1,44 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { signOut } from "@/auth";
+import { signOut, auth } from "@/auth";
+import { database } from "@/db/database";
+import { supportTickets, users } from "@/db/schema";
+import { eq, and, or, isNull } from "drizzle-orm";
 
 async function logoutAction() {
   "use server";
   await signOut({ redirectTo: "/login" });
 }
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const dbUser = await database.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+  });
+
+  if (dbUser?.role !== "platform_admin") {
+    throw new Error("Access denied.");
+  }
+
+  // 🔴 ADMIN UNREAD COUNT
+  const unreadTickets = await database.query.supportTickets.findMany({
+    where: or(
+      eq(supportTickets.status, "open"),
+      and(
+        eq(supportTickets.status, "in_progress"),
+        isNull(supportTickets.assignedToUserId),
+      ),
+    ),
+  });
+
+  const unreadCount = unreadTickets.length;
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Sidebar */}
@@ -23,6 +54,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <AdminLink href="/admin/organisations">Organisations</AdminLink>
           <AdminLink href="/admin/incidents">Incidents</AdminLink>
           <AdminLink href="/admin/reviews">Reviews</AdminLink>
+
+          <AdminLink href="/admin/support">
+            <div className="flex justify-between items-center">
+              <span>Support</span>
+
+              {unreadCount > 0 && (
+                <span className="bg-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
+          </AdminLink>
         </nav>
 
         <div className="p-4 border-t border-gray-800 space-y-4">

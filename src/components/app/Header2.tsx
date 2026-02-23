@@ -2,25 +2,49 @@ import Link from "next/link";
 import { getProfileByUserId } from "@/data-access/profiles"; // or server-actions if you've combined
 import { auth } from "@/auth"; // your own auth helper from next-auth
 import SignOutButton from "./SignOutButton"; // 👈 client component
+import { database } from "@/db/database";
+import { supportTickets, users } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export default async function Header2() {
   const session = await auth();
 
   let fullName = "Guest";
+  let unreadCount = 0;
+
   if (session?.user?.id) {
     const profile = await getProfileByUserId(session.user.id);
     fullName = profile?.fullName ?? "Unknown User";
+
+    const dbUser = await database.query.users.findFirst({
+      where: eq(users.id, session.user.id),
+    });
+
+    if (dbUser?.organisationId) {
+      const unreadTickets = await database.query.supportTickets.findMany({
+        where: and(
+          eq(supportTickets.organisationId, dbUser.organisationId),
+          eq(supportTickets.status, "waiting_on_user"),
+        ),
+      });
+
+      unreadCount = unreadTickets.length;
+    }
   }
 
   return (
-    <div className="bg-black fixed text-white pb-8 pr-8 grid place-content-end place-items-center z-10 w-full h-[13vh]">
-      <div className="space-x-5 flex">
-        <Link href="/home/me" className="flex items-center space-x-3">
+    <div className="bg-black fixed text-white pb-8 pr-8 flex items-center justify-end z-10 w-full h-[13vh]">
+      <div className="flex items-center gap-6">
+        {/* PROFILE */}
+        <Link
+          href="/home/me"
+          className="flex items-center space-x-3 hover:opacity-80 transition"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="size-10"
+            className="size-8"
           >
             <path
               fillRule="evenodd"
@@ -28,9 +52,40 @@ export default async function Header2() {
               clipRule="evenodd"
             />
           </svg>
-          <div>{fullName}</div>
+          <div className="text-sm">{fullName}</div>
         </Link>
 
+        {/* SUPPORT BUTTON */}
+        <Link
+          href="/home/support"
+          className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition group"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="w-5 h-5 group-hover:scale-110 transition"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 10h8M8 14h5M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 0 1-4-.8L3 20l1.2-3.2A7.86 7.86 0 0 1 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+
+          <span className="text-sm">Support</span>
+
+          {/* 🔴 UNREAD BADGE */}
+          {unreadCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Link>
+
+        {/* SIGN OUT */}
         <SignOutButton />
       </div>
     </div>

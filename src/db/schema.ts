@@ -439,6 +439,63 @@ export const reviews = pgTable("bb_review", {
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
 
+export const supportTickets = pgTable("bb_support_ticket", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  organisationId: text("organisationId")
+    .notNull()
+    .references(() => organisations.id, { onDelete: "cascade" }),
+
+  createdByUserId: text("createdByUserId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  category: text("category")
+    .$type<
+      "bug" | "billing" | "access" | "feature_request" | "compliance" | "other"
+    >()
+    .notNull(),
+
+  priority: text("priority")
+    .$type<"low" | "medium" | "high" | "urgent">()
+    .notNull()
+    .default("medium"),
+
+  status: text("status")
+    .$type<"open" | "in_progress" | "waiting_on_user" | "resolved" | "closed">()
+    .notNull()
+    .default("open"),
+
+  assignedToUserId: text("assignedToUserId").references(() => users.id, {
+    onDelete: "set null",
+  }),
+
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
+});
+
+export const supportTicketMessages = pgTable("bb_support_ticket_message", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+
+  ticketId: text("ticketId")
+    .notNull()
+    .references(() => supportTickets.id, { onDelete: "cascade" }),
+
+  senderUserId: text("senderUserId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  message: text("message").notNull(),
+
+  isInternalNote: boolean("isInternalNote").notNull().default(false),
+
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
+
 /* =========================================================
    RELATIONS
 ========================================================= */
@@ -638,3 +695,40 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [wasteListings.id],
   }),
 }));
+
+export const supportTicketsRelations = relations(
+  supportTickets,
+  ({ one, many }) => ({
+    organisation: one(organisations, {
+      fields: [supportTickets.organisationId],
+      references: [organisations.id],
+    }),
+
+    createdBy: one(users, {
+      fields: [supportTickets.createdByUserId],
+      references: [users.id],
+    }),
+
+    assignedTo: one(users, {
+      fields: [supportTickets.assignedToUserId],
+      references: [users.id],
+    }),
+
+    messages: many(supportTicketMessages),
+  }),
+);
+
+export const supportTicketMessagesRelations = relations(
+  supportTicketMessages,
+  ({ one }) => ({
+    ticket: one(supportTickets, {
+      fields: [supportTicketMessages.ticketId],
+      references: [supportTickets.id],
+    }),
+
+    sender: one(users, {
+      fields: [supportTicketMessages.senderUserId],
+      references: [users.id],
+    }),
+  }),
+);
