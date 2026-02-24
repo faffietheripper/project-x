@@ -1,12 +1,10 @@
 import React from "react";
-import AboutIntro from "@/components/about/AboutIntro";
-import Navigation from "@/components/Navigation";
+import AboutPage from "@/components/landingpage/AboutPage";
 
 export default function About() {
   return (
     <div>
-      <AboutIntro />
-      <Navigation />
+      <AboutPage />
     </div>
   );
 }

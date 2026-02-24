@@ -3,6 +3,8 @@ import { Inter as FontSans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import Providers from "@/components/Providers";
+import Navigation from "@/components/landingpage/Navigation";
+import Footer from "@/components/landingpage/Footer";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -22,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={cn("font-sans antialiased", fontSans.variable)}>
+        <Navigation />
         <Providers>{children}</Providers>
+        <Footer />
       </body>
     </html>
   );

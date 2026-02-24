@@ -48,22 +48,22 @@ export default async function TicketThreadPage({
   const isPlatformAdmin = dbUser.role === "platform_admin";
 
   return (
-    <main className="pl-[22vw] pt-36 p-12 space-y-8">
+    <div className="pl-[22vw] h-[calc(100vh-13vh)] pt-[13vh] flex flex-col bg-gray-50">
       {/* ===============================
-          HEADER
-      ================================ */}
-      <div className="bg-white p-6 rounded-2xl shadow border">
-        <div className="flex justify-between items-center">
+        STICKY HEADER
+    ================================ */}
+      <div className="bg-white border-b shadow-sm px-10 py-6">
+        <div className="max-w-4xl mx-auto flex justify-between items-start">
           <div>
-            <h1 className="text-xl font-bold capitalize">
+            <h1 className="text-lg font-semibold capitalize">
               {ticket.category.replace("_", " ")} Ticket
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-500 mt-1">
               Created {ticket.createdAt?.toLocaleString()}
             </p>
           </div>
 
-          <div className="flex gap-4 text-sm">
+          <div className="flex gap-3">
             <StatusBadge status={ticket.status} />
             <PriorityBadge priority={ticket.priority} />
           </div>
@@ -71,52 +71,63 @@ export default async function TicketThreadPage({
       </div>
 
       {/* ===============================
-          MESSAGE THREAD
-      ================================ */}
-      <div className="space-y-4">
-        {messages.map((msg) => {
-          // Hide internal notes from non-admin users
-          if (msg.isInternalNote && !isPlatformAdmin) return null;
+        SCROLLABLE MESSAGE AREA
+    ================================ */}
+      <div className="flex-1 overflow-y-auto px-10 py-8">
+        <div className="max-w-3xl mx-auto space-y-4">
+          {messages.map((msg) => {
+            if (msg.isInternalNote && !isPlatformAdmin) return null;
 
-          const isOwnMessage = msg.senderUserId === dbUser.id;
+            const isOwn = msg.senderUserId === dbUser.id;
 
-          return (
-            <div
-              key={msg.id}
-              className={`p-4 rounded-xl max-w-2xl ${
-                msg.isInternalNote
-                  ? "bg-yellow-50 border border-yellow-200"
-                  : isOwnMessage
-                    ? "bg-blue-600 text-white ml-auto"
-                    : "bg-gray-100"
-              }`}
-            >
-              <div className="text-xs mb-2 opacity-80">
-                {msg.isInternalNote
-                  ? "Internal Note (Admin)"
-                  : msg.sender?.name}
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`px-4 py-3 rounded-2xl text-sm max-w-[70%] ${
+                    msg.isInternalNote
+                      ? "bg-yellow-50 border border-yellow-300 text-yellow-900"
+                      : isOwn
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border shadow-sm"
+                  }`}
+                >
+                  <div className="text-[11px] mb-1 opacity-70">
+                    {msg.isInternalNote
+                      ? "Internal Note (Admin)"
+                      : msg.sender?.name}
+                  </div>
+
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {msg.message}
+                  </div>
+
+                  <div className="text-[10px] mt-2 opacity-60 text-right">
+                    {msg.createdAt?.toLocaleString()}
+                  </div>
+                </div>
               </div>
-
-              <div className="text-sm whitespace-pre-wrap">{msg.message}</div>
-
-              <div className="text-[10px] mt-2 opacity-60">
-                {msg.createdAt?.toLocaleString()}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* ===============================
-          REPLY FORM
-      ================================ */}
+        STICKY REPLY BOX
+    ================================ */}
       {ticket.status !== "closed" && (
-        <ReplyToTicketForm
-          ticketId={ticket.id}
-          isPlatformAdmin={isPlatformAdmin}
-        />
+        <div className="border-t bg-white px-10 py-6">
+          <div className="max-w-3xl mx-auto">
+            <ReplyToTicketForm
+              ticketId={ticket.id}
+              isPlatformAdmin={isPlatformAdmin}
+            />
+          </div>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 

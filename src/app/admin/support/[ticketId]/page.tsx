@@ -42,59 +42,79 @@ export default async function AdminTicketThread({
   });
 
   return (
-    <main className="p-12 space-y-8">
-      {/* HEADER */}
-      <div className="bg-white p-6 rounded-2xl shadow border space-y-3">
-        <div className="flex justify-between items-center">
+    <main className="h-[calc(100vh-4rem)] flex flex-col bg-gray-50">
+      {/* ===============================
+        STICKY HEADER
+    ================================ */}
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm p-6">
+        <div className="flex justify-between items-center max-w-5xl mx-auto">
           <div>
-            <h1 className="text-xl font-bold capitalize">
+            <h1 className="text-lg font-semibold capitalize">
               {ticket.category.replace("_", " ")} Ticket
             </h1>
-            <div className="text-sm text-gray-500">
-              Organisation: {ticket.organisation?.teamName}
-            </div>
-            <div className="text-xs text-gray-400">
-              Created by {ticket.createdBy?.name}
+            <div className="text-xs text-gray-500">
+              {ticket.organisation?.teamName} · Created by{" "}
+              {ticket.createdBy?.name}
             </div>
           </div>
 
-          <div className="text-sm">
+          <div className="text-xs text-gray-500">
             Assigned to: {ticket.assignedTo?.name ?? "Unassigned"}
           </div>
         </div>
 
-        {/* ADMIN CONTROLS */}
-        <AdminTicketControls ticket={ticket} />
+        <div className="max-w-5xl mx-auto mt-4">
+          <AdminTicketControls ticket={ticket} />
+        </div>
       </div>
 
-      {/* THREAD */}
-      <div className="space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`p-4 rounded-xl max-w-2xl ${
-              msg.isInternalNote
-                ? "bg-yellow-50 border border-yellow-200"
-                : msg.senderUserId === dbUser.id
-                  ? "bg-blue-600 text-white ml-auto"
-                  : "bg-gray-100"
-            }`}
-          >
-            <div className="text-xs mb-2 opacity-80">
-              {msg.isInternalNote ? "Internal Note" : msg.sender?.name}
-            </div>
+      {/* ===============================
+        MESSAGE THREAD (SCROLLABLE)
+    ================================ */}
+      <div className="flex-1 overflow-y-auto px-6 py-8">
+        <div className="max-w-3xl mx-auto space-y-4">
+          {messages.map((msg) => {
+            const isOwn = msg.senderUserId === dbUser.id;
 
-            <div className="text-sm whitespace-pre-wrap">{msg.message}</div>
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`px-4 py-3 rounded-2xl text-sm shadow-sm max-w-[75%] ${
+                    msg.isInternalNote
+                      ? "bg-yellow-50 border border-yellow-300 text-yellow-900"
+                      : isOwn
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border"
+                  }`}
+                >
+                  <div className="text-[11px] mb-1 opacity-70">
+                    {msg.isInternalNote ? "Internal Note" : msg.sender?.name}
+                  </div>
 
-            <div className="text-[10px] mt-2 opacity-60">
-              {msg.createdAt?.toLocaleString()}
-            </div>
-          </div>
-        ))}
+                  <div className="whitespace-pre-wrap">{msg.message}</div>
+
+                  <div className="text-[10px] mt-2 opacity-60 text-right">
+                    {msg.createdAt?.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
+      {/* ===============================
+        STICKY REPLY BOX
+    ================================ */}
       {ticket.status !== "closed" && (
-        <ReplyToTicketForm ticketId={ticket.id} isPlatformAdmin={true} />
+        <div className="sticky bottom-0 bg-white border-t p-6">
+          <div className="max-w-3xl mx-auto">
+            <ReplyToTicketForm ticketId={ticket.id} isPlatformAdmin={true} />
+          </div>
+        </div>
       )}
     </main>
   );

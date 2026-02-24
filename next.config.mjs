@@ -22,6 +22,11 @@ const nextConfig = {
         port: "",
         pathname: "/photo/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+      },
     ],
   },
   webpack(config, { isServer }) {
