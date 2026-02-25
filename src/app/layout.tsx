@@ -24,9 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={cn("font-sans antialiased", fontSans.variable)}>
-        <Navigation />
         <Providers>{children}</Providers>
-        <Footer />
       </body>
     </html>
   );

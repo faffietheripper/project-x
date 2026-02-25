@@ -2,84 +2,135 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="bg-black text-white border-t border-white/10">
-      <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12">
+    <footer className="bg-black text-white border-t border-gray-800">
+      <div className="max-w-6xl mx-auto px-6 py-24 grid md:grid-cols-4 gap-16">
         {/* BRAND */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4">
-            Waste<span className="text-indigo-500">X</span>
+        <div className="space-y-6">
+          <h2 className="font-[var(--font-heading)] text-3xl tracking-tight">
+            Waste<span className="text-orange-500">X</span>
           </h2>
-          <p className="text-sm text-white/60 leading-relaxed">
-            Digital chain of custody infrastructure for compliant waste
-            transfers, carrier verification, and operational transparency.
+
+          <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+            Digital chain-of-custody infrastructure designed for construction
+            environments, licensed carriers, and regulatory-aligned waste
+            transfer verification.
           </p>
+
+          <div className="text-xs text-gray-500 uppercase tracking-wider">
+            Operational Infrastructure · United Kingdom
+          </div>
+        </div>
+
+        {/* PLATFORM */}
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-6">
+            Platform
+          </h3>
+
+          <ul className="space-y-4 text-sm text-gray-400">
+            <li>
+              <Link
+                href="/features"
+                className="hover:text-white transition-colors"
+              >
+                System Overview
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/security"
+                className="hover:text-white transition-colors"
+              >
+                Compliance & Security
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/pricing"
+                className="hover:text-white transition-colors"
+              >
+                Deployment Model
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* INDUSTRY */}
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-6">
+            Industry
+          </h3>
+
+          <ul className="space-y-4 text-sm text-gray-400">
+            <li>
+              <Link
+                href="/construction"
+                className="hover:text-white transition-colors"
+              >
+                Construction & Demolition
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/carriers"
+                className="hover:text-white transition-colors"
+              >
+                Licensed Carriers
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/local-authorities"
+                className="hover:text-white transition-colors"
+              >
+                Local Authorities
+              </Link>
+            </li>
+          </ul>
         </div>
 
         {/* COMPANY */}
         <div>
-          <h3 className="text-sm font-semibold mb-4 text-white/90">Company</h3>
-          <ul className="space-y-3 text-sm text-white/60">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-6">
+            Company
+          </h3>
+
+          <ul className="space-y-4 text-sm text-gray-400">
             <li>
-              <Link href="/about" className="hover:text-white">
-                About
+              <Link
+                href="/about"
+                className="hover:text-white transition-colors"
+              >
+                About Waste X
               </Link>
             </li>
             <li>
-              <Link href="/contact" className="hover:text-white">
+              <Link
+                href="/contact"
+                className="hover:text-white transition-colors"
+              >
                 Contact
               </Link>
             </li>
             <li>
-              <Link href="/careers" className="hover:text-white">
-                Careers
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* PRODUCT */}
-        <div>
-          <h3 className="text-sm font-semibold mb-4 text-white/90">Product</h3>
-          <ul className="space-y-3 text-sm text-white/60">
-            <li>
-              <Link href="/features" className="hover:text-white">
-                Features
-              </Link>
-            </li>
-            <li>
-              <Link href="/security" className="hover:text-white">
-                Security
-              </Link>
-            </li>
-            <li>
-              <Link href="/pricing" className="hover:text-white">
-                Pricing
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* LEGAL */}
-        <div>
-          <h3 className="text-sm font-semibold mb-4 text-white/90">Legal</h3>
-          <ul className="space-y-3 text-sm text-white/60">
-            <li>
-              <Link href="/privacy" className="hover:text-white">
-                Privacy Policy
-              </Link>
-            </li>
-            <li>
-              <Link href="/terms" className="hover:text-white">
-                Terms of Service
+              <Link
+                href="/legal"
+                className="hover:text-white transition-colors"
+              >
+                Legal & Policies
               </Link>
             </li>
           </ul>
         </div>
       </div>
 
-      {/* BOTTOM BAR */}
-      <div className="border-t border-white/10 py-6 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} Waste X. All rights reserved.
+      {/* Bottom Structural Bar */}
+      <div className="border-t border-gray-800">
+        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 uppercase tracking-wider">
+          <div>© {new Date().getFullYear()} Waste X · All Rights Reserved</div>
+
+          <div>Digital Waste Transfer Infrastructure</div>
+        </div>
       </div>
     </footer>
   );

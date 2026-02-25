@@ -49,7 +49,7 @@ export default function FullHomePage() {
             className="relative h-[420px]"
           >
             <Image
-              src="https://images.unsplash.com/photo-1581092160607-ee22621dd758"
+              src="https://images.unsplash.com/photo-1711618732595-0c517e08d40c?q=80&w=2906&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
               alt="Construction operations"
               fill
               className="object-cover border-4 border-orange-500"
@@ -100,44 +100,48 @@ export default function FullHomePage() {
         </div>
       </section>
 
-      {/* ================= HOW IT WORKS ================= */}
-      <section className="py-32 px-6 bg-gray-50 border-t-4 border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-20">
-            Structured Chain of Custody
+      {/* ================= WHY WASTE X ================= */}
+      <section className="relative py-40 text-white overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1642204705127-accc0dcc5779?auto=format&fit=crop&w=2000&q=80"
+            alt="Construction waste background"
+            fill
+            sizes="100vw"
+            className="object-cover scale-110"
+            priority={false}
+          />
+        </div>
+
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/70" />
+
+        {/* Content */}
+        <div className="relative max-w-6xl mx-auto px-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-20">
+            Why <span className="text-orange-500">Waste X</span>
           </h2>
 
-          <div className="grid md:grid-cols-5 gap-8 text-center">
-            <ProcessStep
-              number="01"
-              title="Waste Listed"
-              description="Detailed waste data and documentation uploaded."
+          <div className="grid md:grid-cols-2 gap-16">
+            <BenefitBlock
+              title="Improve Operational ROI"
+              text="Using spreadsheets and paper documentation to manage waste transfers results in missing loads, reconciliation delays, and untracked costs. Waste X creates a real-time digital record of every transfer, providing a single, accurate system of record."
             />
-            <Arrow />
-            <ProcessStep
-              number="02"
-              title="Bids Submitted"
-              description="Verified carriers submit structured offers."
-            />
-            <Arrow />
-            <ProcessStep
-              number="03"
-              title="Carrier Assigned"
-              description="Producer confirms assignment within platform."
-            />
-          </div>
 
-          <div className="grid md:grid-cols-5 gap-8 text-center mt-10">
-            <ProcessStep
-              number="04"
-              title="Collection Confirmed"
-              description="Carrier confirms collection with verification."
+            <BenefitBlock
+              title="Maintain Quantity & Cost Control"
+              text="When volumes and haulage costs aren’t visible immediately, overruns go unnoticed until it's too late. Waste X compares expected volumes against logged transfers in real time, helping identify discrepancies early."
             />
-            <Arrow />
-            <ProcessStep
-              number="05"
-              title="Completion Logged"
-              description="Transfer marked complete with audit trail."
+
+            <BenefitBlock
+              title="Verify Invoices & Reduce Risk"
+              text="Manual reconciliation increases the risk of billing errors and disputes. Waste X provides structured, transfer-level data to validate invoices quickly and reduce exposure."
+            />
+
+            <BenefitBlock
+              title="Monitor Carrier Performance"
+              text="Without structured performance data, it’s difficult to identify inefficiencies. Waste X tracks participation, assignment, and completion activity — providing clarity without intrusive tracking methods."
             />
           </div>
         </div>
@@ -250,6 +254,15 @@ function SideBlock({ title, description, items }: any) {
           <li key={i}>• {item}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function BenefitBlock({ title, text }: any) {
+  return (
+    <div className="border border-white/20 p-10 backdrop-blur-sm bg-black/40">
+      <h3 className="text-2xl font-bold text-orange-500 mb-6">{title}</h3>
+      <p className="text-gray-300 leading-relaxed">{text}</p>
     </div>
   );
 }

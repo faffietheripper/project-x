@@ -2,121 +2,146 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
+import Image from "next/image";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
 
   return (
-    <main className="bg-black text-white min-h-screen pt-40 pb-32 px-6">
-      {/* ================= HEADER ================= */}
-      <motion.section
-        className="max-w-4xl mx-auto text-center mb-20"
-        initial="hidden"
-        animate="show"
-        variants={fadeUp}
-      >
-        <h1 className="text-5xl font-bold mb-6">
-          Contact <span className="text-indigo-500">Waste X</span>
-        </h1>
+    <main className="relative min-h-screen text-white">
+      {/* ================= BACKGROUND IMAGE ================= */}
+      <div className="fixed inset-0 -z-20">
+        <Image
+          src="https://images.unsplash.com/photo-1740635313618-35636018c870?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8d2FzdGUlMjBkaXNwb3NhbHxlbnwwfHwwfHx8MA%3D%3D"
+          alt="Construction operations background"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+      </div>
 
-        <p className="text-white/70 text-lg leading-relaxed">
-          Speak with our team about enterprise deployment, regulatory alignment,
-          or partnership opportunities.
-        </p>
-      </motion.section>
+      {/* ================= DARK OVERLAY ================= */}
+      <div className="fixed inset-0 -z-10 bg-black/85" />
 
-      {/* ================= FORM + INFO ================= */}
-      <section className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16">
-        {/* CONTACT FORM */}
-        <motion.div
+      {/* ================= CONTENT ================= */}
+      <div className="pt-40 pb-36 px-6">
+        {/* HEADER */}
+        <motion.section
+          className="max-w-4xl mx-auto text-center mb-24"
           initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
+          animate="show"
           variants={fadeUp}
-          className="bg-white/5 border border-white/10 p-10 rounded-2xl"
         >
-          <h2 className="text-2xl font-semibold mb-8">Send Us a Message</h2>
+          <h1 className="font-[var(--font-heading)] text-6xl tracking-tight mb-6">
+            Contact <span className="text-orange-500">Waste X</span>
+          </h1>
 
-          {submitted ? (
-            <div className="bg-green-600/20 border border-green-500 p-6 rounded-xl">
-              <p className="text-green-400 font-medium">
-                Thank you. Our team will respond shortly.
+          <p className="text-gray-300 text-lg leading-relaxed max-w-2xl mx-auto">
+            Speak with our team regarding operational deployment, regulatory
+            alignment, or pilot participation within construction environments.
+          </p>
+        </motion.section>
+
+        {/* FORM + INFO */}
+        <section className="max-w-6xl mx-auto grid md:grid-cols-2 gap-20">
+          {/* FORM */}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="bg-black/70 border border-gray-700 p-12 backdrop-blur-md"
+          >
+            <h2 className="font-[var(--font-heading)] text-3xl tracking-tight mb-10">
+              Operational Inquiry
+            </h2>
+
+            {submitted ? (
+              <div className="border border-orange-500 p-6">
+                <p className="text-orange-500 font-medium">
+                  Inquiry received. Our team will respond shortly.
+                </p>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setSubmitted(true);
+                }}
+                className="space-y-8"
+              >
+                <Input label="Full Name" type="text" required />
+                <Input label="Company Name" type="text" />
+                <Input label="Email Address" type="email" required />
+
+                <div>
+                  <label className="block text-sm text-gray-300 uppercase tracking-wide mb-3">
+                    Message
+                  </label>
+                  <textarea
+                    required
+                    rows={5}
+                    className="w-full bg-black/80 border border-gray-600 px-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-black px-6 py-4 font-semibold uppercase tracking-wide transition"
+                >
+                  Submit Inquiry
+                </button>
+              </form>
+            )}
+          </motion.div>
+
+          {/* INFO */}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="space-y-16"
+          >
+            <div>
+              <h3 className="font-[var(--font-heading)] text-2xl tracking-tight mb-6">
+                Enterprise & Regulatory Coordination
+              </h3>
+
+              <p className="text-gray-300 leading-relaxed">
+                Waste X supports structured waste movement documentation,
+                carrier participation, and compliance visibility aligned with
+                evolving UK Digital Waste Tracking initiatives.
               </p>
             </div>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSubmitted(true);
-              }}
-              className="space-y-6"
-            >
-              <Input label="Full Name" type="text" required />
-              <Input label="Company Name" type="text" />
-              <Input label="Email Address" type="email" required />
 
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Message
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  className="w-full bg-black border border-white/20 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
-                />
-              </div>
+            <div className="bg-black/70 border border-gray-700 p-10 backdrop-blur-md space-y-6">
+              <InfoRow label="Enterprise" value="enterprise@waste-x.com" />
+              <InfoRow label="Support" value="support@waste-x.com" />
+              <InfoRow label="Operating Region" value="United Kingdom" />
+            </div>
 
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 px-6 py-4 rounded-lg font-medium transition"
-              >
-                Submit Inquiry
-              </button>
-            </form>
-          )}
-        </motion.div>
+            <div>
+              <h3 className="font-[var(--font-heading)] text-2xl tracking-tight mb-6">
+                Platform Scope
+              </h3>
 
-        {/* CONTACT INFO */}
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="space-y-10"
-        >
-          <div>
-            <h3 className="text-xl font-semibold mb-4">
-              Enterprise & Regulatory Inquiries
-            </h3>
-            <p className="text-white/70 leading-relaxed">
-              For large-scale deployment, regulatory partnerships, or
-              integration discussions, please contact our enterprise team
-              directly.
-            </p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 p-8 rounded-2xl space-y-4">
-            <InfoRow label="Email" value="enterprise@waste-x.com" />
-            <InfoRow label="General Support" value="support@waste-x.com" />
-            <InfoRow label="Location" value="United Kingdom" />
-          </div>
-
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Platform Overview</h3>
-            <p className="text-white/70 leading-relaxed">
-              Waste X provides digital infrastructure for structured waste
-              auctions, carrier verification, incident management, and
-              compliance tracking aligned with emerging UK Digital Waste
-              Tracking standards.
-            </p>
-          </div>
-        </motion.div>
-      </section>
+              <p className="text-gray-300 leading-relaxed">
+                The platform provides digital chain-of-custody logging,
+                structured listing workflows, carrier verification, completion
+                logging, and audit-ready record generation for construction
+                waste environments.
+              </p>
+            </div>
+          </motion.div>
+        </section>
+      </div>
     </main>
   );
 }
@@ -134,11 +159,13 @@ function Input({
 }) {
   return (
     <div>
-      <label className="block text-sm text-white/70 mb-2">{label}</label>
+      <label className="block text-sm text-gray-300 uppercase tracking-wide mb-3">
+        {label}
+      </label>
       <input
         type={type}
         required={required}
-        className="w-full bg-black border border-white/20 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
+        className="w-full bg-black/80 border border-gray-600 px-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
       />
     </div>
   );
@@ -146,8 +173,8 @@ function Input({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-white/50">{label}</span>
+    <div className="flex justify-between text-sm uppercase tracking-wide">
+      <span className="text-gray-400">{label}</span>
       <span className="text-white">{value}</span>
     </div>
   );

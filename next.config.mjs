@@ -7,25 +7,29 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        hostname: "pub-24083acae3654ddc922efecd4e517ac9.r2.dev",
         protocol: "https",
-        port: "",
-      },
-      {
-        hostname: "lh3.googleusercontent.com",
-        protocol: "https",
-        port: "",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
         hostname: "cdn.pixabay.com",
-        port: "",
-        pathname: "/photo/**",
+        pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
-        port: "",
+        hostname: "pixabay.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "pub-24083acae3654ddc922efecd4e517ac9.r2.dev",
+        pathname: "/**",
       },
     ],
   },

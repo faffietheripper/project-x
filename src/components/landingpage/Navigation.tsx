@@ -2,74 +2,98 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { FiMenu, FiX } from "react-icons/fi";
+import { Menu, X, ChevronDown } from "lucide-react";
 
 export default function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [solutionsOpen, setSolutionsOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-gray-800">
+      <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
         {/* LOGO */}
-        <Link href="/" className="text-2xl font-bold text-white tracking-tight">
-          Waste<span className="text-indigo-500">X</span>
+        <Link
+          href="/"
+          className="font-[var(--font-heading)] text-3xl tracking-tight text-white"
+        >
+          Waste<span className="text-orange-500">X</span>
         </Link>
 
         {/* DESKTOP LINKS */}
-        <div className="hidden md:flex items-center gap-8 text-sm">
+        <div className="hidden md:flex items-center gap-10 text-sm tracking-wide">
           <NavLink href="/">Home</NavLink>
+
+          <NavLink
+            href="/how-it-works"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+          >
+            How it Works
+          </NavLink>
+
           <NavLink href="/about">About</NavLink>
-          <NavLink href="/contact">Contact</NavLink>
+
+          <Link
+            href="/contact"
+            className="text-sm text-gray-400 hover:text-white transition"
+          >
+            Contact
+          </Link>
         </div>
 
-        {/* RIGHT SIDE */}
-        <div className="hidden md:flex items-center gap-4">
+        {/* RIGHT SIDE CTA */}
+        <div className="hidden md:flex items-center gap-6">
           <Link
             href="/login"
-            className="text-sm text-white/80 hover:text-white transition"
+            className="text-sm text-gray-400 hover:text-white transition"
           >
-            Log In
+            Login
           </Link>
 
           <Link
-            href="/register"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-5 py-2 rounded-lg transition shadow-lg"
+            href="/pilot"
+            className="bg-orange-500 hover:bg-orange-600 text-black text-sm px-6 py-2 font-semibold uppercase tracking-wide transition"
           >
-            Try Free
+            Request Pilot Access
           </Link>
         </div>
 
-        {/* MOBILE MENU BUTTON */}
+        {/* MOBILE BUTTON */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden text-white text-2xl"
+          className="md:hidden text-white"
         >
-          {menuOpen ? <FiX /> : <FiMenu />}
+          {menuOpen ? <X size={26} /> : <Menu size={26} />}
         </button>
       </div>
 
       {/* MOBILE MENU */}
       {menuOpen && (
-        <div className="md:hidden bg-black border-t border-white/10 px-6 py-6 space-y-4">
+        <div className="md:hidden bg-black border-t border-gray-800 px-6 py-8 space-y-6 text-sm uppercase tracking-wide">
           <MobileLink href="/" setMenuOpen={setMenuOpen}>
             Home
           </MobileLink>
+          <MobileLink href="/how-it-works" setMenuOpen={setMenuOpen}>
+            How It Works
+          </MobileLink>
+
           <MobileLink href="/about" setMenuOpen={setMenuOpen}>
             About
           </MobileLink>
-          <MobileLink href="/contact" setMenuOpen={setMenuOpen}>
-            Contact
-          </MobileLink>
 
-          <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
-            <Link href="/login" className="text-white/80">
-              Log In
+          <div className="space-y-3">
+            <div className="text-gray-500">Contact</div>
+          </div>
+
+          <div className="pt-6 border-t border-gray-800 flex flex-col gap-4">
+            <Link href="/login" className="text-gray-400">
+              Login
             </Link>
             <Link
-              href="/register"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-center"
+              href="/pilot"
+              className="bg-orange-500 text-black px-6 py-3 text-center font-semibold uppercase tracking-wide"
             >
-              Try Free
+              Request Pilot Access
             </Link>
           </div>
         </div>
@@ -78,34 +102,31 @@ export default function Navigation() {
   );
 }
 
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
+function NavLink({ href, children }: any) {
   return (
-    <Link href={href} className="text-white/80 hover:text-white transition">
+    <Link href={href} className="text-gray-400 hover:text-white transition">
       {children}
     </Link>
   );
 }
 
-function MobileLink({
-  href,
-  children,
-  setMenuOpen,
-}: {
-  href: string;
-  children: React.ReactNode;
-  setMenuOpen: (v: boolean) => void;
-}) {
+function DropdownLink({ href, children }: any) {
+  return (
+    <Link
+      href={href}
+      className="block text-gray-400 hover:text-white transition"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MobileLink({ href, children, setMenuOpen }: any) {
   return (
     <Link
       href={href}
       onClick={() => setMenuOpen(false)}
-      className="block text-white/80 hover:text-white"
+      className="block text-gray-400 hover:text-white"
     >
       {children}
     </Link>

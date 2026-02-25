@@ -1,183 +1,281 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 40 },
   show: { opacity: 1, y: 0, transition: { duration: 0.6 } },
 };
 
 export default function AboutPage() {
   return (
-    <main className="bg-black text-white min-h-screen pt-40 pb-32 px-6">
+    <main className="bg-white text-gray-900">
       {/* ================= HERO ================= */}
-      <motion.section
-        initial="hidden"
-        animate="show"
-        variants={fadeUp}
-        className="max-w-4xl mx-auto text-center mb-24"
-      >
-        <h1 className="text-5xl font-bold mb-6">
-          Why <span className="text-indigo-500">Waste X</span> Exists
-        </h1>
+      <section className="relative bg-[#1f1f1f] text-white px-6 py-32 overflow-hidden">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={fadeUp}
+            className="relative h-[420px]"
+          >
+            <Image
+              src="https://images.unsplash.com/photo-1711618734168-9935518143a4?auto=format&fit=crop&w=1600&q=80"
+              alt="Construction waste operations"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover border-4 border-orange-500"
+            />
+          </motion.div>
 
-        <p className="text-lg text-white/70 leading-relaxed">
-          Waste X wasn’t built to be another marketplace. It was built to bring
-          structure, visibility, and accountability to an industry that is
-          becoming increasingly regulated — and increasingly complex.
-        </p>
-      </motion.section>
+          <motion.div initial="hidden" animate="show" variants={fadeUp}>
+            <h1 className="text-5xl font-bold leading-tight mb-6">
+              Why Waste X Exists
+            </h1>
 
-      {/* ================= STORY ================= */}
-      <section className="max-w-5xl mx-auto space-y-12 text-white/80 leading-relaxed text-lg">
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          Waste management operations are rarely simple. Transfers involve
-          multiple organisations, carriers, compliance requirements,
-          documentation, verification, and trust between parties.
-        </motion.p>
+            <p className="text-gray-300 text-lg mb-6 leading-relaxed">
+              Waste X was created to bring structure and accountability to
+              construction-grade waste operations across the United Kingdom.
+            </p>
 
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          Yet much of the industry still relies on fragmented communication,
-          spreadsheets, phone calls, and disconnected systems. As regulatory
-          frameworks evolve — particularly with the UK’s move toward Digital
-          Waste Tracking — the need for structured, digital infrastructure
-          becomes unavoidable.
-        </motion.p>
-
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          Waste X was created to address that gap. Not by replacing human
-          relationships, but by supporting them with better systems.
-        </motion.p>
+            <p className="text-gray-400 mb-10 leading-relaxed">
+              As regulatory oversight increases and digital waste tracking
+              evolves, fragmented systems are no longer sustainable.
+              Infrastructure is required.
+            </p>
+          </motion.div>
+        </div>
       </section>
 
-      {/* ================= MISSION ================= */}
-      <section className="mt-32 max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-start">
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
+      {/* ================= INDUSTRY SHIFT ================= */}
+      <section className="py-28 px-6 bg-gray-100 border-t-8 border-orange-500">
+        <div className="max-w-5xl mx-auto text-center space-y-6 mb-16">
+          <h2 className="text-4xl font-bold">The Industry Is Changing</h2>
 
-          <p className="text-white/70 leading-relaxed">
-            To provide secure, structured digital infrastructure for waste
-            transfers — ensuring that every listing, bid, assignment,
-            verification, and incident is properly recorded and auditable.
+          <p className="text-lg text-gray-600 leading-relaxed">
+            Construction and demolition projects generate significant material
+            movement across sites, regions, and organisations.
           </p>
 
-          <p className="mt-6 text-white/70 leading-relaxed">
-            We believe compliance should not be an afterthought. It should be
-            built into the workflow from the start.
+          <p className="text-lg text-gray-600 leading-relaxed">
+            The shift toward UK Digital Waste Tracking represents a structural
+            transformation — from paper-based processes to accountable digital
+            systems.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="bg-white/5 border border-white/10 p-10 rounded-2xl"
-        >
-          <ul className="space-y-6 text-white/80">
-            <li>• Structured digital waste listings</li>
-            <li>• Verified organisation participation</li>
-            <li>• Carrier assignment tracking</li>
-            <li>• Incident documentation & resolution</li>
-            <li>• Organisation-scoped data security</li>
-          </ul>
-        </motion.div>
-      </section>
-
-      {/* ================= INDUSTRY CONTEXT ================= */}
-      <section className="mt-32 max-w-5xl mx-auto space-y-10 text-white/70 leading-relaxed text-lg">
-        <motion.h2
-          className="text-3xl font-bold text-white mb-6"
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          The Direction of the Industry
-        </motion.h2>
-
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          The UK government’s commitment to digital waste tracking signals a
-          broader shift toward transparency and accountability across the
-          sector. Environmental impact, ESG reporting, and chain-of-custody
-          clarity are no longer optional considerations.
-        </motion.p>
-
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-        >
-          Waste X is built with that future in mind — not as a temporary tool,
-          but as infrastructure that can support long-term regulatory alignment.
-        </motion.p>
-      </section>
-
-      {/* ================= VALUES ================= */}
-      <section className="mt-32 bg-white text-black py-24 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-16 text-center">
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Integrity</h3>
-            <p className="text-gray-600">
-              Clear documentation and structured workflows reduce ambiguity and
-              protect all parties involved.
-            </p>
+        {/* Added Image Row */}
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6">
+          <div className="relative h-[260px]">
+            <Image
+              src="https://images.unsplash.com/photo-1574974671999-24b7dfbb0d53?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8d2FzdGUlMjBtYW5hZ2VtZW50fGVufDB8fDB8fHww"
+              alt="Construction site logistics"
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover border border-gray-300"
+            />
           </div>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Accountability</h3>
-            <p className="text-gray-600">
-              Every action within the system is traceable, ensuring transparent
-              responsibility.
-            </p>
+          <div className="relative h-[260px]">
+            <Image
+              src="https://images.unsplash.com/photo-1722482445685-91a6b17d5d02?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fHdhc3RlJTIwbWFuYWdlbWVudHxlbnwwfHwwfHx8MA%3D%3D"
+              alt="Material handling"
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover border border-gray-300"
+            />
           </div>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Sustainability</h3>
-            <p className="text-gray-600">
-              Digital infrastructure supports more responsible environmental
-              practices across the supply chain.
-            </p>
+          <div className="relative h-[260px]">
+            <Image
+              src="https://images.unsplash.com/photo-1717667745836-145a38948ebf?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fHdhc3RlJTIwbWFuYWdlbWVudHxlbnwwfHwwfHx8MA%3D%3D"
+              alt="Waste site management"
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover border border-gray-300"
+            />
           </div>
         </div>
       </section>
 
-      {/* ================= CLOSING ================= */}
-      <section className="py-24 text-center max-w-4xl mx-auto px-6">
-        <h2 className="text-3xl font-bold mb-6">Built for the Long Term</h2>
+      {/* ================= FOUNDATIONAL PROBLEMS ================= */}
+      <section className="py-28 px-6 bg-white">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-12 mb-20">
+          <IndustrialCard
+            title="Fragmented Workflows"
+            text="Spreadsheets, emails and disconnected systems create inefficiency and audit gaps."
+          />
+          <IndustrialCard
+            title="Verification Challenges"
+            text="Manual assignment and collection confirmation increases operational risk."
+          />
+          <IndustrialCard
+            title="Regulatory Exposure"
+            text="Environmental accountability standards are increasing across the UK."
+          />
+        </div>
 
-        <p className="text-white/70 text-lg leading-relaxed">
-          Waste X is not focused on rapid hype-driven growth. It is focused on
-          building dependable systems that organisations can trust as regulatory
-          requirements evolve.
+        {/* Added Supporting Image */}
+        <div className="max-w-6xl mx-auto relative h-[400px]">
+          <Image
+            src="https://images.unsplash.com/photo-1528323273322-d81458248d40?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHdhc3RlJTIwbWFuYWdlbWVudHxlbnwwfHwwfHx8MA%3D%3D"
+            alt="Construction waste transport"
+            fill
+            sizes="100vw"
+            className="object-cover border border-gray-300"
+          />
+        </div>
+      </section>
+
+      {/* ================= SYSTEM ARCHITECTURE ================= */}
+      <section className="py-32 px-6 bg-gray-50 border-t-4 border-gray-200">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-20">
+            The Infrastructure Approach
+          </h2>
+
+          <div className="grid md:grid-cols-5 gap-8 text-center">
+            <ProcessStep
+              number="01"
+              title="Structured Listing"
+              description="Waste details recorded digitally at source."
+            />
+            <Arrow />
+            <ProcessStep
+              number="02"
+              title="Carrier Bidding"
+              description="Verified carriers submit controlled offers."
+            />
+            <Arrow />
+            <ProcessStep
+              number="03"
+              title="Assignment"
+              description="Producer confirms selected carrier."
+            />
+          </div>
+
+          <div className="grid md:grid-cols-5 gap-8 text-center mt-10">
+            <ProcessStep
+              number="04"
+              title="Collection Logging"
+              description="Carrier confirms transfer within system."
+            />
+            <Arrow />
+            <ProcessStep
+              number="05"
+              title="Audit Record"
+              description="Complete digital trail generated."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ================= WHO IT'S FOR ================= */}
+      <section className="py-32 px-6 bg-[#2b2b2b] text-white">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-20 items-center">
+          <SideBlock
+            title="Built for Waste Producers"
+            description="Contractors, developers and infrastructure operators managing multiple waste streams."
+            items={[
+              "Centralised waste listings",
+              "Carrier selection control",
+              "Incident documentation logs",
+              "Organisational data segmentation",
+              "Transfer verification workflows",
+            ]}
+          />
+
+          {/* Added Image */}
+          <div className="relative h-[420px]">
+            <Image
+              src="https://images.unsplash.com/photo-1600295168769-f5bc53f93b27?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8d2FzdGUlMjBkaXNwb3NhbHxlbnwwfHwwfHx8MA%3D%3D"
+              alt="Site manager using tablet"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover border-4 border-orange-500"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ================= LONG TERM VISION ================= */}
+      <section className="py-32 px-6 bg-white border-t-8 border-orange-500">
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <h2 className="text-4xl font-bold">
+            Built for Long-Term Infrastructure
+          </h2>
+
+          <p className="text-lg text-gray-600 leading-relaxed">
+            Waste X is structured digital infrastructure designed to support the
+            evolving regulatory and operational direction of the UK waste
+            sector.
+          </p>
+
+          <p className="text-lg text-gray-600 leading-relaxed">
+            Compliance should not sit outside operations. It should be embedded
+            within them.
+          </p>
+        </div>
+      </section>
+
+      {/* ================= CTA ================= */}
+      <section className="py-28 px-6 bg-orange-500 text-white text-center">
+        <h2 className="text-4xl font-bold mb-6">
+          Operationally Structured. Regulatory Ready.
+        </h2>
+
+        <p className="text-lg mb-10">
+          Digital infrastructure for modern construction waste operations.
         </p>
+
+        <button className="bg-black px-10 py-4 font-semibold hover:bg-gray-900 transition">
+          Request Pilot Access
+        </button>
       </section>
     </main>
+  );
+}
+
+/* ================= COMPONENTS ================= */
+
+function IndustrialCard({ title, text }: any) {
+  return (
+    <div className="border-2 border-gray-200 p-8 shadow-sm">
+      <h3 className="text-xl font-bold mb-4 text-orange-500">{title}</h3>
+      <p className="text-gray-600 leading-relaxed">{text}</p>
+    </div>
+  );
+}
+
+function ProcessStep({ number, title, description }: any) {
+  return (
+    <div className="border-2 border-gray-200 p-6">
+      <div className="text-4xl font-bold text-orange-500 mb-3">{number}</div>
+      <div className="font-semibold mb-2">{title}</div>
+      <div className="text-sm text-gray-600">{description}</div>
+    </div>
+  );
+}
+
+function Arrow() {
+  return (
+    <div className="hidden md:flex items-center justify-center text-3xl text-gray-400">
+      →
+    </div>
+  );
+}
+
+function SideBlock({ title, description, items }: any) {
+  return (
+    <div>
+      <h3 className="text-2xl font-bold mb-4 text-orange-500">{title}</h3>
+      <p className="text-gray-300 mb-8">{description}</p>
+      <ul className="space-y-4 text-gray-300">
+        {items.map((item: string, i: number) => (
+          <li key={i}>• {item}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
