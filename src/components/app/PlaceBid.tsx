@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { createBidAction } from "@/app/home/create-waste-listings/[wasteListingId]/actions";
+import { createBidAction } from "@/app/home/waste-listings/[wasteListingId]/actions";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface PlaceBidProps {

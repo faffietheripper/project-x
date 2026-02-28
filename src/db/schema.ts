@@ -186,7 +186,7 @@ export const verificationTokens = pgTable(
 );
 
 /* =========================================================
-   WASTE LISTINGS (RENAMED FROM ITEMS)
+   WASTE LISTINGS
 ========================================================= */
 
 export const wasteListings = pgTable(
@@ -218,24 +218,51 @@ export const wasteListings = pgTable(
       { onDelete: "set null" },
     ),
 
-    assignedAt: timestamp("assignedAt", { mode: "date" }),
+    /* ===============================
+       TEMPLATE LOCKING
+    ============================== */
+
+    templateId: text("templateId")
+      .notNull()
+      .references(() => listingTemplates.id),
+
+    templateVersion: integer("templateVersion").notNull(),
+
+    /* ===============================
+       AUCTION CORE
+    ============================== */
 
     name: text("name").notNull(),
+
     startingPrice: integer("startingPrice").notNull().default(0),
     currentBid: integer("currentBid").notNull().default(0),
 
     fileKey: text("fileKey").notNull(),
+
     endDate: timestamp("endDate", { mode: "date" }).notNull(),
 
-    transactionConditions: text("transactionConditions").notNull(),
-    transportationDetails: text("transportationDetails").notNull(),
-    complianceDetails: text("complianceDetails").notNull(),
-    detailedDescription: text("detailedDescription").notNull(),
-    location: text("location").notNull(),
+    /* ===============================
+       WORKFLOW / LIFECYCLE
+    ============================== */
+
+    assignedAt: timestamp("assignedAt", { mode: "date" }),
 
     archived: boolean("archived").notNull().default(false),
     offerAccepted: boolean("offerAccepted").notNull().default(false),
     assigned: boolean("assigned").notNull().default(false),
+
+    status: text("status")
+      .$type<
+        | "draft"
+        | "open"
+        | "offer_accepted"
+        | "assigned"
+        | "collected"
+        | "completed"
+        | "cancelled"
+      >()
+      .notNull()
+      .default("draft"),
 
     createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
   },
@@ -243,9 +270,9 @@ export const wasteListings = pgTable(
     orgIdx: index("listing_org_idx").on(table.organisationId),
     userIdx: index("listing_user_idx").on(table.userId),
     archivedIdx: index("listing_archived_idx").on(table.archived),
+    statusIdx: index("listing_status_idx").on(table.status),
   }),
 );
-
 /* =========================================================
    BIDS
 ========================================================= */
@@ -496,11 +523,181 @@ export const supportTicketMessages = pgTable("bb_support_ticket_message", {
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
 
+export const listingTemplates = pgTable(
+  "bb_listing_template",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    name: text("name").notNull(),
+    description: text("description"),
+
+    version: integer("version").notNull().default(1),
+
+    isActive: boolean("isActive").notNull().default(true),
+    isLocked: boolean("isLocked").notNull().default(false),
+
+    createdByUserId: text("createdByUserId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index("template_org_idx").on(table.organisationId),
+  }),
+);
+
+export const listingTemplateSections = pgTable(
+  "bb_listing_template_section",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    templateId: text("templateId")
+      .notNull()
+      .references(() => listingTemplates.id, { onDelete: "cascade" }),
+
+    title: text("title").notNull(),
+    orderIndex: integer("orderIndex").notNull(),
+  },
+  (table) => ({
+    templateIdx: index("template_section_idx").on(table.templateId),
+  }),
+);
+
+export const listingTemplateFields = pgTable(
+  "bb_listing_template_field",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    templateId: text("templateId")
+      .notNull()
+      .references(() => listingTemplates.id, { onDelete: "cascade" }),
+
+    sectionId: text("sectionId")
+      .notNull()
+      .references(() => listingTemplateSections.id, { onDelete: "cascade" }),
+
+    key: text("key").notNull(), // machine key
+    label: text("label").notNull(),
+
+    fieldType: text("fieldType")
+      .$type<"text" | "number" | "dropdown" | "boolean" | "file">()
+      .notNull(),
+
+    required: boolean("required").notNull().default(false),
+
+    optionsJson: text("optionsJson"), // JSON string for dropdown values
+    helpText: text("helpText"),
+
+    orderIndex: integer("orderIndex").notNull(),
+  },
+  (table) => ({
+    templateIdx: index("template_field_template_idx").on(table.templateId),
+    sectionIdx: index("template_field_section_idx").on(table.sectionId),
+  }),
+);
+
+export const listingTemplateData = pgTable(
+  "bb_listing_template_data",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    listingId: integer("listingId")
+      .notNull()
+      .references(() => wasteListings.id, { onDelete: "cascade" }),
+
+    templateId: text("templateId")
+      .notNull()
+      .references(() => listingTemplates.id),
+
+    templateVersion: integer("templateVersion").notNull(),
+
+    dataJson: text("dataJson").notNull(), // validated JSON string
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    listingIdx: index("template_data_listing_idx").on(table.listingId),
+    templateIdx: index("template_data_template_idx").on(table.templateId),
+  }),
+);
+
 /* =========================================================
    RELATIONS
 ========================================================= */
 
-/* ================= USERS ================= */
+export const listingTemplatesRelations = relations(
+  listingTemplates,
+  ({ one, many }) => ({
+    organisation: one(organisations, {
+      fields: [listingTemplates.organisationId],
+      references: [organisations.id],
+    }),
+
+    createdBy: one(users, {
+      fields: [listingTemplates.createdByUserId],
+      references: [users.id],
+    }),
+
+    sections: many(listingTemplateSections),
+    fields: many(listingTemplateFields),
+    listingsData: many(listingTemplateData),
+  }),
+);
+
+export const listingTemplateSectionsRelations = relations(
+  listingTemplateSections,
+  ({ one, many }) => ({
+    template: one(listingTemplates, {
+      fields: [listingTemplateSections.templateId],
+      references: [listingTemplates.id],
+    }),
+
+    fields: many(listingTemplateFields),
+  }),
+);
+
+export const listingTemplateFieldsRelations = relations(
+  listingTemplateFields,
+  ({ one }) => ({
+    template: one(listingTemplates, {
+      fields: [listingTemplateFields.templateId],
+      references: [listingTemplates.id],
+    }),
+
+    section: one(listingTemplateSections, {
+      fields: [listingTemplateFields.sectionId],
+      references: [listingTemplateSections.id],
+    }),
+  }),
+);
+
+export const listingTemplateDataRelations = relations(
+  listingTemplateData,
+  ({ one }) => ({
+    listing: one(wasteListings, {
+      fields: [listingTemplateData.listingId],
+      references: [wasteListings.id],
+    }),
+
+    template: one(listingTemplates, {
+      fields: [listingTemplateData.templateId],
+      references: [listingTemplates.id],
+    }),
+  }),
+);
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   organisation: one(organisations, {
