@@ -62,7 +62,7 @@ export default async function ListingCard({ listing }: { listing: Listing }) {
         <section>
           {listing.userId === session?.user?.id ? (
             <div className="grid grid-cols-2 gap-2">
-              <Link href={`/home/create-waste-listings/${listing.id}`}>
+              <Link href={`/home/waste-listings/${listing.id}`}>
                 <button className="bg-blue-600 py-2 px-4 rounded-md w-full text-white">
                   View Listing
                 </button>
@@ -79,7 +79,7 @@ export default async function ListingCard({ listing }: { listing: Listing }) {
               </form>
             </div>
           ) : (
-            <Link href={`/home/create-waste-listings/${listing.id}`}>
+            <Link href={`/home/waste-listings/${listing.id}`}>
               <button className="bg-blue-600 py-2 px-4 rounded-md w-full text-white">
                 View Listing
               </button>
@@ -88,7 +88,7 @@ export default async function ListingCard({ listing }: { listing: Listing }) {
         </section>
       ) : (
         <section>
-          <Link href={`/home/create-waste-listings/${listing.id}`}>
+          <Link href={`/home/waste-listings/${listing.id}`}>
             <button className="bg-blue-600 py-2 px-4 mb-2 rounded-md w-full text-white">
               {userRole === "wasteGenerator"
                 ? "View Listing"

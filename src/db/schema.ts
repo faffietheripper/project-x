@@ -429,10 +429,9 @@ export const notifications = pgTable("bb_notification", {
 
   actorId: text("actorId").references(() => users.id, { onDelete: "set null" }),
 
-  listingId: text("listingId").references(() => wasteListings.id, {
+  listingId: integer("listingId").references(() => wasteListings.id, {
     onDelete: "cascade",
   }),
-
   type: text("type").notNull(), // e.g. "NEW_OFFER", "NEW_REVIEW", etc
 
   title: text("title").notNull(),
@@ -781,6 +780,7 @@ export const wasteListingsRelations = relations(
     notifications: many(notifications),
 
     reviews: many(reviews),
+    templateData: many(listingTemplateData),
   }),
 );
 

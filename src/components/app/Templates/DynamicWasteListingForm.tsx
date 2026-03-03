@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 
 export default function DynamicWasteListingForm({ template }: any) {
   const [formValues, setFormValues] = useState<any>({});
+  const [projectName, setProjectName] = useState("");
+  const [startingPrice, setStartingPrice] = useState<number | "">("");
   const [date, setDate] = useState<Date | undefined>();
   const [files, setFiles] = useState<File[]>([]);
 
@@ -22,7 +24,10 @@ export default function DynamicWasteListingForm({ template }: any) {
 
   async function handleSubmit(e: any) {
     e.preventDefault();
+
     if (!date) return;
+    if (!projectName) return;
+    if (startingPrice === "" || startingPrice < 0) return;
 
     const uploadUrls = await createUploadUrlAction(
       files.map((f) => f.name),
@@ -42,15 +47,16 @@ export default function DynamicWasteListingForm({ template }: any) {
       templateId: template.id,
       templateVersion: template.version,
       templateData: formValues,
-      name: formValues.name || "Waste Listing",
-      startingPrice: parseInt(formValues.startingPrice || 0),
+      name: projectName,
+      startingPrice: Number(startingPrice),
       endDate: date,
       fileName: files.map((f) => f.name),
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl">
+    <form onSubmit={handleSubmit} className="space-y-10 max-w-3xl">
+      {/* ================= TEMPLATE STRUCTURE ================= */}
       {template.sections.map((section: any) => (
         <div key={section.id}>
           <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
@@ -75,7 +81,9 @@ export default function DynamicWasteListingForm({ template }: any) {
                   type="number"
                   required={field.required}
                   className="border p-3 w-full rounded"
-                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  onChange={(e) =>
+                    handleChange(field.key, Number(e.target.value))
+                  }
                 />
               )}
 
@@ -92,7 +100,7 @@ export default function DynamicWasteListingForm({ template }: any) {
                   className="border p-3 w-full rounded"
                   onChange={(e) => handleChange(field.key, e.target.value)}
                 >
-                  <option>Select...</option>
+                  <option value="">Select...</option>
                   {JSON.parse(field.optionsJson || "[]").map((opt: string) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -105,18 +113,53 @@ export default function DynamicWasteListingForm({ template }: any) {
         </div>
       ))}
 
-      <div>
-        <label className="block mb-2 font-medium">End Date</label>
-        <DatePickerDemo date={date} setDate={setDate} />
-      </div>
+      {/* ================= COMMERCIAL SECTION ================= */}
+      <div className="border-t pt-8 space-y-6">
+        <h3 className="text-lg font-semibold">Project & Commercial Details</h3>
 
-      <div>
-        <label className="block mb-2 font-medium">Upload Files</label>
-        <Input
-          type="file"
-          multiple
-          onChange={(e) => setFiles(Array.from(e.target.files || []))}
-        />
+        <div>
+          <label className="block mb-2 font-medium">
+            Project Name <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="e.g. North Walsham Demolition – Phase 1"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">
+            Starting Price (£) <span className="text-red-500">*</span>
+          </label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={startingPrice}
+            onChange={(e) =>
+              setStartingPrice(
+                e.target.value === "" ? "" : Number(e.target.value),
+              )
+            }
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">End Date</label>
+          <DatePickerDemo date={date} setDate={setDate} />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">Upload Files</label>
+          <Input
+            type="file"
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          />
+        </div>
       </div>
 
       <button type="submit" className="bg-black text-white px-6 py-3 rounded">

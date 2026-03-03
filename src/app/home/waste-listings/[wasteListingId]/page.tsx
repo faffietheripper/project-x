@@ -38,9 +38,7 @@ export default async function ListingPage({
   }
 
   const organisation = await getOrganisationById(listing.organisationId);
-
   const allBids = await getBidsForListing(listing.id);
-  // must include user + organisation in query
 
   const hasBids = allBids.length > 0;
 
@@ -51,7 +49,6 @@ export default async function ListingPage({
     !listing.archived &&
     !listing.offerAccepted;
 
-  // 🔥 Enterprise-level permission
   const canAssignBid =
     session &&
     listing.organisationId === session.user.organisationId &&
@@ -59,141 +56,180 @@ export default async function ListingPage({
 
   const fileKeys = listing.fileKey?.split(",") ?? [];
 
-  console.log("Listing owner:", listing.userId);
-  console.log("Session user:", session?.user?.id);
-  console.log("Listing org:", listing.organisationId);
-  console.log("Session org:", session?.user?.organisationId);
+  /* ==============================
+     TEMPLATE DATA
+  ============================== */
+
+  const templateDataRecord = listing.templateData?.[0]; // adjust if needed
+  const templateData = templateDataRecord
+    ? JSON.parse(templateDataRecord.dataJson)
+    : {};
+
+  const templateSections = templateDataRecord?.template?.sections ?? [];
 
   return (
-    <main className="space-y-8 py-36 px-12 pl-[22vw]">
-      <div className="grid grid-cols-6 gap-6">
-        {/* LEFT SIDE */}
-        <div className="col-span-4 flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold">Auction for {listing.name}</h1>
+    <main className="pl-[24vw] min-h-screen overflow-y-scroll py-32 px-12">
+      <div className="grid grid-cols-6 gap-10">
+        {/* ================= LEFT SIDE ================= */}
+        <div className="col-span-4 space-y-10">
+          {/* ================= HEADER ================= */}
+          <div className="bg-white border rounded-2xl p-8 shadow-sm space-y-4">
+            <h1 className="text-3xl font-semibold">{listing.name}</h1>
 
-          <div>
-            Current Bid:{" "}
-            <span className="font-bold">£{listing.currentBid}</span>
+            <div className="flex items-center gap-8 text-sm text-gray-600">
+              <div>
+                Starting Price:{" "}
+                <span className="font-semibold">£{listing.startingPrice}</span>
+              </div>
+
+              <div>
+                Current Bid:{" "}
+                <span className="font-semibold">£{listing.currentBid}</span>
+              </div>
+
+              <div>Ends: {formatTimestamp(listing.endDate)}</div>
+
+              {(await isBidOver(listing)) && (
+                <Badge className="bg-red-500">Bidding Closed</Badge>
+              )}
+            </div>
+
+            {organisation && (
+              <div className="text-sm text-gray-500">
+                Listed by{" "}
+                <Link
+                  href={`/home/organisations/${organisation.id}`}
+                  className="underline hover:text-black"
+                >
+                  {organisation.teamName}
+                </Link>
+              </div>
+            )}
           </div>
 
-          {(await isBidOver(listing)) && (
-            <Badge className="bg-red-400">Bidding Over</Badge>
-          )}
-
-          <div className="grid grid-cols-3 gap-6">
-            {fileKeys.map((key, index) => (
+          {/* ================= IMAGE GRID ================= */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {fileKeys.slice(0, 3).map((key, index) => (
               <Image
                 key={index}
                 src={getImageUrl(key.trim())}
                 alt={listing.name}
-                width={400}
-                height={400}
-                className="rounded-xl h-56 object-cover"
+                width={600}
+                height={500}
+                className="rounded-2xl h-64 object-cover border"
               />
             ))}
           </div>
 
-          {organisation && (
-            <div className="text-sm">
-              Listed by{" "}
-              <Link
-                href={`/home/organisations/${organisation.id}`}
-                className="text-blue-600 underline"
+          {/* ================= TEMPLATE SECTIONS ================= */}
+          {/* ================= TEMPLATE SECTIONS ================= */}
+          <div className="space-y-10">
+            {templateSections.map((section: any) => (
+              <div
+                key={section.id}
+                className="bg-white border rounded-2xl p-8 shadow-sm"
               >
-                {organisation.teamName}
-              </Link>
-            </div>
-          )}
+                {/* Section Header */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    {section.title}
+                  </h2>
+                  <div className="h-px bg-gray-200 mt-4" />
+                </div>
 
-          <div className="space-y-4">
-            <div>
-              <strong>Description:</strong>
-              <p>{listing.detailedDescription}</p>
-            </div>
+                {/* Fields Layout */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8">
+                  {section.fields.map((field: any) => {
+                    const value = templateData[field.key];
 
-            <div>
-              <strong>Compliance:</strong>
-              <p>{listing.complianceDetails}</p>
-            </div>
+                    if (value === undefined || value === null || value === "")
+                      return null;
 
-            <div>
-              <strong>Transport:</strong>
-              <p>{listing.transportationDetails}</p>
-            </div>
+                    return (
+                      <div key={field.id} className="flex flex-col">
+                        <span className="text-sm text-gray-500 mb-1">
+                          {field.label}
+                        </span>
 
-            <div>
-              <strong>Conditions:</strong>
-              <p>{listing.transactionConditions}</p>
-            </div>
+                        <span className="text-base font-medium text-gray-900">
+                          {field.fieldType === "boolean"
+                            ? value
+                              ? "Yes"
+                              : "No"
+                            : value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* RIGHT SIDEBAR */}
-        <section className="w-[330px] fixed right-8">
-          <div className="space-y-4 p-6 bg-gray-200 rounded-lg h-[60vh] overflow-y-scroll">
-            <h2 className="text-xl font-semibold">Current Bids</h2>
+        {/* ================= RIGHT SIDEBAR ================= */}
+        <aside className="col-span-2 sticky top-6 h-[80vh] flex flex-col gap-6">
+          {/* ================= BIDS (75%) ================= */}
+          <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col h-[75%]">
+            <h2 className="text-xl font-semibold mb-4">Current Bids</h2>
 
             {canPlaceBid && (
               <PlaceBid listingId={listingId} currentBid={listing.currentBid} />
             )}
 
-            {hasBids ? (
-              allBids.map((bid, index) => (
-                <div
-                  key={bid.id}
-                  className="bg-gray-300 p-4 rounded-lg space-y-2"
-                >
-                  {index === 0 && (
-                    <Badge className="bg-green-500">Highest Bid</Badge>
-                  )}
+            {/* Scrollable Bid List */}
+            <div className="mt-4 flex-1 overflow-y-auto pr-2 space-y-4">
+              {hasBids ? (
+                allBids.map((bid, index) => (
+                  <div key={bid.id} className="border rounded-xl p-4 space-y-2">
+                    {index === 0 && (
+                      <Badge className="bg-green-500">Highest Bid</Badge>
+                    )}
 
-                  <div className="text-lg font-semibold">£{bid.amount}</div>
+                    <div className="text-lg font-semibold">£{bid.amount}</div>
 
-                  <div className="text-sm text-gray-700">
-                    Bid by {bid.user.name}
+                    <div className="text-sm text-gray-600">
+                      Bid by {bid.user.name}
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Organisation: {bid.organisation.teamName}
+                    </div>
+
+                    <div className="text-xs text-gray-400">
+                      {formatTimestamp(bid.timestamp)}
+                    </div>
+
+                    {canAssignBid && (
+                      <AssignListingButton
+                        listingId={listing.id}
+                        bidId={bid.id}
+                        offerAccepted={listing.offerAccepted}
+                        assignedCarrierOrganisationId={
+                          listing.assignedCarrierOrganisationId
+                        }
+                        declinedOffer={bid.declinedOffer}
+                        cancelledJob={bid.cancelledJob}
+                        handleAssignWinningBid={handleAssignWinningBid}
+                      />
+                    )}
                   </div>
-
-                  <div className="text-sm text-gray-500">
-                    Organisation: {bid.organisation.teamName}
-                  </div>
-
-                  <div className="text-xs text-gray-400">
-                    {formatTimestamp(bid.timestamp)}
-                  </div>
-                  <div className="pt-2">
-                    <Link
-                      href={`/home/organisations/${bid.organisation.id}`}
-                      className="inline-block bg-gray-800 hover:bg-gray-900 text-white text-sm px-3 py-2 rounded-md transition"
-                    >
-                      View Organisation →
-                    </Link>
-                  </div>
-
-                  {canAssignBid && (
-                    <AssignListingButton
-                      listingId={listing.id}
-                      bidId={bid.id}
-                      offerAccepted={listing.offerAccepted}
-                      assignedCarrierOrganisationId={
-                        listing.assignedCarrierOrganisationId
-                      }
-                      declinedOffer={bid.declinedOffer}
-                      cancelledJob={bid.cancelledJob}
-                      handleAssignWinningBid={handleAssignWinningBid}
-                    />
-                  )}
-                </div>
-              ))
-            ) : (
-              <div>No bids yet</div>
-            )}
+                ))
+              ) : (
+                <div className="text-sm text-gray-500">No bids yet</div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-4 bg-blue-200 p-4 rounded-lg">
-            <h1 className="font-bold">Bid Winner:</h1>
-            <BidWinner winningBid={winningBid} />
+          {/* ================= WINNER (25%) ================= */}
+          <div className="bg-white border rounded-2xl p-6 shadow-sm h-[25%] flex flex-col">
+            <h2 className="font-semibold mb-3">Winning Bid</h2>
+
+            <div className="flex-1 flex items-center">
+              <BidWinner winningBid={winningBid} />
+            </div>
           </div>
-        </section>
+        </aside>
       </div>
     </main>
   );
