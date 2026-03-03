@@ -1,10 +1,11 @@
+import { buildOrgScope } from "@/lib/org-scope";
+import { AppUser } from "@/util/types";
 import { database } from "@/db/database";
 import { wasteListings } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
-export async function getWasteListing(listingId: number) {
+export async function getWasteListing(listingId: number, user: AppUser) {
   const listing = await database.query.wasteListings.findFirst({
-    where: eq(wasteListings.id, listingId),
+    where: buildOrgScope(wasteListings, wasteListings.id, listingId, user),
 
     with: {
       templateData: {
@@ -23,7 +24,6 @@ export async function getWasteListing(listingId: number) {
           },
         },
       },
-
       organisation: true,
       user: true,
     },

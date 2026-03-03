@@ -15,3 +15,9 @@ export type ProfileData = {
   environmentalPolicy?: string;
   certifications?: string;
 };
+
+export type AppUser = {
+  id: string;
+  organisationId: string | null;
+  role: "administrator" | "employee" | "seniorManagement" | "platform_admin";
+};
