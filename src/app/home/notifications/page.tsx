@@ -1,9 +1,9 @@
 import React from "react";
 import { auth } from "@/auth";
+import { getUserNotifications, markAsRead } from "./actions";
 import { database } from "@/db/database";
+import { users, userProfiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { notifications, users, userProfiles } from "@/db/schema";
-import { markAsRead } from "./actions";
 
 export default async function NotificationsPage() {
   const session = await auth();
@@ -24,9 +24,7 @@ export default async function NotificationsPage() {
     columns: { id: true },
   });
 
-  const userNotifications = await database.query.notifications.findMany({
-    where: eq(notifications.recipientId, userId),
-  });
+  const userNotifications = await getUserNotifications(userId);
 
   const needsRoleSetup = !user?.role;
   const needsProfileSetup = !userProfile;
@@ -84,21 +82,25 @@ export default async function NotificationsPage() {
               <h3 className="font-bold">{notification.title}</h3>
               <p>{notification.message}</p>
 
-              {!notification.isRead && typeof notification.id === "string" && (
-                <form action={markAsRead}>
-                  <input
-                    type="hidden"
-                    name="notificationId"
-                    value={notification.id}
-                  />
-                  <button
-                    type="submit"
-                    className="mt-3 text-white bg-blue-500 px-4 py-2 rounded"
-                  >
-                    Mark as Read
-                  </button>
-                </form>
-              )}
+              {!notification.isRead &&
+                typeof notification.id === "string" &&
+                !notification.id.includes("setup") && (
+                  <form action={markAsRead}>
+                    <input
+                      type="hidden"
+                      name="notificationId"
+                      value={notification.id}
+                    />
+                    <input type="hidden" name="userId" value={userId} />
+
+                    <button
+                      type="submit"
+                      className="mt-3 text-white bg-blue-500 px-4 py-2 rounded"
+                    >
+                      Mark as Read
+                    </button>
+                  </form>
+                )}
             </div>
           ))}
         </div>

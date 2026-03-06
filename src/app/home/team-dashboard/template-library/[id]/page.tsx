@@ -1,7 +1,7 @@
 import { database } from "@/db/database";
 import { listingTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireOrgUser } from "@/lib/require-org-user";
+import { requireOrgUser } from "@/lib/access/require-org-user";
 import TemplateEditorClient from "./TemplateEditorClient";
 import { serialize } from "@/util/serialize";
 

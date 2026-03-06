@@ -29,8 +29,13 @@ export default async function ListingPage({
     throw new Error("Invalid listing ID");
   }
 
-  const listing = await getWasteListing(listingId);
   const session = await auth();
+
+  if (!session?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  const listing = await getWasteListing(listingId);
   const { winningBid } = await getWinningBid(listingId);
 
   if (!listing) {
@@ -66,6 +71,9 @@ export default async function ListingPage({
     : {};
 
   const templateSections = templateDataRecord?.template?.sections ?? [];
+
+  console.log("LISTING:", listing);
+  console.log("TEMPLATE DATA:", listing.templateData);
 
   return (
     <main className="pl-[24vw] min-h-screen overflow-y-scroll py-32 px-12">

@@ -1,4 +1,4 @@
-import { requirePlatformAdmin } from "@/lib/adminGuard";
+import { requirePlatformAdmin } from "@/lib/access/require-platform-admin";
 import { getOrganisationById } from "../actions";
 
 export default async function AdminOrganisationDetail({

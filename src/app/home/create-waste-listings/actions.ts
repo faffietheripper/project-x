@@ -2,29 +2,36 @@
 
 import { revalidatePath } from "next/cache";
 import { database } from "@/db/database";
-import { wasteListings, users, listingTemplates } from "@/db/schema";
+import {
+  wasteListings,
+  listingTemplates,
+  listingTemplateData,
+} from "@/db/schema";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getSignedUrlForS3Object } from "@/lib/s3";
 import { eq } from "drizzle-orm";
-import { listingTemplateData } from "@/db/schema";
-import { requireOrgUser } from "@/lib/require-org-user";
+import { requireOrgUser } from "@/lib/access/require-org-user";
 
-/* ===============================
-   Generate Upload URLs
-================================ */
+/* =========================================================
+   GENERATE UPLOAD URLS
+========================================================= */
 
 export async function createUploadUrlAction(keys: string[], types: string[]) {
   if (keys.length !== types.length) {
-    throw new Error("Keys and types array must be the same length.");
+    throw new Error("Keys and types array must match.");
   }
 
   const signedUrls = await Promise.all(
-    keys.map((key, index) => getSignedUrlForS3Object(key, types[index])),
+    keys.map((key, i) => getSignedUrlForS3Object(key, types[i])),
   );
 
   return signedUrls;
 }
+
+/* =========================================================
+   CREATE LISTING
+========================================================= */
 
 export async function createListingAction({
   templateId,
@@ -39,22 +46,16 @@ export async function createListingAction({
   fileName: string[];
   startingPrice: number;
   endDate: Date;
-  name: string[];
+  name: string;
 }) {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const user = await database.query.users.findFirst({
-    where: eq(users.id, session.user.id),
-  });
-
-  if (!user?.organisationId) {
-    throw new Error("User organisation not found.");
+  if (!session?.user?.id || !session?.user?.organisationId) {
+    throw new Error("Unauthorized");
   }
 
-  /* ===============================
-     1️⃣ Fetch Template (Lock Version)
-  ============================== */
+  const organisationId = session.user.organisationId;
+  const userId = session.user.id;
 
   const template = await database.query.listingTemplates.findFirst({
     where: eq(listingTemplates.id, templateId),
@@ -64,49 +65,48 @@ export async function createListingAction({
     throw new Error("Template not found.");
   }
 
-  /* ===============================
-     2️⃣ Create Waste Listing
-  ============================== */
+  await database.transaction(async (tx) => {
+    const [listing] = await tx
+      .insert(wasteListings)
+      .values({
+        name,
+        startingPrice,
+        currentBid: startingPrice,
+        fileKey: fileName.join(","),
 
-  const [listing] = await database
-    .insert(wasteListings)
-    .values({
-      name, // or custom name if you want
-      startingPrice,
-      currentBid: startingPrice,
+        userId,
+        organisationId,
 
-      fileKey: fileName.join(","),
+        templateId: template.id,
+        templateVersion: template.version,
 
-      userId: user.id,
-      organisationId: user.organisationId,
+        endDate,
+      })
+      .returning();
 
-      templateId: template.id, // ✅ REQUIRED
-      templateVersion: template.version, // ✅ REQUIRED
-
-      endDate,
-    })
-    .returning();
-
-  /* ===============================
-     3️⃣ Save Template Data Snapshot
-  ============================== */
-
-  await database.insert(listingTemplateData).values({
-    listingId: listing.id,
-    templateId: template.id,
-    templateVersion: template.version,
-    dataJson: JSON.stringify(templateData),
+    await tx.insert(listingTemplateData).values({
+      organisationId,
+      listingId: listing.id,
+      templateId: template.id,
+      templateVersion: template.version,
+      dataJson: JSON.stringify(templateData),
+    });
   });
 
   revalidatePath("/home/waste-listings");
   redirect("/home/waste-listings");
 }
 
+/* =========================================================
+   LOAD TEMPLATE STRUCTURE
+========================================================= */
+
 export async function getTemplateWithStructure(templateId: string) {
   await requireOrgUser();
 
-  return database.query.listingTemplates.findFirst({
+  const template = await database.query.listingTemplates.findFirst({
     where: eq(listingTemplates.id, templateId),
+
     with: {
       sections: {
         orderBy: (sections, { asc }) => [asc(sections.orderIndex)],
@@ -118,4 +118,10 @@ export async function getTemplateWithStructure(templateId: string) {
       },
     },
   });
+
+  if (!template) {
+    throw new Error("Template not found.");
+  }
+
+  return template;
 }

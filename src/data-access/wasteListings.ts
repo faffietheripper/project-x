@@ -1,11 +1,11 @@
-import { buildOrgScope } from "@/lib/org-scope";
-import { AppUser } from "@/util/types";
-import { database } from "@/db/database";
 import { wasteListings } from "@/db/schema";
+import { database } from "@/db/database";
+import { AppUser } from "@/util/types";
+import { logTenantQuery } from "@/lib/access/tenant-debug";
 
-export async function getWasteListing(listingId: number, user: AppUser) {
-  const listing = await database.query.wasteListings.findFirst({
-    where: buildOrgScope(wasteListings, wasteListings.id, listingId, user),
+export async function getWasteListing(listingId: number) {
+  return database.query.wasteListings.findFirst({
+    where: (table, { eq }) => eq(table.id, listingId),
 
     with: {
       templateData: {
@@ -24,10 +24,9 @@ export async function getWasteListing(listingId: number, user: AppUser) {
           },
         },
       },
+
       organisation: true,
       user: true,
     },
   });
-
-  return listing;
 }

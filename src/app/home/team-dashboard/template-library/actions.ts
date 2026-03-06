@@ -8,7 +8,7 @@ import {
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { requireOrgUser } from "@/lib/require-org-user";
+import { requireOrgUser } from "@/lib/access/require-org-user";
 
 /* =========================================================
    CREATE TEMPLATE

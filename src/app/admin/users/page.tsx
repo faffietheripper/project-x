@@ -1,4 +1,4 @@
-import { requirePlatformAdmin } from "@/lib/adminGuard";
+import { requirePlatformAdmin } from "@/lib/access/require-platform-admin";
 import { getAllPlatformUsers, suspendUser, reactivateUser } from "./actions";
 import Link from "next/link";
 

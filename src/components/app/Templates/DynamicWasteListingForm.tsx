@@ -29,8 +29,23 @@ export default function DynamicWasteListingForm({ template }: any) {
     if (!projectName) return;
     if (startingPrice === "" || startingPrice < 0) return;
 
+    /* ================= TEMPLATE VALIDATION ================= */
+
+    for (const section of template.sections) {
+      for (const field of section.fields) {
+        if (field.required && !formValues[field.key]) {
+          alert(`Please fill in: ${field.label}`);
+          return;
+        }
+      }
+    }
+
+    /* ================= FILE KEYS ================= */
+
+    const fileKeys = files.map((file) => `${crypto.randomUUID()}-${file.name}`);
+
     const uploadUrls = await createUploadUrlAction(
-      files.map((f) => f.name),
+      fileKeys,
       files.map((f) => f.type),
     );
 
@@ -43,20 +58,22 @@ export default function DynamicWasteListingForm({ template }: any) {
       ),
     );
 
+    /* ================= CREATE LISTING ================= */
+
     await createListingAction({
       templateId: template.id,
-      templateVersion: template.version,
       templateData: formValues,
       name: projectName,
       startingPrice: Number(startingPrice),
       endDate: date,
-      fileName: files.map((f) => f.name),
+      fileName: fileKeys,
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10 max-w-3xl">
       {/* ================= TEMPLATE STRUCTURE ================= */}
+
       {template.sections.map((section: any) => (
         <div key={section.id}>
           <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
@@ -101,6 +118,7 @@ export default function DynamicWasteListingForm({ template }: any) {
                   onChange={(e) => handleChange(field.key, e.target.value)}
                 >
                   <option value="">Select...</option>
+
                   {JSON.parse(field.optionsJson || "[]").map((opt: string) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -114,6 +132,7 @@ export default function DynamicWasteListingForm({ template }: any) {
       ))}
 
       {/* ================= COMMERCIAL SECTION ================= */}
+
       <div className="border-t pt-8 space-y-6">
         <h3 className="text-lg font-semibold">Project & Commercial Details</h3>
 
@@ -121,6 +140,7 @@ export default function DynamicWasteListingForm({ template }: any) {
           <label className="block mb-2 font-medium">
             Project Name <span className="text-red-500">*</span>
           </label>
+
           <Input
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
@@ -133,6 +153,7 @@ export default function DynamicWasteListingForm({ template }: any) {
           <label className="block mb-2 font-medium">
             Starting Price (£) <span className="text-red-500">*</span>
           </label>
+
           <Input
             type="number"
             min="0"
@@ -154,6 +175,7 @@ export default function DynamicWasteListingForm({ template }: any) {
 
         <div>
           <label className="block mb-2 font-medium">Upload Files</label>
+
           <Input
             type="file"
             multiple

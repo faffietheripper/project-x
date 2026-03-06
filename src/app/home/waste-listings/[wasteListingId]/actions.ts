@@ -8,6 +8,10 @@ import { revalidatePath } from "next/cache";
 import { isBidOver } from "@/util/bids";
 import { createNotification } from "../../notifications/actions";
 
+/* =========================================================
+   CREATE BID
+========================================================= */
+
 export async function createBidAction({
   amount,
   listingId,
@@ -39,9 +43,7 @@ export async function createBidAction({
   });
 
   if (!profile) {
-    return {
-      error: "Complete your profile before bidding.",
-    };
+    return { error: "Complete your profile before bidding." };
   }
 
   const user = await database.query.users.findFirst({
@@ -49,35 +51,41 @@ export async function createBidAction({
   });
 
   if (!user?.organisationId) {
-    return {
-      error: "User must belong to organisation.",
-    };
+    return { error: "User must belong to organisation." };
   }
 
-  await database.insert(bids).values({
-    amount,
-    listingId: listing.id,
-    userId,
-    organisationId: user.organisationId,
+  await database.transaction(async (tx) => {
+    await tx.insert(bids).values({
+      amount,
+      listingId: listing.id,
+      userId,
+      organisationId: user.organisationId,
+    });
+
+    await tx
+      .update(wasteListings)
+      .set({ currentBid: amount })
+      .where(eq(wasteListings.id, listing.id));
+
+    if (listing.userId) {
+      await createNotification(
+        listing.userId,
+        "New bid placed",
+        `A new bid was placed on "${listing.name}"`,
+        "NEW_BID",
+        listing.id,
+      );
+    }
   });
-
-  await database
-    .update(wasteListings)
-    .set({ currentBid: amount })
-    .where(eq(wasteListings.id, listing.id));
-
-  await createNotification(
-    listing.userId,
-    "New bid placed",
-    `A new bid was placed on "${listing.name}"`,
-    "NEW_BID",
-    listing.id,
-  );
 
   revalidatePath(`/home/waste-listings/${listingId}`);
 
   return { success: true };
 }
+
+/* =========================================================
+   ASSIGN WINNING BID
+========================================================= */
 
 export async function handleAssignWinningBid(formData: FormData) {
   const listingId = Number(formData.get("listingId"));
@@ -92,7 +100,6 @@ export async function handleAssignWinningBid(formData: FormData) {
     return { success: false, message: "Unauthorized." };
   }
 
-  // Get listing
   const listing = await database.query.wasteListings.findFirst({
     where: eq(wasteListings.id, listingId),
   });
@@ -101,12 +108,10 @@ export async function handleAssignWinningBid(formData: FormData) {
     return { success: false, message: "Listing not found." };
   }
 
-  // Ensure user owns listing
   if (listing.organisationId !== session.user.organisationId) {
     return { success: false, message: "Not allowed." };
   }
 
-  // Get bid
   const bid = await database.query.bids.findFirst({
     where: eq(bids.id, bidId),
   });
@@ -115,15 +120,16 @@ export async function handleAssignWinningBid(formData: FormData) {
     return { success: false, message: "Bid not found." };
   }
 
-  // Update listing
-  await database
-    .update(wasteListings)
-    .set({
-      winningBidId: bid.id,
-      winningOrganisationId: bid.organisationId,
-      assigned: true,
-    })
-    .where(eq(wasteListings.id, listingId));
+  await database.transaction(async (tx) => {
+    await tx
+      .update(wasteListings)
+      .set({
+        winningBidId: bid.id,
+        winningOrganisationId: bid.organisationId,
+        assigned: true,
+      })
+      .where(eq(wasteListings.id, listingId));
+  });
 
   revalidatePath(`/home/waste-listings/${listingId}`);
 
