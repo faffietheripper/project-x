@@ -1,20 +1,30 @@
 import React from "react";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { eq, isNotNull } from "drizzle-orm";
-import { wasteListings } from "@/db/schema";
+import { and, eq, isNotNull, desc } from "drizzle-orm";
+import { wasteListings, bids, carrierAssignments } from "@/db/schema";
 import Link from "next/link";
 import { acceptOfferAction, declineOfferAction } from "./actions";
 import CancelJob from "@/components/app/CancelJob";
 
 export default async function MyWinningBids() {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const listingsWithWinningBids = await database.query.wasteListings.findMany({
-    where: isNotNull(wasteListings.winningBidId),
+  if (!session?.user?.id || !session.user.organisationId) {
+    throw new Error("Unauthorized");
+  }
+
+  const listings = await database.query.wasteListings.findMany({
+    where: and(
+      isNotNull(wasteListings.winningBidId),
+      eq(wasteListings.winningOrganisationId, session.user.organisationId),
+    ),
+
+    orderBy: (listing, { desc }) => [desc(listing.createdAt)],
+
     with: {
       bids: true,
+
       carrierAssignments: {
         orderBy: (ca, { desc }) => [desc(ca.assignedAt)],
         limit: 1,
@@ -22,32 +32,36 @@ export default async function MyWinningBids() {
     },
   });
 
-  const myWinningBids = listingsWithWinningBids.filter((listing) => {
-    const winningBid = listing.bids.find((b) => b.id === listing.winningBidId);
-
-    if (!winningBid || winningBid.userId !== session.user.id) return false;
-
+  const activeListings = listings.filter((listing) => {
     const assignment = listing.carrierAssignments[0];
-    return assignment?.status !== "completed";
+
+    if (assignment && assignment.status === "completed") {
+      return false;
+    }
+
+    return true;
   });
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">My Winning Bids</h1>
+      <h1 className="text-2xl font-bold mb-6">My Winning Bids</h1>
 
-      {myWinningBids.map((listing) => {
+      {activeListings.length === 0 && (
+        <p className="text-gray-500">You have no active winning bids.</p>
+      )}
+
+      {activeListings.map((listing) => {
         const winningBid = listing.bids.find(
           (b) => b.id === listing.winningBidId,
         );
 
         const assignment = listing.carrierAssignments[0];
 
-        const showOfferActions = !listing.offerAccepted && !assignment;
+        const showOfferActions = !listing.offerAccepted;
 
         const canCancel =
           listing.offerAccepted &&
-          !listing.assignedCarrierOrganisationId &&
-          !assignment;
+          (!assignment || assignment.status === "pending");
 
         return (
           <div
@@ -70,12 +84,16 @@ export default async function MyWinningBids() {
 
               <div className="mt-2 font-semibold">
                 {!listing.offerAccepted && "Awaiting your decision"}
+
                 {listing.offerAccepted &&
                   !assignment &&
                   "Offer accepted – awaiting carrier"}
+
                 {assignment?.status === "pending" &&
                   "Awaiting carrier response"}
+
                 {assignment?.status === "accepted" && "Job assigned"}
+
                 {assignment?.status === "collected" &&
                   "Collected – awaiting completion"}
               </div>
@@ -88,7 +106,7 @@ export default async function MyWinningBids() {
                 </button>
               </Link>
 
-              {showOfferActions && (
+              {showOfferActions && winningBid && (
                 <>
                   <form action={acceptOfferAction}>
                     <input type="hidden" name="listingId" value={listing.id} />
@@ -99,7 +117,7 @@ export default async function MyWinningBids() {
 
                   <form action={declineOfferAction}>
                     <input type="hidden" name="listingId" value={listing.id} />
-                    <input type="hidden" name="bidId" value={winningBid?.id} />
+                    <input type="hidden" name="bidId" value={winningBid.id} />
                     <button className="bg-red-600 text-white px-4 py-2 rounded-md">
                       Decline Offer
                     </button>

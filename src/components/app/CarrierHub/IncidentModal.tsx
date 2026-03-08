@@ -5,9 +5,8 @@ import { createIncident } from "@/app/home/carrier-hub/waste-carriers/incidents-
 
 interface Assignment {
   assignmentId: string;
-  itemId: number;
-  itemName: string;
-  location: string;
+  listingId: number;
+  listingName: string;
   assignedAt: Date | null;
 }
 
@@ -25,7 +24,7 @@ export default function IncidentModal({
     await createIncident({
       assignmentId: formData.get("assignmentId") as string,
       type: formData.get("type") as string,
-      description: formData.get("description") as string,
+      summary: formData.get("summary") as string,
     });
 
     setLoading(false);
@@ -47,7 +46,6 @@ export default function IncidentModal({
             <h2 className="text-lg font-semibold">Report New Incident</h2>
 
             <form action={handleSubmit} className="space-y-4">
-              {/* Assignment Dropdown */}
               <select
                 name="assignmentId"
                 required
@@ -60,7 +58,7 @@ export default function IncidentModal({
                     key={assignment.assignmentId}
                     value={assignment.assignmentId}
                   >
-                    {assignment.itemName} — {assignment.location}{" "}
+                    {assignment.listingName}
                     {assignment.assignedAt &&
                       ` (Assigned ${new Date(
                         assignment.assignedAt,
@@ -69,7 +67,6 @@ export default function IncidentModal({
                 ))}
               </select>
 
-              {/* Incident Type */}
               <select
                 name="type"
                 required
@@ -83,9 +80,8 @@ export default function IncidentModal({
                 <option value="other">Other</option>
               </select>
 
-              {/* Description */}
               <textarea
-                name="description"
+                name="summary"
                 placeholder="Describe the issue..."
                 required
                 className="w-full border rounded-lg p-2"

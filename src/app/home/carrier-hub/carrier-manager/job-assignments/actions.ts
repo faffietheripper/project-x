@@ -29,7 +29,6 @@ export async function markCompletedByManagerAction(
     };
   }
 
-  // 🔍 Find collected assignment
   const assignment = await database.query.carrierAssignments.findFirst({
     where: and(
       eq(carrierAssignments.listingId, listingId),
@@ -45,7 +44,6 @@ export async function markCompletedByManagerAction(
     };
   }
 
-  // 🚨 BLOCK COMPLETION IF OPEN INCIDENT EXISTS
   const openIncident = await database.query.incidents.findFirst({
     where: and(
       eq(incidents.assignmentId, assignment.id),
@@ -61,7 +59,10 @@ export async function markCompletedByManagerAction(
     };
   }
 
-  // ✅ Mark assignment completed
+  /* ===============================
+     COMPLETE ASSIGNMENT
+  ============================== */
+
   await database
     .update(carrierAssignments)
     .set({
@@ -70,10 +71,14 @@ export async function markCompletedByManagerAction(
     })
     .where(eq(carrierAssignments.id, assignment.id));
 
-  // ✅ Mark listing as assigned + completed
+  /* ===============================
+     COMPLETE LISTING
+  ============================== */
+
   await database
     .update(wasteListings)
     .set({
+      status: "completed", // ✅ lifecycle state
       assigned: true,
       offerAccepted: true,
     })

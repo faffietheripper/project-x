@@ -64,7 +64,7 @@ export default async function AssignedCarrierJobs() {
               <div className="flex flex-wrap gap-3 justify-end">
                 {listing?.id && (
                   <Link
-                    href={`/home/create-waste-listings/${listing.id}`}
+                    href={`/home/waste-listings/${listing.id}`}
                     className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm transition"
                   >
                     View Job

@@ -80,6 +80,8 @@ export async function createListingAction({
         templateId: template.id,
         templateVersion: template.version,
 
+        status: "open", // ✅ ensures listing is immediately visible in marketplace
+
         endDate,
       })
       .returning();

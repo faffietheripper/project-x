@@ -16,30 +16,39 @@ export async function resolveIncidentAction(
   }
 
   const session = await auth();
+
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
 
-  // ✅ Update incident properly according to schema
-  await database
-    .update(incidents)
-    .set({
-      status: "resolved",
-      correctiveActions: notes, // ✅ matches schema
-      resolvedAt: new Date(),
-      resolvedByUserId: session.user.id,
-      dateClosed: new Date(),
-    })
-    .where(eq(incidents.id, incidentId));
+  await database.transaction(async (tx) => {
+    /* ===============================
+       UPDATE INCIDENT
+    ============================== */
 
-  // ✅ Complete assignment
-  await database
-    .update(carrierAssignments)
-    .set({
-      status: "completed",
-      completedAt: new Date(),
-    })
-    .where(eq(carrierAssignments.id, assignmentId));
+    await tx
+      .update(incidents)
+      .set({
+        status: "resolved",
+        correctiveActions: notes,
+        resolvedAt: new Date(),
+        resolvedByUserId: session.user.id,
+        dateClosed: new Date(),
+      })
+      .where(eq(incidents.id, incidentId));
+
+    /* ===============================
+       COMPLETE ASSIGNMENT
+    ============================== */
+
+    await tx
+      .update(carrierAssignments)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+      })
+      .where(eq(carrierAssignments.id, assignmentId));
+  });
 
   revalidatePath("/home/carrier-hub/incident-management");
 }

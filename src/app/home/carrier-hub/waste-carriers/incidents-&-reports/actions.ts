@@ -1,5 +1,4 @@
 "use server";
-"use server";
 
 import { database } from "@/db/database";
 import { incidents, carrierAssignments, wasteListings } from "@/db/schema";
@@ -7,9 +6,10 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { eq, and, desc } from "drizzle-orm";
 
-/**
- * Get incidents reported by this carrier organisation
- */
+/* =========================================================
+   GET INCIDENTS
+========================================================= */
+
 export async function getCarrierIncidents() {
   const session = await auth();
 
@@ -21,16 +21,13 @@ export async function getCarrierIncidents() {
     .select({
       id: incidents.id,
       type: incidents.type,
-      summary: incidents.summary, // ✅ correct field
+      summary: incidents.summary,
       status: incidents.status,
       createdAt: incidents.createdAt,
 
-      // Listing info
       listingName: wasteListings.name,
-      location: wasteListings.location,
       listingId: wasteListings.id,
 
-      // Assignment info
       assignmentId: carrierAssignments.id,
     })
     .from(incidents)
@@ -46,9 +43,10 @@ export async function getCarrierIncidents() {
     .orderBy(desc(incidents.createdAt));
 }
 
-/**
- * Get active collected assignments for carrier
- */
+/* =========================================================
+   GET ACTIVE ASSIGNMENTS
+========================================================= */
+
 export async function getCarrierActiveAssignments() {
   const session = await auth();
 
@@ -61,7 +59,6 @@ export async function getCarrierActiveAssignments() {
       assignmentId: carrierAssignments.id,
       listingId: wasteListings.id,
       listingName: wasteListings.name,
-      location: wasteListings.location,
       assignedAt: carrierAssignments.assignedAt,
     })
     .from(carrierAssignments)
@@ -80,9 +77,10 @@ export async function getCarrierActiveAssignments() {
     );
 }
 
-/**
- * Create a new incident (carrier side)
- */
+/* =========================================================
+   CREATE INCIDENT
+========================================================= */
+
 export async function createIncident(data: {
   assignmentId: string;
   type: string;
@@ -94,32 +92,28 @@ export async function createIncident(data: {
     throw new Error("Unauthorised");
   }
 
-  const assignment = await database
-    .select()
-    .from(carrierAssignments)
-    .where(
-      and(
-        eq(carrierAssignments.id, data.assignmentId),
-        eq(
-          carrierAssignments.carrierOrganisationId,
-          session.user.organisationId,
-        ),
-        eq(carrierAssignments.status, "collected"),
-      ),
-    )
-    .then((res) => res[0]);
+  const assignment = await database.query.carrierAssignments.findFirst({
+    where: and(
+      eq(carrierAssignments.id, data.assignmentId),
+      eq(carrierAssignments.carrierOrganisationId, session.user.organisationId),
+      eq(carrierAssignments.status, "collected"),
+    ),
+  });
 
   if (!assignment) {
     throw new Error("Invalid assignment");
   }
 
-  await database.insert(incidents).values({
-    assignmentId: assignment.id,
-    listingId: assignment.listingId, // ✅ correct FK
-    type: data.type,
-    summary: data.summary, // ✅ correct field
-    reportedByUserId: session.user.id,
-    reportedByOrganisationId: session.user.organisationId,
+  await database.transaction(async (tx) => {
+    await tx.insert(incidents).values({
+      organisationId: session.user.organisationId, // ✅ REQUIRED
+      assignmentId: assignment.id,
+      listingId: assignment.listingId,
+      type: data.type,
+      summary: data.summary,
+      reportedByUserId: session.user.id,
+      reportedByOrganisationId: session.user.organisationId,
+    });
   });
 
   revalidatePath("/home/carrier-hub/waste-carriers/incidents-&-reports");

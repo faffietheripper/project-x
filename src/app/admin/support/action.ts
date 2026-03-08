@@ -6,6 +6,10 @@ import { supportTickets, supportTicketMessages, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+/* =========================================================
+   ASSIGN TICKET
+========================================================= */
+
 export async function assignTicketAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return;
@@ -30,6 +34,10 @@ export async function assignTicketAction(formData: FormData) {
 
   revalidatePath(`/home/admin/support/${ticketId}`);
 }
+
+/* =========================================================
+   UPDATE TICKET STATUS
+========================================================= */
 
 export async function updateTicketStatusAction(formData: FormData) {
   const session = await auth();
@@ -57,8 +65,13 @@ export async function updateTicketStatusAction(formData: FormData) {
   revalidatePath(`/home/admin/support/${ticketId}`);
 }
 
+/* =========================================================
+   REPLY TO TICKET
+========================================================= */
+
 export async function replyToTicketAction(_prevState: any, formData: FormData) {
   const session = await auth();
+
   if (!session?.user?.id) {
     return { success: false, message: "Unauthorized." };
   }
@@ -89,36 +102,57 @@ export async function replyToTicketAction(_prevState: any, formData: FormData) {
 
   const isPlatformAdmin = dbUser.role === "platform_admin";
 
-  // 🔥 FIXED ORG PROTECTION
+  /* ===============================
+     ORG ACCESS PROTECTION
+  ============================== */
+
   if (!isPlatformAdmin && ticket.organisationId !== dbUser.organisationId) {
     return { success: false, message: "Access denied." };
   }
 
-  // Prevent non-admin from internal notes
   if (isInternalNote && !isPlatformAdmin) {
     return { success: false, message: "Not allowed." };
   }
 
-  await database.insert(supportTicketMessages).values({
-    ticketId,
-    senderUserId: dbUser.id,
-    message,
-    isInternalNote,
-  });
+  try {
+    await database.transaction(async (tx) => {
+      /* ===============================
+         CREATE MESSAGE
+      ============================== */
 
-  if (!isInternalNote) {
-    await database
-      .update(supportTickets)
-      .set({
-        status: isPlatformAdmin ? "waiting_on_user" : "in_progress",
-        updatedAt: new Date(),
-      })
-      .where(eq(supportTickets.id, ticketId));
+      await tx.insert(supportTicketMessages).values({
+        organisationId: ticket.organisationId, // ✅ REQUIRED
+        ticketId,
+        senderUserId: dbUser.id,
+        message,
+        isInternalNote,
+      });
+
+      /* ===============================
+         UPDATE TICKET STATUS
+      ============================== */
+
+      if (!isInternalNote) {
+        await tx
+          .update(supportTickets)
+          .set({
+            status: isPlatformAdmin ? "waiting_on_user" : "in_progress",
+            updatedAt: new Date(),
+          })
+          .where(eq(supportTickets.id, ticketId));
+      }
+    });
+
+    revalidatePath(`/home/support/${ticketId}`);
+    revalidatePath(`/home/admin/support/${ticketId}`);
+
+    return { success: true, message: "Reply sent." };
+  } catch (error) {
+    console.error("Reply failed:", error);
+
+    return {
+      success: false,
+      message: "Failed to send reply.",
+    };
   }
-
-  // Revalidate both paths to be safe
-  revalidatePath(`/home/support/${ticketId}`);
-  revalidatePath(`/admin/support/${ticketId}`);
-
-  return { success: true, message: "Reply sent." };
 }

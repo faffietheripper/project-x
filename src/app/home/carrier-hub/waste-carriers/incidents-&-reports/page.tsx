@@ -48,16 +48,14 @@ export default async function IncidentsAndReports() {
 
                 {/* 🔥 ITEM CONTEXT */}
                 <div className="mt-3 text-sm">
-                  <p className="font-medium">{incident.itemName}</p>
+                  <p className="font-medium">{incident.listingName}</p>
                   <p className="text-gray-500">Location: {incident.location}</p>
                   <p className="text-gray-400 text-xs">
                     Assignment ID: {incident.assignmentId.slice(0, 8)}
                   </p>
                 </div>
 
-                <p className="text-sm text-gray-600 mt-3">
-                  {incident.description}
-                </p>
+                <p className="text-sm text-gray-600 mt-3">{incident.summary}</p>
 
                 <p className="text-xs text-gray-400 mt-3">
                   Submitted: {new Date(incident.createdAt).toLocaleDateString()}

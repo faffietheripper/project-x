@@ -132,3 +132,46 @@ export default function JobReview({
     </div>
   );
 }
+
+interface DrawerProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  children: React.ReactNode;
+}
+
+function DragCloseDrawer({ open, setOpen, children }: DrawerProps) {
+  const [scope, animate] = useAnimate();
+  const y = useMotionValue(0);
+  const controls = useDragControls();
+  const [ref, { height }] = useMeasure();
+
+  const handleClose = async () => {
+    await animate(scope.current, { opacity: [1, 0] });
+    setOpen(false);
+  };
+
+  if (!open) return null;
+
+  return (
+    <motion.div
+      ref={scope}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <motion.div
+        ref={ref}
+        drag="y"
+        dragControls={controls}
+        dragConstraints={{ top: 0, bottom: height }}
+        onDragEnd={(e, info) => {
+          if (info.offset.y > 100) handleClose();
+        }}
+        style={{ y }}
+        className="bg-neutral-900 w-full max-w-xl rounded-t-2xl p-8"
+      >
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
