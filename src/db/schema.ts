@@ -35,7 +35,108 @@ export const organisations = pgTable("bb_organisation", {
   postCode: text("postCode").notNull(),
 
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  billingCustomerId: text("billingCustomerId"), // Stripe customer ID
+
+  subscriptionStatus: text("subscriptionStatus")
+    .$type<"trial" | "active" | "past_due" | "cancelled">()
+    .default("trial"),
+
+  subscriptionPlan: text("subscriptionPlan")
+    .$type<"starter" | "pro" | "enterprise">()
+    .default("starter"),
+
+  trialEndsAt: timestamp("trialEndsAt", { mode: "date" }),
+
+  billingEmail: text("billingEmail"),
 });
+
+export const organisationSubscriptions = pgTable(
+  "bb_organisation_subscription",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    stripeSubscriptionId: text("stripeSubscriptionId"),
+
+    plan: text("plan").$type<"starter" | "pro" | "enterprise">().notNull(),
+
+    status: text("status")
+      .$type<"trial" | "active" | "past_due" | "cancelled">()
+      .notNull(),
+
+    currentPeriodStart: timestamp("currentPeriodStart", { mode: "date" }),
+    currentPeriodEnd: timestamp("currentPeriodEnd", { mode: "date" }),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index("subscription_org_idx").on(table.organisationId),
+  }),
+);
+
+export const invoices = pgTable(
+  "bb_invoice",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    amount: integer("amount").notNull(),
+
+    currency: text("currency").default("GBP"),
+
+    status: text("status")
+      .$type<"pending" | "paid" | "failed" | "refunded">()
+      .notNull()
+      .default("pending"),
+
+    stripeInvoiceId: text("stripeInvoiceId"),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    paidAt: timestamp("paidAt", { mode: "date" }),
+  },
+  (table) => ({
+    orgIdx: index("invoice_org_idx").on(table.organisationId),
+  }),
+);
+
+export const payments = pgTable(
+  "bb_payment",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organisationId: text("organisationId")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+
+    invoiceId: text("invoiceId")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+
+    stripePaymentIntentId: text("stripePaymentIntentId"),
+
+    amount: integer("amount").notNull(),
+
+    status: text("status")
+      .$type<"succeeded" | "failed" | "pending">()
+      .notNull(),
+
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+  },
+  (table) => ({
+    invoiceIdx: index("payment_invoice_idx").on(table.invoiceId),
+  }),
+);
 
 /* =========================================================
    USERS
@@ -217,6 +318,7 @@ export const wasteListings = pgTable(
       () => organisations.id,
       { onDelete: "set null" },
     ),
+    platformFee: integer("platformFee"),
 
     /* ===============================
        TEMPLATE LOCKING
@@ -819,6 +921,8 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
   }),
 
   reviews: many(reviews),
+  subscriptions: many(organisationSubscriptions),
+  invoices: many(invoices),
 }));
 
 /* ================= WASTE LISTINGS ================= */
@@ -1018,5 +1122,31 @@ export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
   user: one(users, {
     fields: [auditEvents.userId],
     references: [users.id],
+  }),
+}));
+
+export const organisationSubscriptionsRelations = relations(
+  organisationSubscriptions,
+  ({ one }) => ({
+    organisation: one(organisations, {
+      fields: [organisationSubscriptions.organisationId],
+      references: [organisations.id],
+    }),
+  }),
+);
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  organisation: one(organisations, {
+    fields: [invoices.organisationId],
+    references: [organisations.id],
+  }),
+
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
   }),
 }));

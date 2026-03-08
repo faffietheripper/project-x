@@ -14,6 +14,7 @@ export default function DynamicWasteListingForm({ template }: any) {
   const [startingPrice, setStartingPrice] = useState<number | "">("");
   const [date, setDate] = useState<Date | undefined>();
   const [files, setFiles] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleChange(key: string, value: any) {
     setFormValues((prev: any) => ({
@@ -25,49 +26,76 @@ export default function DynamicWasteListingForm({ template }: any) {
   async function handleSubmit(e: any) {
     e.preventDefault();
 
-    if (!date) return;
-    if (!projectName) return;
-    if (startingPrice === "" || startingPrice < 0) return;
+    if (submitting) return;
 
-    /* ================= TEMPLATE VALIDATION ================= */
-
-    for (const section of template.sections) {
-      for (const field of section.fields) {
-        if (field.required && !formValues[field.key]) {
-          alert(`Please fill in: ${field.label}`);
-          return;
-        }
-      }
+    if (!date) {
+      alert("Please select an end date.");
+      return;
     }
 
-    /* ================= FILE KEYS ================= */
+    if (!projectName) {
+      alert("Please enter a project name.");
+      return;
+    }
 
-    const fileKeys = files.map((file) => `${crypto.randomUUID()}-${file.name}`);
+    if (startingPrice === "" || startingPrice < 0) {
+      alert("Please enter a valid starting price.");
+      return;
+    }
 
-    const uploadUrls = await createUploadUrlAction(
-      fileKeys,
-      files.map((f) => f.type),
-    );
+    setSubmitting(true);
 
-    await Promise.all(
-      files.map((file, i) =>
-        fetch(uploadUrls[i], {
-          method: "PUT",
-          body: file,
-        }),
-      ),
-    );
+    try {
+      /* ================= TEMPLATE VALIDATION ================= */
 
-    /* ================= CREATE LISTING ================= */
+      for (const section of template.sections) {
+        for (const field of section.fields) {
+          if (field.required && !formValues[field.key]) {
+            alert(`Please fill in: ${field.label}`);
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
 
-    await createListingAction({
-      templateId: template.id,
-      templateData: formValues,
-      name: projectName,
-      startingPrice: Number(startingPrice),
-      endDate: date,
-      fileName: fileKeys,
-    });
+      /* ================= FILE KEYS ================= */
+
+      const fileKeys = files.map(
+        (file) => `${crypto.randomUUID()}-${file.name}`,
+      );
+
+      const uploadUrls = await createUploadUrlAction(
+        fileKeys,
+        files.map((f) => f.type),
+      );
+
+      await Promise.all(
+        files.map((file, i) =>
+          fetch(uploadUrls[i], {
+            method: "PUT",
+            body: file,
+          }),
+        ),
+      );
+
+      /* ================= CREATE LISTING ================= */
+
+      await createListingAction({
+        templateId: template.id,
+        templateData: formValues,
+        name: projectName,
+        startingPrice: Number(startingPrice),
+        endDate: date,
+        fileName: fileKeys,
+      });
+
+      alert("Listing created successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong while creating the listing.");
+    }
+
+    setSubmitting(false);
   }
 
   return (
@@ -184,8 +212,22 @@ export default function DynamicWasteListingForm({ template }: any) {
         </div>
       </div>
 
-      <button type="submit" className="bg-black text-white px-6 py-3 rounded">
-        Create Listing
+      {/* ================= LOADING MESSAGE ================= */}
+
+      {submitting && (
+        <p className="text-sm text-gray-500">
+          Please wait while we process your listing and upload files...
+        </p>
+      )}
+
+      {/* ================= SUBMIT BUTTON ================= */}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="bg-black text-white px-6 py-3 rounded disabled:opacity-50"
+      >
+        {submitting ? "Creating Listing..." : "Create Listing"}
       </button>
     </form>
   );

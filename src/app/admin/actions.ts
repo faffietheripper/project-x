@@ -11,6 +11,7 @@ import {
   reviews,
 } from "@/db/schema";
 import { count, eq, gte, sql } from "drizzle-orm";
+import { requirePlatformAdmin } from "@/lib/access/require-platform-admin";
 
 export async function getPlatformDashboardStats() {
   const now = new Date();
@@ -133,4 +134,15 @@ export async function getPlatformDashboardStats() {
       reviewsThisWeek: reviewsThisWeek[0].value,
     },
   };
+}
+
+export async function getRecentAuditEvents() {
+  await requirePlatformAdmin();
+
+  const events = await database.query.auditEvents.findMany({
+    orderBy: (events, { desc }) => [desc(events.createdAt)],
+    limit: 100,
+  });
+
+  return events;
 }

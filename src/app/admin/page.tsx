@@ -1,10 +1,11 @@
 import { requirePlatformAdmin } from "@/lib/access/require-platform-admin";
-import { getPlatformDashboardStats } from "./actions";
+import { getPlatformDashboardStats, getRecentAuditEvents } from "./actions";
 
 export default async function AdminDashboard() {
   await requirePlatformAdmin();
 
   const stats = await getPlatformDashboardStats();
+  const auditEvents = await getRecentAuditEvents();
 
   return (
     <div className="space-y-8">
@@ -81,6 +82,21 @@ export default async function AdminDashboard() {
             label="Reviews This Week"
             value={stats.reviews.reviewsThisWeek}
           />
+        </div>
+      </section>
+
+      <section className="bg-white p-6 rounded-lg shadow">
+        <h2 className="font-semibold mb-4">Recent Platform Activity</h2>
+
+        <div className="space-y-2 text-sm">
+          {auditEvents.map((event) => (
+            <div key={event.id} className="flex justify-between border-b py-2">
+              <span>{event.action}</span>
+              <span className="text-gray-500">
+                {new Date(event.createdAt).toLocaleString()}
+              </span>
+            </div>
+          ))}
         </div>
       </section>
     </div>
