@@ -33,7 +33,10 @@ export async function updatePassword({
 
     // If currentPassword is provided, verify it
     if (currentPassword) {
-      const isMatch = await bcryptjs.compare(currentPassword, user.password);
+      const isMatch = await bcryptjs.compare(
+        currentPassword,
+        user.passwordHash ?? "",
+      );
       if (!isMatch) {
         return {
           success: false,
@@ -49,7 +52,7 @@ export async function updatePassword({
     await database
       .update(users)
       .set({
-        password: hashedPassword,
+        passwordHash: hashedPassword,
       })
       .where(eq(users.id, userId));
 

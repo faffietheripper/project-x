@@ -2,16 +2,29 @@ import { getFilteredIncidents, getIncidentKpis } from "./actions";
 import Filters from "./filters";
 
 interface Props {
-  searchParams: {
-    status?: string;
-    from?: string;
-    to?: string;
-    q?: string;
+  searchParams?: {
+    status?: string | string[];
+    from?: string | string[];
+    to?: string | string[];
+    q?: string | string[];
   };
 }
 
 export default async function AdminIncidentsPage({ searchParams }: Props) {
-  const incidents = await getFilteredIncidents(searchParams);
+  const filters = {
+    status: Array.isArray(searchParams?.status)
+      ? searchParams?.status[0]
+      : searchParams?.status,
+    from: Array.isArray(searchParams?.from)
+      ? searchParams?.from[0]
+      : searchParams?.from,
+    to: Array.isArray(searchParams?.to)
+      ? searchParams?.to[0]
+      : searchParams?.to,
+    q: Array.isArray(searchParams?.q) ? searchParams?.q[0] : searchParams?.q,
+  };
+
+  const incidents = await getFilteredIncidents(filters);
   const kpis = await getIncidentKpis();
 
   return (
@@ -45,20 +58,29 @@ export default async function AdminIncidentsPage({ searchParams }: Props) {
               <th className="p-3">Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {incidents.map((incident) => (
               <tr key={incident.id} className="border-t">
                 <td className="p-3">
-                  {incident.createdAt?.toLocaleDateString()}
+                  {incident.createdAt
+                    ? new Date(incident.createdAt).toLocaleDateString()
+                    : "-"}
                 </td>
+
                 <td className="p-3">
-                  {incident.reportedByOrganisation?.teamName}
+                  {incident.reportedByOrganisation?.teamName ?? "-"}
                 </td>
+
                 <td className="p-3">#{incident.listingId}</td>
+
                 <td className="p-3">{incident.type}</td>
+
                 <td className="p-3">
                   <StatusBadge status={incident.status} />
                 </td>
+
+                <td className="p-3 text-gray-400">—</td>
               </tr>
             ))}
           </tbody>
@@ -74,17 +96,20 @@ function KpiCard({
   color,
 }: {
   title: string;
-  value: number;
-  color: string;
+  value: number | string;
+  color?: string;
 }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow border">
-      <div className="text-sm text-gray-500">{title}</div>
-      <div
-        className={`text-3xl font-bold mt-2 ${color} text-white px-3 py-1 inline-block rounded`}
+    <div className="bg-white p-6 rounded-lg shadow border">
+      <p className="text-sm text-gray-500">{title}</p>
+
+      <p
+        className={`text-2xl font-bold mt-2 ${
+          color ? `${color} text-white px-2 py-1 rounded inline-block` : ""
+        }`}
       >
         {value}
-      </div>
+      </p>
     </div>
   );
 }
@@ -98,7 +123,11 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-2 py-1 rounded text-xs font-medium ${map[status]}`}>
+    <span
+      className={`px-2 py-1 rounded text-xs font-medium ${
+        map[status] ?? "bg-gray-100 text-gray-600"
+      }`}
+    >
       {status.replace("_", " ")}
     </span>
   );

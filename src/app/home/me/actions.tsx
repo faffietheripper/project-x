@@ -8,14 +8,23 @@ import { getSignedUrlForS3Object } from "@/lib/s3";
 import { eq } from "drizzle-orm";
 
 /* =========================================================
+   TYPES
+========================================================= */
+
+type UserRole =
+  | "administrator"
+  | "employee"
+  | "seniorManagement"
+  | "platform_admin";
+
+/* =========================================================
    CREATE SIGNED UPLOAD URL
 ========================================================= */
 
 export async function createUploadUrlAction(key: string, type: string) {
   if (!key || !type) return null;
 
-  const signedUrl = await getSignedUrlForS3Object(key, type);
-  return signedUrl;
+  return getSignedUrlForS3Object(key, type);
 }
 
 /* =========================================================
@@ -67,14 +76,30 @@ export async function saveProfileAction(data: {
     await database
       .update(userProfiles)
       .set({
-        ...data,
+        profilePicture: data.profilePicture,
+        fullName: data.fullName,
+        telephone: data.telephone,
+        emailAddress: data.emailAddress,
+        country: data.country,
+        streetAddress: data.streetAddress,
+        city: data.city,
+        region: data.region,
+        postCode: data.postCode,
         updatedAt: new Date(),
       })
       .where(eq(userProfiles.userId, userId));
   } else {
     await database.insert(userProfiles).values({
       userId,
-      ...data,
+      profilePicture: data.profilePicture,
+      fullName: data.fullName,
+      telephone: data.telephone,
+      emailAddress: data.emailAddress,
+      country: data.country,
+      streetAddress: data.streetAddress,
+      city: data.city,
+      region: data.region,
+      postCode: data.postCode,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -87,22 +112,11 @@ export async function saveProfileAction(data: {
    ASSIGN ROLE
 ========================================================= */
 
-export async function assignRoleAction(role: string) {
+export async function assignRoleAction(role: UserRole) {
   const session = await auth();
 
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
-  }
-
-  if (
-    ![
-      "administrator",
-      "seniorManagement",
-      "employee",
-      "platform_admin",
-    ].includes(role)
-  ) {
-    throw new Error("Invalid role selected");
   }
 
   await database
@@ -110,6 +124,9 @@ export async function assignRoleAction(role: string) {
     .set({ role })
     .where(eq(users.id, session.user.id));
 
+  /**
+   * User must re-authenticate to refresh session role
+   */
   await signOut({
     redirectTo: "/",
   });

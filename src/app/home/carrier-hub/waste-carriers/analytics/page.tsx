@@ -122,9 +122,6 @@ export default async function CarrierAnalyticsPage() {
             <div key={job.id} className="border-b pb-3 flex justify-between">
               <div>
                 <p className="font-medium">{job.listing?.name}</p>
-                <p className="text-sm text-gray-500">
-                  Location: {job.listing?.location}
-                </p>
               </div>
 
               <div className="text-right">

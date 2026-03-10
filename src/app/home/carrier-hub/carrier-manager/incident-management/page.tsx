@@ -72,10 +72,6 @@ export default async function IncidentManagement() {
                 {incident.assignment?.listing?.name}
               </div>
 
-              <div className="text-sm text-gray-600">
-                📍 {incident.assignment?.listing?.location}
-              </div>
-
               <div className="text-sm">
                 <strong>Carrier:</strong>{" "}
                 {incident.assignment?.carrierOrganisation?.teamName}

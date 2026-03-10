@@ -17,7 +17,7 @@ import { z } from "zod";
 import { logRequest, logError } from "@/lib/logger";
 
 /* =========================================================
-   CONSTANTS (SAFETY LIMITS)
+   CONSTANTS
 ========================================================= */
 
 const MAX_FILES = 10;
@@ -25,7 +25,7 @@ const MAX_FILES = 10;
 const allowedFileTypes = ["image/jpeg", "image/png", "application/pdf"];
 
 /* =========================================================
-   VALIDATION SCHEMA
+   VALIDATION
 ========================================================= */
 
 const createListingSchema = z.object({
@@ -35,15 +35,16 @@ const createListingSchema = z.object({
   startingPrice: z.number().min(0),
   endDate: z.date(),
   name: z.string().min(3).max(200),
+  location: z.string().min(3).max(200),
 });
 
 /* =========================================================
-   GENERATE UPLOAD URLS
+   GENERATE S3 UPLOAD URLS
 ========================================================= */
 
 export async function createUploadUrlAction(keys: string[], types: string[]) {
   if (keys.length !== types.length) {
-    throw new Error("Keys and types array must match.");
+    throw new Error("Keys and types must match.");
   }
 
   if (keys.length > MAX_FILES) {
@@ -74,6 +75,7 @@ export async function createListingAction(input: {
   startingPrice: number;
   endDate: Date;
   name: string;
+  location: string;
 }) {
   const session = await auth();
 
@@ -100,19 +102,21 @@ export async function createListingAction(input: {
     throw new Error("Invalid listing data.");
   }
 
-  const { templateId, templateData, fileName, startingPrice, endDate, name } =
-    parsed.data;
+  const {
+    templateId,
+    templateData,
+    fileName,
+    startingPrice,
+    endDate,
+    name,
+    location,
+  } = parsed.data;
 
   if (fileName.length > MAX_FILES) {
     throw new Error(`Maximum ${MAX_FILES} files allowed.`);
   }
-  logRequest(
-    "create_listing",
-    organisationId,
-    userId,
-    "waste_listing",
-    listing.id.toString(),
-  ); /* ================= TEMPLATE CHECK ================= */
+
+  /* ================= TEMPLATE CHECK ================= */
 
   const template = await database.query.listingTemplates.findFirst({
     where: eq(listingTemplates.id, templateId),
@@ -124,12 +128,17 @@ export async function createListingAction(input: {
 
   try {
     await database.transaction(async (tx) => {
+      /* ================= CREATE LISTING ================= */
+
       const [listing] = await tx
         .insert(wasteListings)
         .values({
           name,
+          location,
+
           startingPrice,
           currentBid: startingPrice,
+
           fileKey: fileName.join(","),
 
           userId,
@@ -144,6 +153,8 @@ export async function createListingAction(input: {
         })
         .returning();
 
+      /* ================= SAVE TEMPLATE DATA ================= */
+
       await tx.insert(listingTemplateData).values({
         organisationId,
         listingId: listing.id,
@@ -151,6 +162,16 @@ export async function createListingAction(input: {
         templateVersion: template.version,
         dataJson: JSON.stringify(templateData),
       });
+
+      /* ================= AUDIT LOG ================= */
+
+      logRequest(
+        "create_listing",
+        organisationId,
+        userId,
+        "waste_listing",
+        listing.id.toString(),
+      );
     });
   } catch (error) {
     logError("create_listing", error);
@@ -179,6 +200,7 @@ export async function getTemplateWithStructure(templateId: string) {
     with: {
       sections: {
         orderBy: (sections, { asc }) => [asc(sections.orderIndex)],
+
         with: {
           fields: {
             orderBy: (fields, { asc }) => [asc(fields.orderIndex)],

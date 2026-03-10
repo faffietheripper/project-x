@@ -17,7 +17,7 @@ export async function getCarrierIncidents() {
     throw new Error("Unauthorised");
   }
 
-  return await database
+  return database
     .select({
       id: incidents.id,
       type: incidents.type,
@@ -27,7 +27,7 @@ export async function getCarrierIncidents() {
 
       listingName: wasteListings.name,
       listingId: wasteListings.id,
-
+      location: wasteListings.location,
       assignmentId: carrierAssignments.id,
     })
     .from(incidents)
@@ -54,7 +54,7 @@ export async function getCarrierActiveAssignments() {
     throw new Error("Unauthorised");
   }
 
-  return await database
+  return database
     .select({
       assignmentId: carrierAssignments.id,
       listingId: wasteListings.id,
@@ -104,16 +104,14 @@ export async function createIncident(data: {
     throw new Error("Invalid assignment");
   }
 
-  await database.transaction(async (tx) => {
-    await tx.insert(incidents).values({
-      organisationId: session.user.organisationId, // ✅ REQUIRED
-      assignmentId: assignment.id,
-      listingId: assignment.listingId,
-      type: data.type,
-      summary: data.summary,
-      reportedByUserId: session.user.id,
-      reportedByOrganisationId: session.user.organisationId,
-    });
+  await database.insert(incidents).values({
+    organisationId: session.user.organisationId,
+    assignmentId: assignment.id,
+    listingId: assignment.listingId,
+    type: data.type,
+    summary: data.summary,
+    reportedByUserId: session.user.id,
+    reportedByOrganisationId: session.user.organisationId,
   });
 
   revalidatePath("/home/carrier-hub/waste-carriers/incidents-&-reports");

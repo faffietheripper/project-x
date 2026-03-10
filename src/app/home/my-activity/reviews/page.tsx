@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { database } from "@/db/database";
 import { reviews, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { safeDate } from "@/lib/date";
 
 export default async function ReviewsPage() {
   const session = await auth();
@@ -48,7 +49,7 @@ export default async function ReviewsPage() {
               <p className="mt-2">{review.comment}</p>
 
               <p className="text-sm text-gray-400 mt-2">
-                {new Date(review.createdAt).toLocaleString()}
+                {safeDate(review.createdAt)}
               </p>
             </li>
           ))}

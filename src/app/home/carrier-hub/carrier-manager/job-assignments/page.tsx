@@ -25,7 +25,7 @@ export default async function JobAssignments() {
       ),
     ),
     with: {
-      listing: true, // ✅ Correct relation
+      listing: true,
       carrierOrganisation: true,
       incidents: true,
     },
@@ -69,10 +69,6 @@ export default async function JobAssignments() {
                 {assignment.listing?.name}
               </div>
 
-              <div className="text-sm text-gray-600">
-                📍 {assignment.listing?.location}
-              </div>
-
               <div className="text-sm">
                 <strong>Carrier:</strong>{" "}
                 {assignment.carrierOrganisation?.teamName}
@@ -104,12 +100,6 @@ export default async function JobAssignments() {
                   {hasOpenIncident ? "incident open" : assignment.status}
                 </span>
               </div>
-            </div>
-
-            {/* ===== DESCRIPTION ===== */}
-            <div className="mb-4 text-sm">
-              <strong>Description:</strong>{" "}
-              {assignment.listing?.detailedDescription}
             </div>
 
             {/* 🚨 INCIDENT WARNING */}

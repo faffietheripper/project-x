@@ -58,7 +58,7 @@ export default async function IncidentsAndReports() {
                 <p className="text-sm text-gray-600 mt-3">{incident.summary}</p>
 
                 <p className="text-xs text-gray-400 mt-3">
-                  Submitted: {new Date(incident.createdAt).toLocaleDateString()}
+                  Submitted: {incident.createdAt?.toLocaleDateString() ?? "—"}
                 </p>
               </div>
             ))}

@@ -33,7 +33,7 @@ export const organisations = pgTable("bb_organisation", {
   city: text("city").notNull(),
   region: text("region").notNull(),
   postCode: text("postCode").notNull(),
-
+  isSuspended: boolean("isSuspended").notNull().default(false),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
   billingCustomerId: text("billingCustomerId"), // Stripe customer ID
 
@@ -335,7 +335,7 @@ export const wasteListings = pgTable(
     ============================== */
 
     name: text("name").notNull(),
-
+    location: text("location").notNull(),
     startingPrice: integer("startingPrice").notNull().default(0),
     currentBid: integer("currentBid").notNull().default(0),
 
@@ -439,7 +439,7 @@ export const carrierAssignments = pgTable(
       .references(() => organisations.id, { onDelete: "cascade" }),
 
     status: text("status")
-      .$type<"pending" | "accepted" | "rejected" | "completed">()
+      .$type<"pending" | "accepted" | "collected" | "completed" | "rejected">()
       .notNull()
       .default("pending"),
 

@@ -26,12 +26,12 @@ export async function assignCarrierAction(
 
   // ✅ Create assignment
   await database.insert(carrierAssignments).values({
+    organisationId: dbUser.organisationId,
     listingId,
     carrierOrganisationId: carrierOrgId,
     assignedByOrganisationId: dbUser.organisationId,
     status: "pending",
   });
-
   // ✅ Update listing assignment state
   await database
     .update(wasteListings)

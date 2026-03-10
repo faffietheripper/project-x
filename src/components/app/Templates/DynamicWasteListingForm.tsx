@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 export default function DynamicWasteListingForm({ template }: any) {
   const [formValues, setFormValues] = useState<any>({});
   const [projectName, setProjectName] = useState("");
+  const [location, setLocation] = useState("");
   const [startingPrice, setStartingPrice] = useState<number | "">("");
   const [date, setDate] = useState<Date | undefined>();
   const [files, setFiles] = useState<File[]>([]);
@@ -38,6 +39,11 @@ export default function DynamicWasteListingForm({ template }: any) {
       return;
     }
 
+    if (!location) {
+      alert("Please enter a location.");
+      return;
+    }
+
     if (startingPrice === "" || startingPrice < 0) {
       alert("Please enter a valid starting price.");
       return;
@@ -46,8 +52,6 @@ export default function DynamicWasteListingForm({ template }: any) {
     setSubmitting(true);
 
     try {
-      /* ================= TEMPLATE VALIDATION ================= */
-
       for (const section of template.sections) {
         for (const field of section.fields) {
           if (field.required && !formValues[field.key]) {
@@ -57,8 +61,6 @@ export default function DynamicWasteListingForm({ template }: any) {
           }
         }
       }
-
-      /* ================= FILE KEYS ================= */
 
       const fileKeys = files.map(
         (file) => `${crypto.randomUUID()}-${file.name}`,
@@ -78,12 +80,11 @@ export default function DynamicWasteListingForm({ template }: any) {
         ),
       );
 
-      /* ================= CREATE LISTING ================= */
-
       await createListingAction({
         templateId: template.id,
         templateData: formValues,
         name: projectName,
+        location,
         startingPrice: Number(startingPrice),
         endDate: date,
         fileName: fileKeys,
@@ -100,8 +101,6 @@ export default function DynamicWasteListingForm({ template }: any) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10 max-w-3xl">
-      {/* ================= TEMPLATE STRUCTURE ================= */}
-
       {template.sections.map((section: any) => (
         <div key={section.id}>
           <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
@@ -159,8 +158,6 @@ export default function DynamicWasteListingForm({ template }: any) {
         </div>
       ))}
 
-      {/* ================= COMMERCIAL SECTION ================= */}
-
       <div className="border-t pt-8 space-y-6">
         <h3 className="text-lg font-semibold">Project & Commercial Details</h3>
 
@@ -172,7 +169,19 @@ export default function DynamicWasteListingForm({ template }: any) {
           <Input
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder="e.g. North Walsham Demolition – Phase 1"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">
+            Location <span className="text-red-500">*</span>
+          </label>
+
+          <Input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. Manchester Construction Site"
             required
           />
         </div>
@@ -212,15 +221,11 @@ export default function DynamicWasteListingForm({ template }: any) {
         </div>
       </div>
 
-      {/* ================= LOADING MESSAGE ================= */}
-
       {submitting && (
         <p className="text-sm text-gray-500">
           Please wait while we process your listing and upload files...
         </p>
       )}
-
-      {/* ================= SUBMIT BUTTON ================= */}
 
       <button
         type="submit"

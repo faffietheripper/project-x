@@ -26,10 +26,11 @@ export default async function Analytics() {
   });
 
   const pending = allAssignments.filter((a) => a.status === "pending").length;
+
   const accepted = allAssignments.filter((a) => a.status === "accepted").length;
-  const collected = allAssignments.filter(
-    (a) => a.status === "collected",
-  ).length;
+
+  const collected = allAssignments.filter((a) => a.collectedAt !== null).length;
+
   const completed = allAssignments.filter(
     (a) => a.status === "completed",
   ).length;

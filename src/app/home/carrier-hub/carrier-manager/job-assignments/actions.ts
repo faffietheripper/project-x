@@ -3,7 +3,7 @@
 import { database } from "@/db/database";
 import { wasteListings, carrierAssignments, incidents } from "@/db/schema";
 import { auth } from "@/auth";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function markCompletedByManagerAction(
@@ -22,6 +22,7 @@ export async function markCompletedByManagerAction(
   }
 
   const session = await auth();
+
   if (!session?.user?.id) {
     return {
       success: false,
@@ -29,11 +30,15 @@ export async function markCompletedByManagerAction(
     };
   }
 
+  /* ===============================
+     FIND ASSIGNMENT
+  ============================== */
+
   const assignment = await database.query.carrierAssignments.findFirst({
     where: and(
       eq(carrierAssignments.listingId, listingId),
       eq(carrierAssignments.verificationCode, verificationCode),
-      eq(carrierAssignments.status, "collected"),
+      isNotNull(carrierAssignments.collectedAt),
     ),
   });
 
@@ -43,6 +48,10 @@ export async function markCompletedByManagerAction(
       message: "❌ Invalid code or waste not yet collected.",
     };
   }
+
+  /* ===============================
+     CHECK INCIDENT BLOCK
+  ============================== */
 
   const openIncident = await database.query.incidents.findFirst({
     where: and(
@@ -78,11 +87,15 @@ export async function markCompletedByManagerAction(
   await database
     .update(wasteListings)
     .set({
-      status: "completed", // ✅ lifecycle state
+      status: "completed",
       assigned: true,
       offerAccepted: true,
     })
     .where(eq(wasteListings.id, listingId));
+
+  /* ===============================
+     REVALIDATE PAGE
+  ============================== */
 
   revalidatePath("/home/carrier-hub/carrier-manager/job-assignments");
 

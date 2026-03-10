@@ -3,6 +3,7 @@ import { database } from "@/db/database";
 import { users, organisations, reviews } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
+import { safeDate } from "@/lib/date";
 
 export default async function WasteManagerReviewsPage() {
   const session = await auth();
@@ -116,7 +117,7 @@ export default async function WasteManagerReviewsPage() {
               )}
 
               <p className="text-xs text-gray-400 mt-2">
-                {new Date(review.createdAt).toLocaleString()}
+                {safeDate(review.createdAt)}
               </p>
 
               <div className="mt-4">

@@ -92,8 +92,11 @@ export default async function AdminDashboard() {
           {auditEvents.map((event) => (
             <div key={event.id} className="flex justify-between border-b py-2">
               <span>{event.action}</span>
+
               <span className="text-gray-500">
-                {new Date(event.createdAt).toLocaleString()}
+                {event.createdAt
+                  ? new Date(event.createdAt).toLocaleString()
+                  : "—"}
               </span>
             </div>
           ))}
@@ -103,16 +106,30 @@ export default async function AdminDashboard() {
   );
 }
 
-function KpiCard({ title, value }: { title: string; value: string }) {
+function KpiCard({
+  title,
+  value,
+  color,
+}: {
+  title: string;
+  value: number | string;
+  color?: string;
+}) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-white p-6 rounded-lg shadow border">
       <p className="text-sm text-gray-500">{title}</p>
-      <p className="text-2xl font-bold mt-2">{value}</p>
+
+      <p
+        className={`text-2xl font-bold mt-2 ${
+          color ? `${color} text-white px-2 py-1 rounded inline-block` : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
-
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
       <p className="text-gray-500">{label}</p>
@@ -121,7 +138,13 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusRow({ label, value }: { label: string; value: string }) {
+function StatusRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="flex justify-between">
       <span>{label}</span>

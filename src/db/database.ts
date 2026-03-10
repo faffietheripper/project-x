@@ -5,10 +5,10 @@ import { Pool } from "pg";
 
 declare global {
   // eslint-disable-next-line no-var
-  var database: ReturnType<typeof drizzle> | undefined;
+  var database: ReturnType<typeof drizzle<typeof schema>> | undefined;
 }
 
-let database: ReturnType<typeof drizzle>;
+let database: ReturnType<typeof drizzle<typeof schema>>;
 let pool: Pool;
 
 if (env.NODE_ENV === "production") {

@@ -3,7 +3,7 @@ import { getOrganisationServer } from "@/data-access/organisations";
 import { database } from "@/db/database";
 import { reviews } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
+import { safeDate } from "@/lib/date";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ export default async function OrganisationPage({
                     )}
 
                     <p className="text-sm text-right text-gray-400 mt-2">
-                      {new Date(review.createdAt).toLocaleString()}
+                      {safeDate(review.createdAt)}
                     </p>
                   </li>
                 ))}
