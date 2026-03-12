@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-export default function WasteListingsFilterBar() {
+export default function ListingsFilter() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

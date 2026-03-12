@@ -2,13 +2,13 @@
 
 import { database } from "@/db/database";
 import { users } from "@/db/schema";
-import { sendRegEmail } from "@/util/sendRegEmail"; // Make sure the path is correct
 import { eq } from "drizzle-orm";
 import { RegisterSchema } from "@/util/authSchema";
 import bcryptjs from "bcryptjs";
 import { auth } from "@/auth";
 
-// ✅ Get user by email, with explicit field selection
+type UserRole = "administrator" | "employee" | "seniorManagement";
+
 export async function getUserFromDb(email: string) {
   try {
     const existedUser = await database.query.users.findFirst({
@@ -39,7 +39,6 @@ export async function getUserFromDb(email: string) {
   }
 }
 
-// ✅ Register new user and send email
 export async function registerTeamUser({
   name,
   email,
@@ -51,26 +50,17 @@ export async function registerTeamUser({
   email: string;
   password: string;
   confirmPassword: string;
-  role: string;
+  role: UserRole;
 }) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
 
-    const validRoles = ["administrator", "employee", "seniorManagement"];
-    if (!validRoles.includes(role)) {
-      return { success: false, message: "Invalid role selected." };
-    }
-
     RegisterSchema.parse({ name, email, password, confirmPassword });
 
-    // ✅ FIXED: Specify columns to avoid Drizzle error
     const existing = await database.query.users.findFirst({
       where: eq(users.email, email),
-      columns: {
-        id: true,
-        email: true,
-      },
+      columns: { id: true },
     });
 
     if (existing) {
@@ -96,8 +86,7 @@ export async function registerTeamUser({
       .values({
         name,
         email,
-        password: hash,
-        confirmPassword,
+        passwordHash: hash, // ✅ correct column
         role,
         organisationId: adminUser.organisationId,
       })
@@ -106,9 +95,6 @@ export async function registerTeamUser({
         email: users.email,
         name: users.name,
       });
-
-    // You can keep or remove this depending on client-side decision
-    // await sendRegEmail({ name, email, password });
 
     return { success: true, data: newUser };
   } catch (error: any) {

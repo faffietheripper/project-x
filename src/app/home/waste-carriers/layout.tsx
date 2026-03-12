@@ -5,11 +5,17 @@ import { database } from "@/db/database";
 import { organisations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export default async function Layout({ children }) {
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth();
-  if (!session || !session.user) throw new Error("Unauthorized");
 
-  // Get all organisations that are waste carriers
+  if (!session?.user) {
+    throw new Error("Unauthorized");
+  }
+
   const carrierOrganisations = await database
     .select()
     .from(organisations)

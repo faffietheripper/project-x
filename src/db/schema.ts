@@ -10,6 +10,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "next-auth/adapters";
+import { ChainOfCustodyType } from "@/util/types";
 import { relations } from "drizzle-orm";
 
 /* =========================================================
@@ -23,7 +24,7 @@ export const organisations = pgTable("bb_organisation", {
 
   teamName: text("teamName").notNull(),
   profilePicture: text("profilePicture"),
-  chainOfCustody: text("chainOfCustody"),
+  chainOfCustody: text("chainOfCustody").$type<ChainOfCustodyType>().notNull(),
   industry: text("industry"),
 
   telephone: text("telephone").notNull(),
@@ -247,7 +248,7 @@ export const accounts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    type: text("type").$type<AdapterAccount>().notNull(),
+    type: text("type").notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
 
@@ -941,6 +942,11 @@ export const wasteListingsRelations = relations(
       references: [organisations.id],
     }),
 
+    winningOrganisation: one(organisations, {
+      relationName: "winningOrganisation",
+      fields: [wasteListings.winningOrganisationId],
+      references: [organisations.id],
+    }),
     bids: many(bids),
 
     carrierAssignments: many(carrierAssignments),

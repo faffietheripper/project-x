@@ -26,8 +26,10 @@ export async function createBidAction({
     return { error: "You must be logged in." };
   }
 
+  const numericListingId = Number(listingId);
+
   const listing = await database.query.wasteListings.findFirst({
-    where: eq(wasteListings.id, Number(listingId)),
+    where: eq(wasteListings.id, numericListingId),
   });
 
   if (!listing) {
@@ -48,24 +50,37 @@ export async function createBidAction({
 
   const user = await database.query.users.findFirst({
     where: eq(users.id, userId),
+    columns: {
+      organisationId: true,
+    },
   });
 
   if (!user?.organisationId) {
-    return { error: "User must belong to organisation." };
+    return { error: "User must belong to an organisation." };
   }
 
+  const organisationId = user.organisationId;
+
   await database.transaction(async (tx) => {
+    /* Insert bid */
+
     await tx.insert(bids).values({
       amount,
       listingId: listing.id,
       userId,
-      organisationId: user.organisationId,
+      organisationId,
     });
+
+    /* Update listing current bid */
 
     await tx
       .update(wasteListings)
-      .set({ currentBid: amount })
+      .set({
+        currentBid: amount,
+      })
       .where(eq(wasteListings.id, listing.id));
+
+    /* Notify listing owner */
 
     if (listing.userId) {
       await createNotification(
@@ -96,6 +111,7 @@ export async function handleAssignWinningBid(formData: FormData) {
   }
 
   const session = await auth();
+
   if (!session?.user?.id) {
     return { success: false, message: "Unauthorized." };
   }
@@ -133,5 +149,8 @@ export async function handleAssignWinningBid(formData: FormData) {
 
   revalidatePath(`/home/waste-listings/${listingId}`);
 
-  return { success: true, message: "Winning bid assigned." };
+  return {
+    success: true,
+    message: "Winning bid assigned.",
+  };
 }

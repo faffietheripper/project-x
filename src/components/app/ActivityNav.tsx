@@ -4,8 +4,7 @@ import React, { useState, useRef, ReactNode } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { FiChevronDown, FiEdit, FiPlusSquare, FiShare } from "react-icons/fi";
-
-type ChainOfCustodyType = "wasteManager" | "wasteGenerator" | null;
+import { ChainOfCustodyType } from "@/util/types";
 
 export default function ActivityNav({
   chainOfCustody,

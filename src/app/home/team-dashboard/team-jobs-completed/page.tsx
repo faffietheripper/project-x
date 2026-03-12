@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { database } from "@/db/database";
-import { wasteListings, carrierAssignments, userProfiles } from "@/db/schema";
+import { carrierAssignments, userProfiles, bids } from "@/db/schema";
 import { and, eq, or } from "drizzle-orm";
 import JobReview from "@/components/app/JobReview";
 
@@ -14,10 +14,19 @@ export default async function TeamCompletedJobsPage() {
 
   const organisationId = session.user.organisationId;
 
-  // ✅ Fetch completed assignments linked to this organisation
+  /* =========================================================
+     FETCH COMPLETED ASSIGNMENTS
+  ========================================================= */
+
   const completedAssignments = await database.query.carrierAssignments.findMany(
     {
-      where: eq(carrierAssignments.status, "completed"),
+      where: and(
+        eq(carrierAssignments.status, "completed"),
+        or(
+          eq(carrierAssignments.organisationId, organisationId),
+          eq(carrierAssignments.carrierOrganisationId, organisationId),
+        ),
+      ),
       with: {
         listing: {
           with: {
@@ -30,25 +39,28 @@ export default async function TeamCompletedJobsPage() {
     },
   );
 
-  // ✅ Filter assignments where this org was involved
-  const relevantAssignments = completedAssignments.filter(
-    (assignment) =>
-      assignment.listing?.organisationId === organisationId ||
-      assignment.listing?.winningOrganisationId === organisationId,
-  );
+  type Assignment = (typeof completedAssignments)[number];
 
-  // ✅ Attach receiver profile
+  /* =========================================================
+     ATTACH RECEIVER PROFILES
+  ========================================================= */
+
   const assignmentsWithProfiles = await Promise.all(
-    relevantAssignments.map(async (assignment) => {
+    completedAssignments.map(async (assignment: Assignment) => {
       const listing = assignment.listing;
 
-      if (!listing) return { ...assignment, profile: null };
+      if (!listing) {
+        return { ...assignment, profile: null };
+      }
+
+      const winningBid = listing.bids?.find(
+        (b: typeof bids.$inferSelect) =>
+          b.organisationId === listing.winningOrganisationId,
+      );
 
       const receiverUserId =
         listing.organisationId === organisationId
-          ? listing.bids?.find(
-              (b) => b.organisationId === listing.winningOrganisationId,
-            )?.userId
+          ? winningBid?.userId
           : listing.userId;
 
       if (!receiverUserId) {
@@ -63,6 +75,10 @@ export default async function TeamCompletedJobsPage() {
     }),
   );
 
+  /* =========================================================
+     UI
+  ========================================================= */
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Completed Organisation Jobs</h1>
@@ -72,6 +88,13 @@ export default async function TeamCompletedJobsPage() {
           {assignmentsWithProfiles.map((assignment) => {
             const listing = assignment.listing;
 
+            if (!listing) return null;
+
+            const reviewedOrganisationId =
+              listing.organisationId === organisationId
+                ? listing.winningOrganisationId
+                : listing.organisationId;
+
             return (
               <li
                 key={assignment.id}
@@ -79,44 +102,39 @@ export default async function TeamCompletedJobsPage() {
               >
                 <section className="flex justify-between">
                   <div className="md:w-[700px]">
-                    <h1>Listing Title: {listing?.name}</h1>
                     <h1>
-                      Description:{" "}
-                      {listing?.detailedDescription ||
-                        "No description provided"}
+                      <strong>Listing:</strong> {listing.name}
                     </h1>
 
                     <p className="text-gray-600">
+                      <strong>Location:</strong> {listing.location || "Unknown"}
+                    </p>
+
+                    <p className="text-gray-600">
                       <strong>Owner Organisation:</strong>{" "}
-                      {listing?.organisation?.teamName || "Unknown"}
+                      {listing.organisation?.teamName || "Unknown"}
                     </p>
 
                     <p className="text-gray-600">
                       <strong>Winning Organisation:</strong>{" "}
-                      {listing?.winningOrganisation?.teamName || "Unknown"}
+                      {listing.winningOrganisation?.teamName || "Unknown"}
                     </p>
 
                     <p className="text-green-600 font-bold mt-2">Completed</p>
                   </div>
 
                   <div className="flex space-x-4">
-                    <Link href={`/home/listings/${listing?.id}`}>
-                      <button className="bg-blue-500 w-full text-white px-4 py-2 rounded-md">
+                    <Link href={`/home/listings/${listing.id}`}>
+                      <button className="bg-blue-500 text-white px-4 py-2 rounded-md">
                         View Listing
                       </button>
                     </Link>
 
-                    {assignment.profile ? (
+                    {assignment.profile && reviewedOrganisationId && (
                       <JobReview
-                        itemId={listing?.id}
-                        organisationId={
-                          listing?.organisationId === organisationId
-                            ? listing?.winningOrganisationId!
-                            : listing?.organisationId!
-                        }
+                        listingId={listing.id}
+                        reviewedOrganisationId={reviewedOrganisationId}
                       />
-                    ) : (
-                      <p>No valid profile found.</p>
                     )}
                   </div>
                 </section>

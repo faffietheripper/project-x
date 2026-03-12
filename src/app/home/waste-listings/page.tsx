@@ -1,9 +1,11 @@
 import React from "react";
 import { database } from "@/db/database";
 import { wasteListings } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
 import ListingCard from "@/components/ListingCard";
 import ListingsFilter from "@/components/app/ListingsFilter";
+import type { InferSelectModel } from "drizzle-orm";
+
+type Listing = InferSelectModel<typeof wasteListings>;
 
 export default async function FilteredListingsPage({
   searchParams,
@@ -16,7 +18,7 @@ export default async function FilteredListingsPage({
 }) {
   const { endDate, minBid, location } = searchParams;
 
-  const allListings = await database.query.wasteListings.findMany({
+  const allListings: Listing[] = await database.query.wasteListings.findMany({
     where: (listings, { and, eq }) =>
       and(eq(listings.archived, false), eq(listings.status, "open")),
 
@@ -32,7 +34,7 @@ export default async function FilteredListingsPage({
     })
     .filter((listing) => {
       if (minBid) {
-        return listing.startingPrice >= parseFloat(minBid);
+        return listing.startingPrice >= Number(minBid);
       }
       return true;
     })
@@ -46,7 +48,7 @@ export default async function FilteredListingsPage({
   return (
     <main>
       <div className="w-full shadow-md pl-[24vw] pt-[13vh] pb-8 fixed bg-gray-50">
-        <ListingsFilter listings={allListings} />
+        <ListingsFilter />
       </div>
 
       <section className="pl-[24vw] min-h-screen overflow-y-scroll py-64 px-12">

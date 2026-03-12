@@ -34,6 +34,10 @@ export async function assignCarrierAction(
     throw new Error("Unauthorized");
   }
 
+  /* ===============================
+     FETCH USER
+  ============================== */
+
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
   });
@@ -42,6 +46,12 @@ export async function assignCarrierAction(
     throw new Error("User organisation not found");
   }
 
+  const assignedByOrganisationId = user.organisationId;
+
+  /* ===============================
+     FETCH LISTING
+  ============================== */
+
   const listing = await database.query.wasteListings.findFirst({
     where: eq(wasteListings.id, listingId),
   });
@@ -49,6 +59,16 @@ export async function assignCarrierAction(
   if (!listing) {
     throw new Error("Listing not found");
   }
+
+  if (!listing.organisationId) {
+    throw new Error("Listing organisation missing");
+  }
+
+  const organisationId = listing.organisationId;
+
+  /* ===============================
+     FETCH CARRIER
+  ============================== */
 
   const carrierOrg = await database.query.organisations.findFirst({
     where: eq(organisations.id, carrierOrganisationId),
@@ -65,31 +85,31 @@ export async function assignCarrierAction(
   ============================== */
 
   await database.transaction(async (tx) => {
-    /* 1️⃣ Update listing */
+    /* 1️⃣ UPDATE LISTING */
 
     await tx
       .update(wasteListings)
       .set({
         assignedCarrierOrganisationId: carrierOrganisationId,
-        assignedByOrganisationId: user.organisationId,
+        assignedByOrganisationId,
         assignedAt: new Date(),
         assigned: true,
       })
       .where(eq(wasteListings.id, listingId));
 
-    /* 2️⃣ Insert assignment */
+    /* 2️⃣ INSERT CARRIER ASSIGNMENT */
 
     await tx.insert(carrierAssignments).values({
-      organisationId: listing.organisationId,
+      organisationId,
       listingId,
       carrierOrganisationId,
-      assignedByOrganisationId: user.organisationId,
+      assignedByOrganisationId,
       status: "pending",
       assignedAt: new Date(),
       verificationCode,
     });
 
-    /* 3️⃣ Create notification */
+    /* 3️⃣ CREATE NOTIFICATION */
 
     if (listing.userId) {
       await createNotification(
@@ -114,6 +134,10 @@ Please keep this code safe — it will be required at collection.
     }
   });
 
+  /* ===============================
+     CACHE INVALIDATION
+  ============================== */
+
   revalidatePath("/home/carrier-hub/waste-carriers/assigned-carrier-jobs");
   revalidatePath("/home/my-activity/jobs-in-progress");
 
@@ -136,12 +160,14 @@ export async function getWinningJobsAction() {
 
   if (!user?.organisationId) return [];
 
+  const organisationId = user.organisationId;
+
   const jobs = await database
     .select()
     .from(wasteListings)
     .where(
       and(
-        eq(wasteListings.winningOrganisationId, user.organisationId),
+        eq(wasteListings.winningOrganisationId, organisationId),
         eq(wasteListings.offerAccepted, true),
         eq(wasteListings.archived, false),
         or(

@@ -2,6 +2,7 @@ import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+
 import { database } from "@/db/database";
 import {
   accounts,
@@ -10,12 +11,13 @@ import {
   verificationTokens,
   userProfiles,
 } from "@/db/schema";
+
 import { eq } from "drizzle-orm";
 import { getUserFromDb } from "@/app/login/actions";
 
-/* ===============================
-   Extend Session + JWT Types
-================================= */
+/* =========================================================
+   EXTEND NEXTAUTH TYPES
+========================================================= */
 
 declare module "next-auth" {
   interface Session {
@@ -28,6 +30,9 @@ declare module "next-auth" {
   }
 
   interface User {
+    id: string;
+    name: string;
+    email: string;
     organisationId: string | null;
     role: string;
   }
@@ -42,9 +47,9 @@ declare module "next-auth/jwt" {
   }
 }
 
-/* ===============================
-   NextAuth Config
-================================= */
+/* =========================================================
+   NEXTAUTH CONFIG
+========================================================= */
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(database, {
@@ -59,38 +64,71 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 24 * 60 * 60,
   },
 
+  providers: [
+    Google,
+
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+
+      async authorize(credentials, _request) {
+        if (!credentials?.email || !credentials.password) {
+          return null;
+        }
+
+        const userResponse = await getUserFromDb(
+          credentials.email as string,
+          credentials.password as string,
+        );
+
+        if (!userResponse.success || !userResponse.data) {
+          return null;
+        }
+
+        const user = userResponse.data;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          organisationId: user.organisationId ?? null,
+          role: user.role ?? "employee",
+        };
+      },
+    }),
+  ],
+
   callbacks: {
-    /* ===============================
-       JWT Callback
-       Runs at login + on refresh
-    ================================= */
+    /* =========================================================
+       JWT CALLBACK
+       Runs at login and session refresh
+    ========================================================= */
+
     async jwt({ token, user }) {
-      // On initial login
-      if (user) {
-        const dbUser = await database.query.users.findFirst({
-          where: eq(users.id, user.id),
+      if (user?.id) {
+        token.id = user.id;
+        token.organisationId = user.organisationId;
+        token.role = user.role;
+
+        /* Fetch profile completion status */
+
+        const profile = await database.query.userProfiles.findFirst({
+          where: eq(userProfiles.userId, user.id),
         });
 
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.organisationId = dbUser.organisationId;
-          token.role = dbUser.role;
-
-          const profile = await database.query.userProfiles.findFirst({
-            where: eq(userProfiles.userId, dbUser.id),
-          });
-
-          token.profileCompleted = !!profile;
-        }
+        token.profileCompleted = !!profile;
       }
 
       return token;
     },
 
-    /* ===============================
-       Session Callback
-       Controls what client receives
-    ================================= */
+    /* =========================================================
+       SESSION CALLBACK
+       Controls data sent to client
+    ========================================================= */
+
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
@@ -102,39 +140,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-
-  providers: [
-    Google,
-
-    Credentials({
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          return null;
-        }
-
-        const userResponse = await getUserFromDb(
-          credentials.email,
-          credentials.password,
-        );
-
-        if (!userResponse.success) {
-          return null;
-        }
-
-        // Only return minimal required fields
-        return {
-          id: userResponse.data.id,
-          name: userResponse.data.name,
-          email: userResponse.data.email,
-        };
-      },
-    }),
-  ],
 
   secret: process.env.AUTH_SECRET,
 });

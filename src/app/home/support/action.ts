@@ -5,6 +5,16 @@ import { database } from "@/db/database";
 import { supportTickets, supportTicketMessages, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+type TicketCategory =
+  | "bug"
+  | "billing"
+  | "access"
+  | "feature_request"
+  | "compliance"
+  | "other";
+
+type TicketPriority = "low" | "medium" | "high" | "urgent";
+
 export async function createTicketAction(_prevState: any, formData: FormData) {
   const session = await auth();
 
@@ -16,28 +26,30 @@ export async function createTicketAction(_prevState: any, formData: FormData) {
     where: eq(users.id, session.user.id),
   });
 
-  if (!dbUser?.organisationId) {
-    return { success: false, message: "No organisation." };
+  if (!dbUser || !dbUser.organisationId) {
+    return { success: false, message: "User organisation not found." };
   }
 
-  const category = formData.get("category")?.toString();
-  const priority = formData.get("priority")?.toString();
-  const message = formData.get("message")?.toString();
+  const organisationId = dbUser.organisationId;
 
-  if (!category || !priority || !message) {
+  const rawCategory = formData.get("category");
+  const rawPriority = formData.get("priority");
+  const rawMessage = formData.get("message");
+
+  if (!rawCategory || !rawPriority || !rawMessage) {
     return { success: false, message: "Missing fields." };
   }
 
+  const category = rawCategory.toString() as TicketCategory;
+  const priority = rawPriority.toString() as TicketPriority;
+  const message = rawMessage.toString();
+
   try {
     const ticket = await database.transaction(async (tx) => {
-      /* ===============================
-         1️⃣ CREATE TICKET
-      ============================== */
-
       const [newTicket] = await tx
         .insert(supportTickets)
         .values({
-          organisationId: dbUser.organisationId,
+          organisationId,
           createdByUserId: dbUser.id,
           category,
           priority,
@@ -45,12 +57,8 @@ export async function createTicketAction(_prevState: any, formData: FormData) {
         })
         .returning();
 
-      /* ===============================
-         2️⃣ CREATE FIRST MESSAGE
-      ============================== */
-
       await tx.insert(supportTicketMessages).values({
-        organisationId: dbUser.organisationId,
+        organisationId,
         ticketId: newTicket.id,
         senderUserId: dbUser.id,
         message,

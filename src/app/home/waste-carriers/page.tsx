@@ -4,10 +4,17 @@ import { organisations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import CarriersCard from "@/components/app/WasteCarriers/CarriersCard";
 
-export default async function FilteredCarriersProfilesPage({ searchParams }) {
-  const { location } = searchParams;
+type PageProps = {
+  searchParams?: {
+    location?: string;
+  };
+};
 
-  // Fetch all organisations that are waste carriers
+export default async function FilteredCarriersProfilesPage({
+  searchParams,
+}: PageProps) {
+  const location = searchParams?.location;
+
   const allOrganisations = await database
     .select({
       id: organisations.id,
@@ -21,7 +28,6 @@ export default async function FilteredCarriersProfilesPage({ searchParams }) {
     .from(organisations)
     .where(eq(organisations.chainOfCustody, "wasteCarrier"));
 
-  // Apply location filter if provided
   const filteredOrganisations = allOrganisations.filter((org) => {
     if (location) return org.region === location;
     return true;

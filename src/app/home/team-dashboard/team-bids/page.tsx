@@ -14,11 +14,10 @@ export default async function TeamBids() {
 
   const organisationId = session.user.organisationId;
 
-  // Fetch all bids made by this organisation with their related items
   const allOrgBids = await database.query.bids.findMany({
     where: eq(bids.organisationId, organisationId),
     with: {
-      item: true, // Include the associated item data for each bid
+      listing: true,
     },
   });
 
@@ -27,10 +26,11 @@ export default async function TeamBids() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Organisation Bids</h1>
+
       {hasBids ? (
         <ul className="space-y-4">
           {allOrgBids.map((bid) => {
-            const isWinningBid = bid.item?.winningBidId === bid.id;
+            const isWinningBid = bid.listing?.winningBidId === bid.id;
 
             return (
               <li
@@ -39,11 +39,13 @@ export default async function TeamBids() {
               >
                 <section>
                   <div>
-                    <strong>Bid for:</strong> {bid.itemName}
+                    <strong>Bid for:</strong> {bid.listing?.name}
                   </div>
+
                   <div>
-                    <strong>Bid Amount:</strong> ${bid.amount}
+                    <strong>Bid Amount:</strong> £{bid.amount}
                   </div>
+
                   <div>
                     <strong>Date:</strong>{" "}
                     {new Date(bid.timestamp).toLocaleString()}
@@ -62,10 +64,11 @@ export default async function TeamBids() {
                     <h1 className="text-green-600 font-bold">Pending</h1>
                   )}
                 </section>
+
                 <div className="mt-4 flex space-x-4">
-                  <Link href={`/home/items/${bid.itemId}`}>
+                  <Link href={`/home/listings/${bid.listingId}`}>
                     <button className="bg-blue-500 text-white px-4 py-2 rounded-md">
-                      View Item
+                      View Listing
                     </button>
                   </Link>
                 </div>

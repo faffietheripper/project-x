@@ -5,6 +5,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import ActivityNav from "@/components/app/ActivityNav";
 import { redirect } from "next/navigation";
+import { ChainOfCustodyType } from "@/util/types";
 
 export default async function Layout({
   children,
@@ -13,11 +14,12 @@ export default async function Layout({
 }) {
   const session = await auth();
 
+  // 🔹 Protect route
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  // 🔹 Fetch user + organisation properly from DB
+  // 🔹 Fetch user + organisation
   const user = await database.query.users.findFirst({
     where: eq(users.id, session.user.id),
     with: {
@@ -25,17 +27,19 @@ export default async function Layout({
     },
   });
 
-  // 🔹 If no organisation in DB → redirect
+  // 🔹 Ensure organisation exists
   if (!user?.organisationId || !user?.organisation) {
     redirect("/home/team-dashboard/team-profile?reason=no-organisation");
   }
 
-  const chainOfCustody = user.organisation.chainOfCustody ?? null;
+  // 🔹 Extract chain of custody safely
+  const rawChain = user.organisation.chainOfCustody;
+  const chainOfCustody = user.organisation.chainOfCustody;
 
   return (
     <div className="relative">
       <ActivityNav chainOfCustody={chainOfCustody} />
-      <div className="pl-[24vw] p-10 pt-56">{children}</div>
+      <main className="pl-[24vw] p-10 pt-56">{children}</main>
     </div>
   );
 }

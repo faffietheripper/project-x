@@ -21,3 +21,8 @@ export type AppUser = {
   organisationId: string | null;
   role: "administrator" | "employee" | "seniorManagement" | "platform_admin";
 };
+
+export type ChainOfCustodyType =
+  | "wasteGenerator"
+  | "wasteManager"
+  | "wasteCarrier";
