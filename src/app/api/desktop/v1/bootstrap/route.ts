@@ -219,6 +219,9 @@ export async function GET(request: Request) {
         .where(
           and(
             eq(jobs.organisationId, context.organisationId),
+            context.defaultSiteId
+              ? eq(jobs.ownSiteId, context.defaultSiteId)
+              : undefined,
             ne(jobs.status, "draft"),
             or(
               and(gte(jobs.jobDate, horizonStart), lt(jobs.jobDate, horizonEnd)),

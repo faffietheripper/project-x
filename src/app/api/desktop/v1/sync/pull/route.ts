@@ -1,4 +1,11 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  isNull,
+  or,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { syncChangeFeed } from "@/db/client-sync-schema";
@@ -62,6 +69,12 @@ export async function POST(request: Request) {
         and(
           eq(syncChangeFeed.organisationId, context.organisationId),
           gt(syncChangeFeed.sequence, cursorNumber),
+          context.defaultSiteId
+            ? or(
+                isNull(syncChangeFeed.siteId),
+                eq(syncChangeFeed.siteId, context.defaultSiteId),
+              )
+            : undefined,
         ),
       )
       .orderBy(asc(syncChangeFeed.sequence))

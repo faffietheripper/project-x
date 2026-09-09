@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import {
   clientDevices,
@@ -6,10 +6,10 @@ import {
 } from "@/db/client-sync-schema";
 import { database } from "@/db/database";
 import { jobLoadFieldStates } from "@/db/mobile-field-schema";
-import { drivers, jobLoads, jobs, users } from "@/db/schema";
+import { drivers, jobLoads, jobs } from "@/db/schema";
 import {
   requireClientApiContext,
-  requireOperationsRole,
+  requireMobileAccess,
 } from "@/lib/client-api/auth";
 import {
   clientApiError,
@@ -25,7 +25,7 @@ export async function GET(
 ) {
   try {
     const context = await requireClientApiContext(request);
-    requireOperationsRole(context);
+    await requireMobileAccess(context);
 
     const device = await database.query.clientDevices.findFirst({
       where: and(
@@ -45,40 +45,23 @@ export async function GET(
       );
     }
 
-    const user = await database.query.users.findFirst({
-      where: and(
-        eq(users.id, context.userId),
-        eq(users.organisationId, context.organisationId),
-      ),
-      columns: { id: true, email: true },
-    });
-
-    if (!user) {
-      return clientApiError(
-        "ACCOUNT_UNAVAILABLE",
-        403,
-        "This Waste X account is unavailable.",
-      );
-    }
-
     const matchedDrivers = await database
       .select({ id: drivers.id })
       .from(drivers)
       .where(
         and(
           eq(drivers.organisationId, context.organisationId),
+          eq(drivers.linkedUserId, context.userId),
           eq(drivers.isActive, true),
-          sql`lower(trim(${drivers.email})) = ${user.email.toLowerCase().trim()}`,
         ),
       )
-      .orderBy(asc(drivers.id))
       .limit(2);
 
     if (matchedDrivers.length !== 1) {
       return clientApiError(
         "MOBILE_DRIVER_SCOPE_UNAVAILABLE",
         403,
-        "Waste X Mobile requires exactly one active Driver linked to this account.",
+        "Waste X Mobile requires one explicitly linked active Driver.",
       );
     }
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import { clientDevices } from "@/db/client-sync-schema";
 import { database } from "@/db/database";
@@ -7,11 +7,11 @@ import {
   type JobLoadFieldEventType,
   type JobLoadFieldStep,
 } from "@/db/mobile-field-schema";
-import { drivers, jobLoads, jobs, users } from "@/db/schema";
+import { drivers, jobLoads, jobs } from "@/db/schema";
 import {
   ClientApiAuthError,
   requireClientApiContext,
-  requireOperationsRole,
+  requireMobileAccess,
 } from "@/lib/client-api/auth";
 import { recordSyncChange } from "@/lib/client-api/change-feed";
 import {
@@ -54,35 +54,23 @@ async function resolveMobileDriver(context: {
   userId: string;
   organisationId: string;
 }) {
-  const user = await database.query.users.findFirst({
-    where: and(eq(users.id, context.userId), eq(users.organisationId, context.organisationId)),
-    columns: { id: true, email: true },
-  });
-
-  if (!user) {
-    throw new ClientApiAuthError("ACCOUNT_UNAVAILABLE", 403, "This Waste X account is unavailable.");
-  }
-
   const matches = await database
     .select({ id: drivers.id })
     .from(drivers)
     .where(
       and(
         eq(drivers.organisationId, context.organisationId),
+        eq(drivers.linkedUserId, context.userId),
         eq(drivers.isActive, true),
-        sql`lower(trim(${drivers.email})) = ${user.email.toLowerCase().trim()}`,
       ),
     )
-    .orderBy(asc(drivers.id))
     .limit(2);
 
   if (matches.length !== 1) {
     throw new ClientApiAuthError(
       "MOBILE_DRIVER_SCOPE_UNAVAILABLE",
       403,
-      matches.length === 0
-        ? "This Waste X account is not uniquely linked to an active Driver."
-        : "More than one active Driver matches this Waste X account.",
+      "This Waste X Mobile account is not explicitly linked to one active Driver.",
     );
   }
 
@@ -189,7 +177,7 @@ async function runPostApplyHooks({
 export async function POST(request: Request) {
   try {
     const context = await requireClientApiContext(request);
-    requireOperationsRole(context);
+    await requireMobileAccess(context);
 
     const device = await database.query.clientDevices.findFirst({
       where: and(

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useRouter } from "expo-router";
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,12 +10,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  AssignmentCard,
   EmptyWorkState,
   SectionHeading,
   WasteXHeader,
   fieldOpsStyles,
 } from "@/field-ops/components";
+import { AssignmentTable } from "@/field-ops/assignment-table";
 import { useFieldOps } from "@/field-ops/context";
 import {
   assignmentDateKey,
@@ -90,20 +89,13 @@ export default function MyDayScreen() {
         <View style={fieldOpsStyles.sectionGap}>
           <SectionHeading title="My Day" count={buckets.today.length} />
           {buckets.today.length > 0 ? (
-            buckets.today.map((assignment) => (
-              <Pressable
-                key={assignment.load.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${assignment.job.jobNumber}, load ${assignment.load.loadNumber}`}
-                onPress={() => openAssignment(assignment.load.id)}
-                style={({ pressed }) => pressed && styles.assignmentPressed}
-              >
-                <AssignmentCard
-                  assignment={assignment}
-                  carryOver={assignmentDateKey(assignment.job.jobDate) < todayKey()}
-                />
-              </Pressable>
-            ))
+            <AssignmentTable
+              assignments={buckets.today}
+              onOpen={openAssignment}
+              carryOver={(assignment) =>
+                assignmentDateKey(assignment.job.jobDate) < todayKey()
+              }
+            />
           ) : (
             <EmptyWorkState
               title="No field work assigned for today"
@@ -119,17 +111,10 @@ export default function MyDayScreen() {
         <View style={fieldOpsStyles.sectionGap}>
           <SectionHeading title="Next up" count={buckets.upcoming.length} />
           {nextUp.length > 0 ? (
-            nextUp.map((assignment) => (
-              <Pressable
-                key={assignment.load.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${assignment.job.jobNumber}, load ${assignment.load.loadNumber}`}
-                onPress={() => openAssignment(assignment.load.id)}
-                style={({ pressed }) => pressed && styles.assignmentPressed}
-              >
-                <AssignmentCard assignment={assignment} />
-              </Pressable>
-            ))
+            <AssignmentTable
+              assignments={nextUp}
+              onOpen={openAssignment}
+            />
           ) : (
             <View style={styles.quietCard}>
               <Text style={styles.quietTitle}>Nothing else scheduled yet.</Text>

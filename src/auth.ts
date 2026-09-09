@@ -50,6 +50,7 @@ type WasteXSessionUser = {
 
 type WasteXAuthUser = {
   id?: string;
+  email?: string | null;
   organisationId?: string | null;
   departmentId?: string | null;
   role?: string | null;
@@ -110,6 +111,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
+    /* =========================================================
+       WEB SIGN-IN BOUNDARY
+
+       Driver is a Mobile-only role. Never create a normal Waste X
+       browser session for that identity, regardless of provider.
+    ========================================================= */
+
+    async signIn({ user }) {
+      const candidate = user as typeof user & WasteXAuthUser;
+
+      if (candidate.role === "driver") {
+        return "/login?reason=mobile-only";
+      }
+
+      if (candidate.email) {
+        const existingUser = await database.query.users.findFirst({
+          where: eq(users.email, candidate.email.trim().toLowerCase()),
+          columns: {
+            role: true,
+          },
+        });
+
+        if (existingUser?.role === "driver") {
+          return "/login?reason=mobile-only";
+        }
+      }
+
+      return true;
+    },
+
     /* =========================================================
        JWT CALLBACK
 

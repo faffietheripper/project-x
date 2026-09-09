@@ -739,6 +739,39 @@ export const drivers = pgTable(
     telephone: text("telephone"),
     email: text("email"),
 
+    /*
+      Waste X account explicitly authorised to act as this Driver.
+      Driver.email remains operational contact data only and must not be
+      treated as an authentication/authorisation identity.
+    */
+    linkedUserId: text("linkedUserId").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /*
+      Mobile access is deliberately separate from Driver operational status
+      and from the linked Waste X User account status.
+
+      NOT_INVITED -> INVITED -> ACTIVE
+      ACTIVE <-> SUSPENDED
+      ACTIVE / SUSPENDED -> REVOKED
+    */
+    mobileAccessStatus: text("mobileAccessStatus")
+      .$type<
+        | "NOT_INVITED"
+        | "INVITED"
+        | "ACTIVE"
+        | "SUSPENDED"
+        | "REVOKED"
+      >()
+      .notNull()
+      .default("NOT_INVITED"),
+
+    mobileInvitedAt: timestamp("mobileInvitedAt", { mode: "date" }),
+    mobileActivatedAt: timestamp("mobileActivatedAt", { mode: "date" }),
+    mobileSuspendedAt: timestamp("mobileSuspendedAt", { mode: "date" }),
+    mobileRevokedAt: timestamp("mobileRevokedAt", { mode: "date" }),
+
     defaultVehicleId: text("defaultVehicleId").references(() => vehicles.id, {
       onDelete: "set null",
     }),
@@ -753,6 +786,12 @@ export const drivers = pgTable(
   (table) => ({
     orgIdx: index("driver_org_idx").on(table.organisationId),
     haulierIdx: index("driver_haulier_idx").on(table.haulierCounterpartyId),
+    linkedUserUnique: uniqueIndex("driver_linked_user_unique").on(
+      table.linkedUserId,
+    ),
+    mobileAccessStatusIdx: index("driver_mobile_access_status_idx").on(
+      table.mobileAccessStatus,
+    ),
     defaultVehicleIdx: index("driver_default_vehicle_idx").on(
       table.defaultVehicleId,
     ),
@@ -1666,6 +1705,7 @@ lastSeenAt: timestamp("lastSeenAt"),
         | "operations"
         | "accounts"
         | "read_only"
+        | "driver"
         | "employee"
         | "seniorManagement"
         | "platform_admin"
@@ -3846,6 +3886,12 @@ export const driversRelations = relations(drivers, ({ one, many }) => ({
     relationName: "driverDefaultVehicle",
     fields: [drivers.defaultVehicleId],
     references: [vehicles.id],
+  }),
+
+  linkedUser: one(users, {
+    relationName: "driverLinkedUser",
+    fields: [drivers.linkedUserId],
+    references: [users.id],
   }),
 
   jobTemplates: many(jobTemplates),

@@ -134,7 +134,7 @@ export function TicketPanel({
     <section className="ticket-authority-panel">
       <div className="ticket-authority-heading">
         <div>
-          <span className="eyebrow">Stage 13 · Receiving-site ticket</span>
+          <span className="eyebrow">Receiving-site ticket</span>
           <h3>Final site document</h3>
           <p className="small-copy">
             This ticket belongs to the completed receiving-site transaction. It is created from

@@ -4,7 +4,7 @@ import { clientDevices } from "@/db/client-sync-schema";
 import { database } from "@/db/database";
 import {
   requireClientApiContext,
-  requireOperationsRole,
+  requireMobileAccess,
 } from "@/lib/client-api/auth";
 import {
   clientApiError,
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const context = await requireClientApiContext(request);
-    requireOperationsRole(context);
+    await requireMobileAccess(context);
 
     const device = await database.query.clientDevices.findFirst({
       where: eq(clientDevices.id, context.deviceId),

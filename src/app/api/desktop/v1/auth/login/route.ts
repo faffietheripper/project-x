@@ -23,6 +23,13 @@ const loginSchema = z.object({
   deviceSecret: z.string().min(32),
 });
 
+const allowedRoles = new Set([
+  "administrator",
+  "operations",
+  "seniorManagement",
+  "employee",
+]);
+
 export async function POST(request: Request) {
   try {
     const parsed = loginSchema.safeParse(await request.json());
@@ -48,10 +55,19 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!allowedRoles.has(user.role)) {
+      return clientApiError(
+        "PERMISSION_DENIED",
+        403,
+        "This Waste X user cannot access an operational Desktop device.",
+      );
+    }
+
     const device = await database.query.clientDevices.findFirst({
       where: and(
         eq(clientDevices.id, parsed.data.deviceId),
         eq(clientDevices.organisationId, user.organisationId),
+        eq(clientDevices.deviceType, "DESKTOP"),
         eq(clientDevices.secretHash, hashOpaqueSecret(parsed.data.deviceSecret)),
         eq(clientDevices.status, "ACTIVE"),
       ),

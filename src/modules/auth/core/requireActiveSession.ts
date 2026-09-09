@@ -25,6 +25,7 @@ export async function requireActiveSession() {
     columns: {
       id: true,
       activeSessionToken: true,
+      role: true,
       isActive: true,
       isSuspended: true,
     },
@@ -32,6 +33,10 @@ export async function requireActiveSession() {
 
   if (!dbUser || !dbUser.isActive || dbUser.isSuspended) {
     redirect("/login?reason=account-disabled");
+  }
+
+  if (dbUser.role === "driver") {
+    redirect("/login?reason=mobile-only");
   }
 
   if (dbUser.activeSessionToken !== sessionToken) {

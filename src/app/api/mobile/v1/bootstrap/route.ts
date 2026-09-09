@@ -8,8 +8,7 @@ import {
   lte,
   ne,
   or,
-  sql,
-} from "drizzle-orm";
+  } from "drizzle-orm";
 
 import {
   clientDevices,
@@ -24,13 +23,12 @@ import {
   jobs,
   materialProfiles,
   sites,
-  users,
   vehicles,
 } from "@/db/schema";
 import {
   ClientApiAuthError,
   requireClientApiContext,
-  requireOperationsRole,
+  requireMobileAccess,
 } from "@/lib/client-api/auth";
 import { clientApiJson, handleClientApiError } from "@/lib/client-api/http";
 
@@ -169,7 +167,7 @@ function unique(values: Array<string | null | undefined>) {
 export async function GET(request: Request) {
   try {
     const context = await requireClientApiContext(request);
-    requireOperationsRole(context);
+    await requireMobileAccess(context);
 
     const device = await database.query.clientDevices.findFirst({
       where: and(
@@ -188,15 +186,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const user = await database.query.users.findFirst({
-      where: and(eq(users.id, context.userId), eq(users.organisationId, context.organisationId)),
-      columns: { id: true, email: true },
-    });
-    if (!user) {
-      throw new ClientApiAuthError("ACCOUNT_UNAVAILABLE", 403, "This Waste X account is unavailable.");
-    }
-
-    const normalizedEmail = user.email.toLowerCase().trim();
+    /*
+      Explicit User -> Driver identity is authoritative.
+      Driver email is contact/display data only and is never used for scope.
+    */
     const matchedDrivers = await database
       .select({
         id: drivers.id,
@@ -204,13 +197,14 @@ export async function GET(request: Request) {
         email: drivers.email,
         telephone: drivers.telephone,
         defaultVehicleId: drivers.defaultVehicleId,
+        isActive: drivers.isActive,
       })
       .from(drivers)
       .where(
         and(
           eq(drivers.organisationId, context.organisationId),
+          eq(drivers.linkedUserId, context.userId),
           eq(drivers.isActive, true),
-          sql`lower(trim(${drivers.email})) = ${normalizedEmail}`,
         ),
       )
       .limit(2);
@@ -234,7 +228,7 @@ export async function GET(request: Request) {
         },
         scope: {
           resolution: matchedDrivers.length === 0 ? ("NO_DRIVER_MATCH" as const) : ("AMBIGUOUS_DRIVER_MATCH" as const),
-          userId: user.id,
+          userId: context.userId,
           driver: null,
         },
         assignments: [],
@@ -497,7 +491,7 @@ export async function GET(request: Request) {
       },
       scope: {
         resolution: "MATCHED" as const,
-        userId: user.id,
+        userId: context.userId,
         driver: {
           id: driver.id,
           name: driver.name,

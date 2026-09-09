@@ -35,6 +35,14 @@ export async function getUserFromDb(email: string, password?: string) {
     return { success: false, message: "Account inactive or suspended." };
   }
 
+  if (user.role === "driver") {
+    return {
+      success: false,
+      message:
+        "This account is for Waste X Mobile. Open the Waste X Mobile app to continue.",
+    };
+  }
+
   return { success: true, data: user };
 }
 

@@ -44,6 +44,7 @@ pub struct DailyLoad {
     notes: Option<String>,
     entity_version: i64,
     pending_events: i64,
+    search_text: String,
 }
 
 #[derive(Serialize)]
@@ -209,7 +210,11 @@ fn set_optional_string(object: &mut Map<String, Value>, key: &str, value: Option
     );
 }
 
-fn local_load(transaction: &Transaction<'_>, load_id: &str, organisation_id: &str) -> Result<LocalLoad, String> {
+fn local_load(
+    transaction: &Transaction<'_>,
+    load_id: &str,
+    organisation_id: &str,
+) -> Result<LocalLoad, String> {
     let load = transaction
         .query_row(
             "SELECT id, organisation_id, job_id, own_site_id, direction, status,
@@ -246,7 +251,10 @@ fn local_load(transaction: &Transaction<'_>, load_id: &str, organisation_id: &st
         .optional()
         .map_err(|e| e.to_string())?;
 
-    if matches!(job_status.as_deref(), None | Some("draft") | Some("cancelled")) {
+    if matches!(
+        job_status.as_deref(),
+        None | Some("draft") | Some("cancelled")
+    ) {
         return Err("The parent job is not operational.".to_string());
     }
 
@@ -272,7 +280,9 @@ fn validate_transport(
     organisation_id: &str,
     haulier_counterparty_id: Option<&str>,
 ) -> Result<(), String> {
-    let Some(id) = id else { return Ok(()); };
+    let Some(id) = id else {
+        return Ok(());
+    };
     let sql = format!(
         "SELECT haulier_counterparty_id FROM {table}
          WHERE id = ?1 AND organisation_id = ?2 AND active = 1"
@@ -282,23 +292,39 @@ fn validate_transport(
         .optional()
         .map_err(|e| e.to_string())?;
 
-    let stored_haulier = stored_haulier
-        .ok_or_else(|| format!("Selected {} is not available offline.", if table == "local_driver" { "driver" } else { "vehicle" }))?;
+    let stored_haulier = stored_haulier.ok_or_else(|| {
+        format!(
+            "Selected {} is not available offline.",
+            if table == "local_driver" {
+                "driver"
+            } else {
+                "vehicle"
+            }
+        )
+    })?;
 
     if stored_haulier.as_deref() != haulier_counterparty_id {
         return Err(format!(
             "Selected {} does not belong to this load's transport provider.",
-            if table == "local_driver" { "driver" } else { "vehicle" }
+            if table == "local_driver" {
+                "driver"
+            } else {
+                "vehicle"
+            }
         ));
     }
     Ok(())
 }
 
-fn cached_incoming_permit_allows(transaction: &Transaction<'_>, load: &LocalLoad) -> Result<bool, String> {
+fn cached_incoming_permit_allows(
+    transaction: &Transaction<'_>,
+    load: &LocalLoad,
+) -> Result<bool, String> {
     let permit_id = value_string(&load.payload, "sitePermitId");
     let site_id = value_string(&load.payload, "ownSiteId").or_else(|| load.own_site_id.clone());
     let ewc_code_id = value_string(&load.payload, "ewcCodeId");
-    let (Some(permit_id), Some(site_id), Some(ewc_code_id)) = (permit_id, site_id, ewc_code_id) else {
+    let (Some(permit_id), Some(site_id), Some(ewc_code_id)) = (permit_id, site_id, ewc_code_id)
+    else {
         return Ok(false);
     };
 
@@ -323,7 +349,10 @@ fn cached_incoming_permit_allows(transaction: &Transaction<'_>, load: &LocalLoad
     Ok(found.is_some())
 }
 
-fn cached_outgoing_facility_allows(transaction: &Transaction<'_>, load: &LocalLoad) -> Result<bool, String> {
+fn cached_outgoing_facility_allows(
+    transaction: &Transaction<'_>,
+    load: &LocalLoad,
+) -> Result<bool, String> {
     let site_id = value_string(&load.payload, "thirdPartyDestinationSiteId");
     let ewc_code_id = value_string(&load.payload, "ewcCodeId");
     let (Some(site_id), Some(ewc_code_id)) = (site_id, ewc_code_id) else {
@@ -446,7 +475,14 @@ fn enqueue_load_event(
             "INSERT INTO local_audit_event (
                 event_id, actor_user_id, action, entity_type, entity_id, payload_json, created_at
              ) VALUES (?1, ?2, ?3, 'job_load', ?4, ?5, ?6)",
-            params![event_id, actor.user_id, event_type, load.id, payload_json, now],
+            params![
+                event_id,
+                actor.user_id,
+                event_type,
+                load.id,
+                payload_json,
+                now
+            ],
         )
         .map_err(|e| e.to_string())?;
 
@@ -470,13 +506,19 @@ fn enqueue_load_event(
 fn normalise_optional(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
         let trimmed = value.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     })
 }
 
 fn decimal(value: Option<f64>) -> Result<Option<String>, String> {
     match value {
-        Some(value) if !value.is_finite() || value < 0.0 => Err("Weights must be zero or greater.".to_string()),
+        Some(value) if !value.is_finite() || value < 0.0 => {
+            Err("Weights must be zero or greater.".to_string())
+        }
         Some(value) => Ok(Some(format!("{value:.3}"))),
         None => Ok(None),
     }
@@ -496,6 +538,7 @@ pub fn desktop_daily_operations(
             "SELECT l.id, l.job_id, COALESCE(j.job_number, ''), j.job_date,
                     l.load_number, l.direction, l.status, l.gross_weight, l.tare_weight,
                     l.net_weight, l.entity_version, l.payload_json,
+                    COALESCE(j.payload_json, ''),
                     (SELECT COUNT(*) FROM local_sync_queue q
                      WHERE q.entity_type = 'job_load' AND q.entity_id = l.id
                        AND q.status IN ('PENDING','SENDING','FAILED','CONFLICT'))
@@ -521,7 +564,8 @@ pub fn desktop_daily_operations(
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, i64>(10)?,
                 row.get::<_, String>(11)?,
-                row.get::<_, i64>(12)?,
+                row.get::<_, String>(12)?,
+                row.get::<_, i64>(13)?,
             ))
         })
         .map_err(|e| e.to_string())?;
@@ -529,7 +573,8 @@ pub fn desktop_daily_operations(
     let mut loads = Vec::new();
     for row in rows {
         let row = row.map_err(|e| e.to_string())?;
-        let payload = parse_payload(row.11)?;
+        let payload = parse_payload(row.11.clone())?;
+        let search_text = format!("{} {}", row.11, row.12);
         loads.push(DailyLoad {
             id: row.0,
             job_id: row.1,
@@ -541,20 +586,27 @@ pub fn desktop_daily_operations(
             haulier_counterparty_id: value_string(&payload, "haulierCounterpartyId"),
             driver_id: value_string(&payload, "driverId"),
             vehicle_id: value_string(&payload, "vehicleId"),
-            waste_description: value_string(&payload, "wasteDescriptionSnapshot").unwrap_or_default(),
+            waste_description: value_string(&payload, "wasteDescriptionSnapshot")
+                .unwrap_or_default(),
             ewc_code: value_string(&payload, "ewcCodeSnapshot"),
             gross_weight: row.7,
             tare_weight: row.8,
             net_weight: row.9,
-            weight_metric: value_string(&payload, "weightMetric").unwrap_or_else(|| "Tonnes".to_string()),
+            weight_metric: value_string(&payload, "weightMetric")
+                .unwrap_or_else(|| "Tonnes".to_string()),
             ticket_number: value_string(&payload, "ticketNumber"),
             notes: value_string(&payload, "notes"),
             entity_version: row.10,
-            pending_events: row.12,
-        });
+            pending_events: row.13,
+            search_text,
+});
     }
 
-    fn references(connection: &Connection, table: &str, label_keys: &[&str]) -> Result<Vec<OperationsReference>, String> {
+    fn references(
+        connection: &Connection,
+        table: &str,
+        label_keys: &[&str],
+    ) -> Result<Vec<OperationsReference>, String> {
         let mut statement = connection
             .prepare(&format!(
                 "SELECT id, haulier_counterparty_id, payload_json FROM {table} WHERE active = 1 ORDER BY id"
@@ -577,7 +629,11 @@ pub fn desktop_daily_operations(
                 .iter()
                 .find_map(|key| value_string(&payload, key))
                 .unwrap_or_else(|| id.clone());
-            result.push(OperationsReference { id, label, haulier_counterparty_id });
+            result.push(OperationsReference {
+                id,
+                label,
+                haulier_counterparty_id,
+            });
         }
         Ok(result)
     }
@@ -599,8 +655,16 @@ pub fn desktop_daily_operations(
 
     Ok(DailyOperationsSnapshot {
         loads,
-        drivers: references(&connection, "local_driver", &["name", "fullName", "driverName"] )?,
-        vehicles: references(&connection, "local_vehicle", &["registrationNumber", "registration", "name"] )?,
+        drivers: references(
+            &connection,
+            "local_driver",
+            &["name", "fullName", "driverName"],
+        )?,
+        vehicles: references(
+            &connection,
+            "local_vehicle",
+            &["registrationNumber", "registration", "name"],
+        )?,
         pending_events,
         conflicts,
     })
@@ -625,15 +689,30 @@ pub fn desktop_save_load_details(
     if waste_description.is_empty() {
         return Err("Waste description is required.".to_string());
     }
-    if !matches!(input.weight_metric.as_str(), "Grams" | "Kilograms" | "Tonnes") {
+    if !matches!(
+        input.weight_metric.as_str(),
+        "Grams" | "Kilograms" | "Tonnes"
+    ) {
         return Err("Weight metric must be Grams, Kilograms, or Tonnes.".to_string());
     }
 
     let driver_id = normalise_optional(input.driver_id);
     let vehicle_id = normalise_optional(input.vehicle_id);
     let haulier_counterparty_id = value_string(&load.payload, "haulierCounterpartyId");
-    validate_transport(&transaction, "local_driver", driver_id.as_deref(), &actor.organisation_id, haulier_counterparty_id.as_deref())?;
-    validate_transport(&transaction, "local_vehicle", vehicle_id.as_deref(), &actor.organisation_id, haulier_counterparty_id.as_deref())?;
+    validate_transport(
+        &transaction,
+        "local_driver",
+        driver_id.as_deref(),
+        &actor.organisation_id,
+        haulier_counterparty_id.as_deref(),
+    )?;
+    validate_transport(
+        &transaction,
+        "local_vehicle",
+        vehicle_id.as_deref(),
+        &actor.organisation_id,
+        haulier_counterparty_id.as_deref(),
+    )?;
 
     let gross = decimal(input.gross_weight)?;
     let tare = decimal(input.tare_weight)?;
@@ -651,13 +730,25 @@ pub fn desktop_save_load_details(
     let object = payload_object(&mut updated_payload)?;
     set_optional_string(object, "driverId", driver_id.clone());
     set_optional_string(object, "vehicleId", vehicle_id.clone());
-    object.insert("wasteDescriptionSnapshot".to_string(), Value::String(waste_description.clone()));
+    object.insert(
+        "wasteDescriptionSnapshot".to_string(),
+        Value::String(waste_description.clone()),
+    );
     set_optional_string(object, "grossWeight", gross.clone());
     set_optional_string(object, "tareWeight", tare.clone());
     set_optional_string(object, "netWeight", net.clone());
-    object.insert("weightMetric".to_string(), Value::String(input.weight_metric.clone()));
-    object.insert("weightIsEstimate".to_string(), Value::Bool(input.weight_is_estimate));
-    object.insert("weightSource".to_string(), Value::String("manual".to_string()));
+    object.insert(
+        "weightMetric".to_string(),
+        Value::String(input.weight_metric.clone()),
+    );
+    object.insert(
+        "weightIsEstimate".to_string(),
+        Value::Bool(input.weight_is_estimate),
+    );
+    object.insert(
+        "weightSource".to_string(),
+        Value::String("manual".to_string()),
+    );
     set_optional_string(object, "ticketNumber", ticket_number.clone());
     set_optional_string(object, "notes", notes.clone());
 
@@ -702,18 +793,42 @@ pub fn desktop_mark_load_arrived(
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
     let load = local_load(&transaction, input.load_id.trim(), &actor.organisation_id)?;
 
-    if load.direction != "incoming" { return Err("Arrived is only valid for incoming loads.".to_string()); }
-    if load.status != "planned" { return Err("Only a planned load can be marked arrived.".to_string()); }
-    if value_string(&load.payload, "wasteDescriptionSnapshot").unwrap_or_default().trim().is_empty() {
+    if load.direction != "incoming" {
+        return Err("Arrived is only valid for incoming loads.".to_string());
+    }
+    if load.status != "planned" {
+        return Err("Only a planned load can be marked arrived.".to_string());
+    }
+    if value_string(&load.payload, "wasteDescriptionSnapshot")
+        .unwrap_or_default()
+        .trim()
+        .is_empty()
+    {
         return Err("Waste description is required before arrival.".to_string());
     }
     let driver_id = value_string(&load.payload, "driverId");
     let vehicle_id = value_string(&load.payload, "vehicleId");
-    if driver_id.is_none() { return Err("Driver is required before arrival.".to_string()); }
-    if vehicle_id.is_none() { return Err("Vehicle is required before arrival.".to_string()); }
+    if driver_id.is_none() {
+        return Err("Driver is required before arrival.".to_string());
+    }
+    if vehicle_id.is_none() {
+        return Err("Vehicle is required before arrival.".to_string());
+    }
     let haulier = value_string(&load.payload, "haulierCounterpartyId");
-    validate_transport(&transaction, "local_driver", driver_id.as_deref(), &actor.organisation_id, haulier.as_deref())?;
-    validate_transport(&transaction, "local_vehicle", vehicle_id.as_deref(), &actor.organisation_id, haulier.as_deref())?;
+    validate_transport(
+        &transaction,
+        "local_driver",
+        driver_id.as_deref(),
+        &actor.organisation_id,
+        haulier.as_deref(),
+    )?;
+    validate_transport(
+        &transaction,
+        "local_vehicle",
+        vehicle_id.as_deref(),
+        &actor.organisation_id,
+        haulier.as_deref(),
+    )?;
 
     let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let mut updated_payload = load.payload.clone();
@@ -726,7 +841,18 @@ pub fn desktop_mark_load_arrived(
         object.insert("movementAt".to_string(), Value::String(now));
     }
 
-    let result = enqueue_load_event(&transaction, &actor, &load, "LOAD_ARRIVED", &json!({}), &updated_payload, "arrived", load.gross_weight.as_deref(), load.tare_weight.as_deref(), load.net_weight.as_deref())?;
+    let result = enqueue_load_event(
+        &transaction,
+        &actor,
+        &load,
+        "LOAD_ARRIVED",
+        &json!({}),
+        &updated_payload,
+        "arrived",
+        load.gross_weight.as_deref(),
+        load.tare_weight.as_deref(),
+        load.net_weight.as_deref(),
+    )?;
     transaction.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
@@ -743,18 +869,41 @@ pub fn desktop_accept_load(
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
     let load = local_load(&transaction, input.load_id.trim(), &actor.organisation_id)?;
 
-    if load.direction != "incoming" { return Err("Accept is only valid for incoming loads.".to_string()); }
-    if load.status != "arrived" { return Err("The load must be arrived before it can be accepted.".to_string()); }
-    if value_string(&load.payload, "wasteDescriptionSnapshot").unwrap_or_default().trim().is_empty() {
+    if load.direction != "incoming" {
+        return Err("Accept is only valid for incoming loads.".to_string());
+    }
+    if load.status != "arrived" {
+        return Err("The load must be arrived before it can be accepted.".to_string());
+    }
+    if value_string(&load.payload, "wasteDescriptionSnapshot")
+        .unwrap_or_default()
+        .trim()
+        .is_empty()
+    {
         return Err("Waste description is required before acceptance.".to_string());
     }
     if !cached_incoming_permit_allows(&transaction, &load)? {
-        return Err("Cached permit/EWC rules do not allow this incoming load. Do not accept it offline.".to_string());
+        return Err(
+            "Cached permit/EWC rules do not allow this incoming load. Do not accept it offline."
+                .to_string(),
+        );
     }
 
     let mut updated_payload = load.payload.clone();
-    payload_object(&mut updated_payload)?.insert("status".to_string(), Value::String("accepted".to_string()));
-    let result = enqueue_load_event(&transaction, &actor, &load, "LOAD_ACCEPTED", &json!({}), &updated_payload, "accepted", load.gross_weight.as_deref(), load.tare_weight.as_deref(), load.net_weight.as_deref())?;
+    payload_object(&mut updated_payload)?
+        .insert("status".to_string(), Value::String("accepted".to_string()));
+    let result = enqueue_load_event(
+        &transaction,
+        &actor,
+        &load,
+        "LOAD_ACCEPTED",
+        &json!({}),
+        &updated_payload,
+        "accepted",
+        load.gross_weight.as_deref(),
+        load.tare_weight.as_deref(),
+        load.net_weight.as_deref(),
+    )?;
     transaction.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
@@ -774,20 +923,39 @@ pub fn desktop_reject_load(
     let actor = actor_context(&connection)?;
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
     let load = local_load(&transaction, input.load_id.trim(), &actor.organisation_id)?;
-    if load.direction != "incoming" { return Err("Reject is only valid for incoming loads.".to_string()); }
-    if load.status != "arrived" { return Err("The load must be arrived before it can be rejected.".to_string()); }
+    if load.direction != "incoming" {
+        return Err("Reject is only valid for incoming loads.".to_string());
+    }
+    if load.status != "arrived" {
+        return Err("The load must be arrived before it can be rejected.".to_string());
+    }
 
     let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let existing_notes = value_string(&load.payload, "notes").unwrap_or_default();
     let note = format!("[REJECTED · {now}] {reason}");
-    let notes = if existing_notes.trim().is_empty() { note } else { format!("{}\n{}", existing_notes.trim(), note) };
+    let notes = if existing_notes.trim().is_empty() {
+        note
+    } else {
+        format!("{}\n{}", existing_notes.trim(), note)
+    };
     let mut updated_payload = load.payload.clone();
     let object = payload_object(&mut updated_payload)?;
     object.insert("status".to_string(), Value::String("rejected".to_string()));
     object.insert("notes".to_string(), Value::String(notes));
     object.insert("completedAt".to_string(), Value::String(now));
 
-    let result = enqueue_load_event(&transaction, &actor, &load, "LOAD_REJECTED", &json!({ "reason": reason }), &updated_payload, "rejected", load.gross_weight.as_deref(), load.tare_weight.as_deref(), load.net_weight.as_deref())?;
+    let result = enqueue_load_event(
+        &transaction,
+        &actor,
+        &load,
+        "LOAD_REJECTED",
+        &json!({ "reason": reason }),
+        &updated_payload,
+        "rejected",
+        load.gross_weight.as_deref(),
+        load.tare_weight.as_deref(),
+        load.net_weight.as_deref(),
+    )?;
     transaction.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
@@ -807,16 +975,28 @@ pub fn desktop_complete_load(
     if load.direction == "incoming" && load.status != "accepted" {
         return Err("Incoming loads must be accepted before completion.".to_string());
     }
-    if load.direction == "outgoing" && matches!(load.status.as_str(), "completed" | "rejected" | "cancelled") {
+    if load.direction == "outgoing"
+        && matches!(load.status.as_str(), "completed" | "rejected" | "cancelled")
+    {
         return Err("This outgoing load is already terminal.".to_string());
     }
-    let net = load.net_weight.as_ref().and_then(|value| value.parse::<f64>().ok()).unwrap_or(0.0);
+    let net = load
+        .net_weight
+        .as_ref()
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(0.0);
     if !net.is_finite() || net <= 0.0 {
         return Err("A positive net weight is required before completion.".to_string());
     }
     if load.direction == "outgoing" {
-        if value_string(&load.payload, "wasteDescriptionSnapshot").unwrap_or_default().trim().is_empty() {
-            return Err("Waste description is required before completing an outgoing load.".to_string());
+        if value_string(&load.payload, "wasteDescriptionSnapshot")
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+        {
+            return Err(
+                "Waste description is required before completing an outgoing load.".to_string(),
+            );
         }
         if !cached_outgoing_facility_allows(&transaction, &load)? {
             return Err("Cached destination authorisation/EWC rules do not allow this outgoing load. Do not complete it offline.".to_string());
@@ -868,13 +1048,24 @@ pub fn desktop_complete_load(
     let object = payload_object(&mut updated_payload)?;
     object.insert("status".to_string(), Value::String("completed".to_string()));
     object.insert("completedAt".to_string(), Value::String(now.clone()));
-    object.insert("weightSource".to_string(), Value::String("weighbridge".to_string()));
-    if load.direction == "outgoing" && (object.get("movementAt").is_none() || object.get("movementAt") == Some(&Value::Null)) {
+    object.insert(
+        "weightSource".to_string(),
+        Value::String("weighbridge".to_string()),
+    );
+    if load.direction == "outgoing"
+        && (object.get("movementAt").is_none() || object.get("movementAt") == Some(&Value::Null))
+    {
         object.insert("movementAt".to_string(), Value::String(now));
     }
 
-    let gross = load.gross_weight.as_ref().and_then(|value| value.parse::<f64>().ok());
-    let tare = load.tare_weight.as_ref().and_then(|value| value.parse::<f64>().ok());
+    let gross = load
+        .gross_weight
+        .as_ref()
+        .and_then(|value| value.parse::<f64>().ok());
+    let tare = load
+        .tare_weight
+        .as_ref()
+        .and_then(|value| value.parse::<f64>().ok());
     let completion_payload = json!({
         "driverId": value_string(&load.payload, "driverId"),
         "vehicleId": value_string(&load.payload, "vehicleId"),

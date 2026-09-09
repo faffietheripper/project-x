@@ -43,6 +43,12 @@ const loginReasonMessages: Record<string, LoginNotice> = {
       "This account is inactive or suspended. Please contact your organisation administrator.",
     tone: "error",
   },
+  "mobile-only": {
+    title: "Waste X Mobile account",
+    message:
+      "This account is for Waste X Mobile. Open the Waste X Mobile app on your authorised device to continue.",
+    tone: "info",
+  },
 };
 
 /* =========================================================

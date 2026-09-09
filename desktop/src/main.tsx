@@ -7,6 +7,7 @@ import "./styles.css";
 import "./ticket-authority.css";
 import "./site-rejection.css";
 
+import "./pilot-shell.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

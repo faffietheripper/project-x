@@ -48,61 +48,138 @@ export function FieldOpsProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const reconciling = useRef(false);
+
+  /*
+    WASTE_X_MOBILE_AUTHORITATIVE_REFRESH_V1
+
+    Keep a handle to the active reconciliation rather than only a boolean.
+    A manual pull-to-refresh must never become a silent no-op just because an
+    AppState / heartbeat reconciliation happened to already be running.
+
+    Automatic reconciliation may remain opportunistic and offline-safe.
+    Manual reconciliation is authoritative: when Cloud says an assignment has
+    moved to another Driver, the complete bootstrap snapshot replaces the local
+    SQLCipher working set immediately.
+  */
+  const reconcilePromise = useRef<Promise<void> | null>(null);
 
   const reconcile = useCallback(async (showRefresh = false) => {
-    if (reconciling.current) return;
-    reconciling.current = true;
     if (showRefresh) setRefreshing(true);
-    try {
-      setError(null);
 
-      let [nextAuth, nextWorkingSet, nextSyncStatus] = await Promise.all([
-        getMobileAuthSnapshot(),
-        getLocalMobileAssignmentWorkingSet(),
-        getMobileSyncStatus(),
-      ]);
-
-      // SQLCipher remains the first read. Cloud reconciliation is opportunistic
-      // and never required to render the operational UI.
-      if (nextAuth.onlineAuthenticated) {
-        if (nextSyncStatus.pending > 0) {
-          try {
-            await syncPendingMobileEvents();
-            nextSyncStatus = await getMobileSyncStatus();
-          } catch {
-            // The existing outbox remains durable; keep showing local work.
-          }
-        }
-
-        try {
-          nextWorkingSet = await refreshMobileAssignmentWorkingSet();
-        } catch {
-          // Cached assignments remain authoritative for offline field work.
-        }
-
-        // Refresh auth once more so a server-side device/session revocation is
-        // reflected before the shell continues to expose operational data.
-        nextAuth = await getMobileAuthSnapshot();
+    /*
+      If an automatic reconciliation is already in flight, a user-requested
+      refresh waits for it and then performs a NEW Cloud pass. This guarantees
+      the gesture means "check Cloud now", not "return because something else
+      was already checking".
+    */
+    if (reconcilePromise.current) {
+      if (!showRefresh) {
+        await reconcilePromise.current;
+        return;
       }
 
-      setAuth(nextAuth);
-      setWorkingSet(nextWorkingSet);
-      setSyncStatus(nextSyncStatus);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      // Even when reconciliation fails, try to keep locally persisted work on
-      // screen rather than replacing the whole app with an error state.
-      const [fallbackWorkingSet, fallbackSyncStatus] = await Promise.all([
-        getLocalMobileAssignmentWorkingSet().catch(() => null),
-        getMobileSyncStatus().catch(() => null),
-      ]);
-      if (fallbackWorkingSet) setWorkingSet(fallbackWorkingSet);
-      if (fallbackSyncStatus) setSyncStatus(fallbackSyncStatus);
+      try {
+        await reconcilePromise.current;
+      } catch {
+        // The explicit pass below gets its own result and error reporting.
+      }
+    }
+
+    const task = (async () => {
+      try {
+        setError(null);
+
+        let [nextAuth, nextWorkingSet, nextSyncStatus] = await Promise.all([
+          getMobileAuthSnapshot(),
+          getLocalMobileAssignmentWorkingSet(),
+          getMobileSyncStatus(),
+        ]);
+
+        // SQLCipher remains the first read. Cloud is never required simply to
+        // render already-authorised offline work.
+        if (nextAuth.onlineAuthenticated) {
+          if (nextSyncStatus.pending > 0) {
+            try {
+              await syncPendingMobileEvents();
+              nextSyncStatus = await getMobileSyncStatus();
+            } catch (reason) {
+              /*
+                Do not discard the durable outbox. For an explicit refresh,
+                surface the problem because it can affect the authoritative
+                ordering of this Driver's work.
+              */
+              if (showRefresh) {
+                const detail =
+                  reason instanceof Error ? reason.message : String(reason);
+                throw new Error(
+                  `Waste X could not reconcile queued Driver activity before refreshing assignments. ${detail}`,
+                );
+              }
+            }
+          }
+
+          try {
+            /*
+              bootstrapMobile() returns the COMPLETE authorised assignment
+              snapshot for this linked Driver. persistMobileAssignmentBootstrap
+              transactionally deletes stale assignment rows before inserting
+              this response, so reassigned Loads disappear here.
+            */
+            nextWorkingSet = await refreshMobileAssignmentWorkingSet();
+          } catch (reason) {
+            const detail =
+              reason instanceof Error ? reason.message : String(reason);
+
+            if (showRefresh) {
+              throw new Error(
+                `Waste X Cloud could not refresh this Driver's authorised assignments. Cached offline work has been preserved. ${detail}`,
+              );
+            }
+
+            /*
+              Automatic background failure remains non-destructive, but it is
+              no longer invisible while the app claims to be online.
+            */
+            setError(
+              `Cloud assignment refresh failed. Showing the last encrypted working set. ${detail}`,
+            );
+          }
+
+          // Refresh auth once more so server-side device/session revocation is
+          // reflected before the shell continues exposing operational data.
+          nextAuth = await getMobileAuthSnapshot();
+        }
+
+        setAuth(nextAuth);
+        setWorkingSet(nextWorkingSet);
+        setSyncStatus(nextSyncStatus);
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+
+        // Reconciliation failure never destroys valid offline work.
+        const [fallbackWorkingSet, fallbackSyncStatus, fallbackAuth] =
+          await Promise.all([
+            getLocalMobileAssignmentWorkingSet().catch(() => null),
+            getMobileSyncStatus().catch(() => null),
+            getMobileAuthSnapshot().catch(() => null),
+          ]);
+
+        if (fallbackAuth) setAuth(fallbackAuth);
+        if (fallbackWorkingSet) setWorkingSet(fallbackWorkingSet);
+        if (fallbackSyncStatus) setSyncStatus(fallbackSyncStatus);
+      }
+    })();
+
+    reconcilePromise.current = task;
+
+    try {
+      await task;
     } finally {
-      reconciling.current = false;
+      if (reconcilePromise.current === task) {
+        reconcilePromise.current = null;
+      }
       setLoading(false);
-      setRefreshing(false);
+      if (showRefresh) setRefreshing(false);
     }
   }, []);
 

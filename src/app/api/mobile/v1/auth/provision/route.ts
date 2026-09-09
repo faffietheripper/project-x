@@ -8,6 +8,7 @@ import {
   createClientSession,
   hashOpaqueSecret,
   randomOpaqueSecret,
+  requireMobileUserAccess,
   verifyWasteXPassword,
 } from "@/lib/client-api/auth";
 import {
@@ -27,13 +28,6 @@ const provisionSchema = z.object({
   defaultSiteId: z.string().min(1).nullable().optional(),
 });
 
-const allowedRoles = new Set([
-  "administrator",
-  "operations",
-  "seniorManagement",
-  "employee",
-]);
-
 export async function POST(request: Request) {
   try {
     const parsed = provisionSchema.safeParse(await request.json());
@@ -52,14 +46,6 @@ export async function POST(request: Request) {
       parsed.data.password,
     );
 
-    if (!allowedRoles.has(user.role)) {
-      return clientApiError(
-        "PERMISSION_DENIED",
-        403,
-        "This Waste X user cannot provision an operational Mobile device.",
-      );
-    }
-
     if (!user.organisationId) {
       return clientApiError(
         "ORGANISATION_REQUIRED",
@@ -67,6 +53,12 @@ export async function POST(request: Request) {
         "A Waste X organisation is required.",
       );
     }
+
+    await requireMobileUserAccess({
+      userId: user.id,
+      organisationId: user.organisationId,
+      role: user.role,
+    });
 
     const existing = await database.query.clientDevices.findFirst({
       where: eq(clientDevices.id, parsed.data.deviceId),

@@ -5,7 +5,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { database } from "@/db/database";
 import { clientDevices, clientSessions } from "@/db/client-sync-schema";
-import { organisations, users } from "@/db/schema";
+import { drivers, organisations, users } from "@/db/schema";
 
 const CLIENT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const CLIENT_REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -157,6 +157,32 @@ export async function refreshClientSession({
   const refreshTokenHash = hashOpaqueSecret(refreshToken);
   const deviceSecretHash = hashOpaqueSecret(deviceSecret);
 
+  /*
+    Check the physical Mobile registration before the refresh session.
+
+    This means a remotely revoked/lost phone produces DEVICE_UNAVAILABLE
+    even when its stored refresh session has also been revoked.
+  */
+  const registeredDevice = await database.query.clientDevices.findFirst({
+    where: and(
+      eq(clientDevices.id, deviceId),
+      eq(clientDevices.secretHash, deviceSecretHash),
+      eq(clientDevices.deviceType, "MOBILE"),
+    ),
+    columns: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (!registeredDevice || registeredDevice.status !== "ACTIVE") {
+    throw new ClientApiAuthError(
+      "DEVICE_UNAVAILABLE",
+      401,
+      "This Waste X Mobile installation is not authorised.",
+    );
+  }
+
   const session = await database.query.clientSessions.findFirst({
     where: and(
       eq(clientSessions.deviceId, deviceId),
@@ -186,6 +212,7 @@ export async function refreshClientSession({
       eq(clientDevices.secretHash, deviceSecretHash),
       eq(clientDevices.organisationId, session.organisationId),
       eq(clientDevices.deviceType, "MOBILE"),
+      eq(clientDevices.registeredByUserId, session.userId),
       eq(clientDevices.status, "ACTIVE"),
     ),
     columns: {
@@ -237,6 +264,12 @@ export async function refreshClientSession({
       "This Waste X account is unavailable.",
     );
   }
+
+  await requireMobileUserAccess({
+    userId: user.id,
+    organisationId: user.organisationId,
+    role: user.role,
+  });
 
   const organisation = await database.query.organisations.findFirst({
     where: eq(organisations.id, session.organisationId),
@@ -432,6 +465,93 @@ export async function requireClientApiContext(
     role: user.role,
     defaultSiteId: device.defaultSiteId,
   };
+}
+
+export async function requireMobileUserAccess({
+  userId,
+  organisationId,
+  role,
+}: {
+  userId: string;
+  organisationId: string;
+  role: string;
+}) {
+  const allowed = new Set([
+    "administrator",
+    "operations",
+    "seniorManagement",
+    "employee",
+    "driver",
+  ]);
+
+  if (!allowed.has(role)) {
+    throw new ClientApiAuthError(
+      "MOBILE_PERMISSION_DENIED",
+      403,
+      "This user cannot use Waste X Mobile.",
+    );
+  }
+
+  /*
+    Existing operational users retain Mobile access.
+
+    Dedicated Driver users MUST have an explicit, active Driver link.
+    Driver email is never authority.
+  */
+  if (role !== "driver") {
+    return;
+  }
+
+  const driver = await database.query.drivers.findFirst({
+    where: and(
+      eq(drivers.organisationId, organisationId),
+      eq(drivers.linkedUserId, userId),
+      eq(drivers.isActive, true),
+      eq(drivers.mobileAccessStatus, "ACTIVE"),
+    ),
+    columns: {
+      id: true,
+    },
+  });
+
+  if (!driver) {
+    throw new ClientApiAuthError(
+      "MOBILE_DRIVER_ACCESS_UNAVAILABLE",
+      403,
+      "Waste X Mobile access is not active for this Driver.",
+    );
+  }
+}
+
+export async function requireMobileAccess(
+  context: ClientApiContext,
+) {
+  await requireMobileUserAccess({
+    userId: context.userId,
+    organisationId: context.organisationId,
+    role: context.role,
+  });
+
+  const device = await database.query.clientDevices.findFirst({
+    where: and(
+      eq(clientDevices.id, context.deviceId),
+      eq(clientDevices.organisationId, context.organisationId),
+      eq(clientDevices.deviceType, "MOBILE"),
+      eq(clientDevices.registeredByUserId, context.userId),
+      eq(clientDevices.status, "ACTIVE"),
+    ),
+    columns: {
+      id: true,
+    },
+  });
+
+  if (!device) {
+    throw new ClientApiAuthError(
+      "DEVICE_UNAVAILABLE",
+      401,
+      "This Waste X Mobile installation is not authorised.",
+    );
+  }
 }
 
 export function requireOperationsRole(context: ClientApiContext) {

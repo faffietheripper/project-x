@@ -1,12 +1,12 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { clientDevices } from "@/db/client-sync-schema";
 import { database } from "@/db/database";
-import { drivers, jobLoads, jobs, users } from "@/db/schema";
+import { drivers, jobLoads, jobs } from "@/db/schema";
 import {
   ClientApiAuthError,
   requireClientApiContext,
-  requireOperationsRole,
+  requireMobileAccess,
 } from "@/lib/client-api/auth";
 import {
   clientApiError,
@@ -24,7 +24,7 @@ export async function POST(
 ) {
   try {
     const context = await requireClientApiContext(request);
-    requireOperationsRole(context);
+    await requireMobileAccess(context);
 
     const device = await database.query.clientDevices.findFirst({
       where: and(
@@ -43,30 +43,14 @@ export async function POST(
       );
     }
 
-    const user = await database.query.users.findFirst({
-      where: and(
-        eq(users.id, context.userId),
-        eq(users.organisationId, context.organisationId),
-      ),
-      columns: { id: true, email: true },
-    });
-    if (!user) {
-      throw new ClientApiAuthError(
-        "ACCOUNT_UNAVAILABLE",
-        403,
-        "This Waste X account is unavailable.",
-      );
-    }
-
-    const normalizedEmail = user.email.toLowerCase().trim();
     const matchedDrivers = await database
       .select({ id: drivers.id })
       .from(drivers)
       .where(
         and(
           eq(drivers.organisationId, context.organisationId),
+          eq(drivers.linkedUserId, context.userId),
           eq(drivers.isActive, true),
-          sql`lower(trim(${drivers.email})) = ${normalizedEmail}`,
         ),
       )
       .limit(2);
@@ -75,7 +59,7 @@ export async function POST(
       return clientApiError(
         "MOBILE_DRIVER_SCOPE_UNAVAILABLE",
         403,
-        "Waste X could not resolve this Mobile account to one active Driver.",
+        "Waste X Mobile could not resolve this account to one explicitly linked active Driver.",
       );
     }
 

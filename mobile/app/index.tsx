@@ -13,6 +13,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { refreshMobileAssignmentWorkingSet } from "@/assignments/local-working-set";
 import {
+  isMobileAppUnlocked,
+  unlockMobileApp,
+} from "@/auth/app-lock";
+import {
   getMobileAuthSnapshot,
   loginMobile,
   provisionMobile,
@@ -33,22 +37,72 @@ export default function MobileEntryScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    void getMobileAuthSnapshot()
-      .then((snapshot) => {
+
+    void (async () => {
+      try {
+        const snapshot = await getMobileAuthSnapshot();
         if (cancelled) return;
+
         setAuth(snapshot);
         if (snapshot.profile?.email) setEmail(snapshot.profile.email);
-        if (snapshot.authenticated) router.replace("/(tabs)/my-day");
-      })
-      .catch((reason) => {
+
+        if (!snapshot.authenticated) return;
+
+        if (isMobileAppUnlocked()) {
+          router.replace("/(tabs)/my-day");
+          return;
+        }
+
+        /*
+          Online Cloud authority is already valid, but a cold app/process
+          start still requires the person holding the phone to unlock it.
+
+          Offline sessions continue through the existing offline entitlement
+          flow so the Driver never receives two authentication prompts.
+        */
+        if (snapshot.onlineAuthenticated) {
+          try {
+            await unlockMobileApp();
+            if (!cancelled) router.replace("/(tabs)/my-day");
+          } catch (reason) {
+            if (!cancelled) {
+              setError(
+                reason instanceof Error ? reason.message : String(reason),
+              );
+            }
+          }
+        }
+      } catch (reason) {
         if (!cancelled) {
           setError(reason instanceof Error ? reason.message : String(reason));
         }
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
   }, [router]);
+
+  async function unlockOnline() {
+    setBusy(true);
+    setError(null);
+
+    try {
+      await unlockMobileApp();
+
+      const snapshot = await getMobileAuthSnapshot();
+      setAuth(snapshot);
+
+      if (snapshot.authenticated) {
+        router.replace("/(tabs)/my-day");
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submitOnlineAuth() {
     if (!email.trim() || !password) {
@@ -112,7 +166,25 @@ export default function MobileEntryScreen() {
           <Text style={styles.brandX}>X</Text>
         </View>
 
-        {auth.offline.valid && !auth.onlineAuthenticated ? (
+        {auth.onlineAuthenticated && !isMobileAppUnlocked() ? (
+          <View style={styles.hero}>
+            <Text style={styles.eyebrow}>DEVICE LOCK</Text>
+            <Text style={styles.title}>Unlock your field workspace.</Text>
+            <Text style={styles.copy}>
+              This phone is authorised for Waste X. Confirm your identity with Face ID, Touch ID or your device passcode to continue.
+            </Text>
+
+            <Pressable
+              disabled={busy}
+              onPress={unlockOnline}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>
+                {busy ? "Unlocking…" : "Unlock Waste X"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : auth.offline.valid && !auth.onlineAuthenticated ? (
           <View style={styles.hero}>
             <Text style={styles.eyebrow}>OFFLINE ACCESS</Text>
             <Text style={styles.title}>Your field work is still available.</Text>

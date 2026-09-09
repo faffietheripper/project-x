@@ -54,12 +54,53 @@ async function runPostApplyHooks({
       jobId: true,
       direction: true,
       status: true,
+      driverId: true,
+      vehicleId: true,
     },
   });
 
   if (!load) return;
 
   await syncJobStatus(load.jobId, organisationId);
+
+  /*
+    WASTE_X_SINGLE_LOAD_ASSIGNMENT_SUMMARY_V1
+
+    jobLoads is the operational assignment authority. Web also keeps a
+    Job-level Driver / Vehicle summary. Mirror only a one-load Job so Web
+    cannot show a stale assignment after Desktop changes that Load.
+
+    Multi-load Jobs are deliberately not flattened because different Loads
+    may have different Drivers and Vehicles.
+  */
+  if (eventType === "LOAD_DETAILS_UPDATED") {
+    const siblingLoads = await database
+      .select({ id: jobLoads.id })
+      .from(jobLoads)
+      .where(
+        and(
+          eq(jobLoads.organisationId, organisationId),
+          eq(jobLoads.jobId, load.jobId),
+        ),
+      )
+      .limit(2);
+
+    if (siblingLoads.length === 1) {
+      await database
+        .update(jobs)
+        .set({
+          driverId: load.driverId,
+          vehicleId: load.vehicleId,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(jobs.id, load.jobId),
+            eq(jobs.organisationId, organisationId),
+          ),
+        );
+    }
+  }
 
   const parentJob = await database.query.jobs.findFirst({
     where: and(

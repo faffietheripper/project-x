@@ -37,6 +37,8 @@ pub struct CloudContext {
     organisation_id: Option<String>,
     organisation_name: Option<String>,
     device_id: Option<String>,
+    default_site_id: Option<String>,
+    default_site_name: Option<String>,
     display_name: Option<String>,
     horizon_start: Option<String>,
     horizon_end: Option<String>,
@@ -116,7 +118,7 @@ pub fn desktop_cloud_context(
     let connection = open_local_connection(&app)?;
     let row = connection
         .query_row(
-            "SELECT device_id, organisation_id, display_name
+            "SELECT device_id, organisation_id, default_site_id, display_name
              FROM local_device_configuration WHERE singleton_id = 1",
             [],
             |row| {
@@ -124,12 +126,13 @@ pub fn desktop_cloud_context(
                     row.get::<_, Option<String>>(0)?,
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
                 ))
             },
         )
         .optional()
         .map_err(|e| e.to_string())?
-        .unwrap_or((None, None, None));
+        .unwrap_or((None, None, None, None));
 
     let organisation_name = connection
         .query_row(
@@ -140,7 +143,24 @@ pub fn desktop_cloud_context(
         .optional()
         .map_err(|e| e.to_string())?
         .and_then(|payload| serde_json::from_str::<Value>(&payload).ok())
-        .and_then(|payload| payload.get("teamName").and_then(Value::as_str).map(ToOwned::to_owned));
+        .and_then(|payload| {
+            payload
+                .get("teamName")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        });
+
+    let default_site_name = match row.2.as_deref() {
+        Some(site_id) => connection
+            .query_row(
+                "SELECT name FROM local_site WHERE id = ?1 AND organisation_id = ?2",
+                params![site_id, row.1.as_deref().unwrap_or("")],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?,
+        None => None,
+    };
 
     let base_url = cloud_base_url();
     Ok(CloudContext {
@@ -148,7 +168,9 @@ pub fn desktop_cloud_context(
         base_url,
         device_id: row.0,
         organisation_id: row.1,
-        display_name: row.2,
+        default_site_id: row.2,
+        default_site_name,
+        display_name: row.3,
         organisation_name,
         horizon_start: metadata(&connection, "bootstrap_horizon_start")?,
         horizon_end: metadata(&connection, "bootstrap_horizon_end")?,
@@ -169,11 +191,19 @@ pub async fn desktop_cloud_catalogue(
 
     {
         let mut pairs = url.query_pairs_mut();
-        if let Some(query) = input.query.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        if let Some(query) = input
+            .query
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             pairs.append_pair("q", query);
         }
         pairs.append_pair("offset", &input.offset.unwrap_or(0).max(0).to_string());
-        pairs.append_pair("limit", &input.limit.unwrap_or(50).clamp(1, 100).to_string());
+        pairs.append_pair(
+            "limit",
+            &input.limit.unwrap_or(50).clamp(1, 100).to_string(),
+        );
     }
 
     let response = Client::new()
@@ -196,6 +226,380 @@ pub async fn desktop_cloud_catalogue(
             .and_then(Value::as_str)
             .unwrap_or("Waste X Cloud rejected the organisation view request.");
         return Err(format!("{message} [HTTP {status}]"));
+    }
+
+    Ok(body)
+}
+
+/* WASTE_X_DESKTOP_JOB_CREATION_V1 */
+
+fn cloud_api_error(body: &Value, fallback: &str) -> String {
+    body.get("error")
+        .and_then(|value| value.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+#[tauri::command]
+pub async fn desktop_job_options(
+    auth_state: State<'_, DesktopAuthState>,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .get(format!(
+            "{base_url}/api/desktop/v1/operations/job-options"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud Job options are unavailable: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud Job options returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the Job options request.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+#[tauri::command]
+pub async fn desktop_create_job(
+    auth_state: State<'_, DesktopAuthState>,
+    input: Value,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .post(format!(
+            "{base_url}/api/desktop/v1/operations/jobs"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .json(&input)
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud could not create the Job: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud Job creation returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the Job.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+/* WASTE_X_DESKTOP_RECORD_HISTORY_V1 */
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudJobHistoryInput {
+    job_id: String,
+}
+
+#[tauri::command]
+pub async fn desktop_cloud_job_history(
+    auth_state: State<'_, DesktopAuthState>,
+    input: CloudJobHistoryInput,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let job_id = input.job_id.trim();
+    if job_id.is_empty() {
+        return Err("Choose a Waste X Job to inspect its record history.".to_string());
+    }
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+    let mut url = Url::parse(&format!(
+        "{base_url}/api/desktop/v1/organisation/history"
+    ))
+    .map_err(|e| format!("Waste X Cloud history URL is invalid: {e}"))?;
+
+    url.query_pairs_mut().append_pair("jobId", job_id);
+
+    let response = Client::new()
+        .get(url)
+        .bearer_auth(&credentials.session_token)
+        .header("X-Waste-X-Device-Secret", &credentials.device_secret)
+        .send()
+        .await
+        .map_err(|e| format!("Waste X Cloud record history is unavailable: {e}"))?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud record history returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the record-history request.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+/* WASTE_X_DESKTOP_TRANSPORT_MASTER_DATA_V1 */
+
+#[tauri::command]
+pub async fn desktop_transport_master_data(
+    auth_state: State<'_, DesktopAuthState>,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .get(format!(
+            "{base_url}/api/desktop/v1/operations/transport"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud transport master data is unavailable: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud transport master data returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the transport master-data request.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+#[tauri::command]
+pub async fn desktop_mutate_transport_master_data(
+    auth_state: State<'_, DesktopAuthState>,
+    input: Value,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .post(format!(
+            "{base_url}/api/desktop/v1/operations/transport"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .json(&input)
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud could not save transport master data: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud transport update returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the Driver / Vehicle change.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+/* WASTE_X_DESKTOP_PARTNER_MASTER_DATA_V1 */
+
+#[tauri::command]
+pub async fn desktop_partner_master_data(
+    auth_state: State<'_, DesktopAuthState>,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .get(format!(
+            "{base_url}/api/desktop/v1/operations/partners"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud partner master data is unavailable: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud partner data returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the partner master-data request.",
+            )
+        ));
+    }
+
+    Ok(body)
+}
+
+#[tauri::command]
+pub async fn desktop_mutate_partner_master_data(
+    auth_state: State<'_, DesktopAuthState>,
+    input: Value,
+) -> Result<Value, String> {
+    offline_auth::require_unlocked(&auth_state)?;
+
+    let credentials = load_cloud_credentials()?;
+    let base_url = cloud_base_url();
+
+    let response = Client::new()
+        .post(format!(
+            "{base_url}/api/desktop/v1/operations/partners"
+        ))
+        .bearer_auth(&credentials.session_token)
+        .header(
+            "X-Waste-X-Device-Secret",
+            &credentials.device_secret,
+        )
+        .json(&input)
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud could not save partner master data: {e}"
+            )
+        })?;
+
+    let status = response.status();
+    let body = response
+        .json::<Value>()
+        .await
+        .map_err(|e| {
+            format!(
+                "Waste X Cloud partner update returned unreadable data: {e}"
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "{} [HTTP {status}]",
+            cloud_api_error(
+                &body,
+                "Waste X Cloud rejected the company / site change.",
+            )
+        ));
     }
 
     Ok(body)

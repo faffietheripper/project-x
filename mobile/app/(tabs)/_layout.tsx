@@ -1,12 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   ActivityIndicator,
+  AppState,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 
+import {
+  MOBILE_APP_BACKGROUND_GRACE_MS,
+  isMobileAppUnlocked,
+  lockMobileApp,
+} from "@/auth/app-lock";
 import {
   FieldOpsProvider,
   useFieldOps,
@@ -23,10 +29,40 @@ function TabGlyph({ label, active }: { label: string; active: boolean }) {
 function ProtectedTabs() {
   const router = useRouter();
   const { auth, loading } = useFieldOps();
+  const backgroundedAt = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!loading && auth && !auth.authenticated) router.replace("/");
+    if (loading || !auth) return;
+
+    if (!auth.authenticated || !isMobileAppUnlocked()) {
+      router.replace("/");
+    }
   }, [auth, loading, router]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "inactive" || nextState === "background") {
+        if (backgroundedAt.current === null) {
+          backgroundedAt.current = Date.now();
+        }
+        return;
+      }
+
+      if (nextState === "active" && backgroundedAt.current !== null) {
+        const backgroundDuration = Date.now() - backgroundedAt.current;
+        backgroundedAt.current = null;
+
+        if (backgroundDuration >= MOBILE_APP_BACKGROUND_GRACE_MS) {
+          lockMobileApp();
+          router.replace("/");
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
 
   if (loading || !auth) {
     return (
@@ -37,7 +73,7 @@ function ProtectedTabs() {
     );
   }
 
-  if (!auth.authenticated) return null;
+  if (!auth.authenticated || !isMobileAppUnlocked()) return null;
 
   return (
     <Tabs

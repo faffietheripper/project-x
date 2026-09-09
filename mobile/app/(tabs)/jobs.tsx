@@ -11,11 +11,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  AssignmentCard,
   EmptyWorkState,
   WasteXHeader,
   fieldOpsStyles,
 } from "@/field-ops/components";
+import { AssignmentTable } from "@/field-ops/assignment-table";
 import { useFieldOps } from "@/field-ops/context";
 import { bucketMobileAssignments } from "@/field-ops/presentation";
 
@@ -122,17 +122,10 @@ export default function JobsScreen() {
 
         <View style={styles.listBlock}>
           {visible.length > 0 ? (
-            visible.map((assignment) => (
-              <Pressable
-                key={assignment.load.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${assignment.job.jobNumber}, load ${assignment.load.loadNumber}`}
-                onPress={() => openAssignment(assignment.load.id)}
-                style={({ pressed }) => pressed && styles.assignmentPressed}
-              >
-                <AssignmentCard assignment={assignment} />
-              </Pressable>
-            ))
+            <AssignmentTable
+              assignments={visible}
+              onOpen={openAssignment}
+            />
           ) : (
             <EmptyWorkState
               title={`No ${FILTERS.find((item) => item.key === filter)?.label.toLowerCase()} jobs`}

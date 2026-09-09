@@ -1,4 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { clientDevices } from "@/db/client-sync-schema";
@@ -68,24 +73,60 @@ export async function POST(request: Request) {
       );
     }
 
-    const defaultSiteId = parsed.data.defaultSiteId ?? null;
-
-    if (defaultSiteId) {
-      const site = await database.query.sites.findFirst({
-        where: and(
-          eq(sites.id, defaultSiteId),
+    const activeSites = await database
+      .select({
+        id: sites.id,
+        name: sites.name,
+        isDefault: sites.isDefault,
+      })
+      .from(sites)
+      .where(
+        and(
           eq(sites.organisationId, user.organisationId),
+          eq(sites.status, "active"),
         ),
-        columns: { id: true, status: true },
-      });
+      )
+      .orderBy(
+        desc(sites.isDefault),
+        asc(sites.name),
+      );
 
-      if (!site || site.status !== "active") {
-        return clientApiError(
-          "INVALID_SITE",
-          400,
-          "The selected Waste X site is not available to this organisation.",
-        );
+    if (activeSites.length === 0) {
+      return clientApiError(
+        "SITE_REQUIRED",
+        400,
+        "This organisation has no active Waste X site available for Desktop.",
+      );
+    }
+
+    let defaultSiteId = parsed.data.defaultSiteId ?? null;
+
+    if (!defaultSiteId) {
+      const explicitDefaults = activeSites.filter(
+        (site) => site.isDefault,
+      );
+
+      if (explicitDefaults.length === 1) {
+        defaultSiteId = explicitDefaults[0]!.id;
+      } else if (activeSites.length === 1) {
+        defaultSiteId = activeSites[0]!.id;
       }
+    }
+
+    if (!defaultSiteId) {
+      return clientApiError(
+        "SITE_SELECTION_REQUIRED",
+        400,
+        "Choose the operating site for this Waste X Desktop.",
+      );
+    }
+
+    if (!activeSites.some((site) => site.id === defaultSiteId)) {
+      return clientApiError(
+        "INVALID_SITE",
+        400,
+        "The selected Waste X site is not available to this organisation.",
+      );
     }
 
     const deviceId = uuidV7();

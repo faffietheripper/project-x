@@ -249,7 +249,9 @@ fn validate_entitlement(
         .map_err(|_| "Waste X offline entitlement expiry is invalid.".to_string())?
         .with_timezone(&Utc);
     if expires_at <= Utc::now() {
-        return Err("Waste X offline access has expired. Reconnect to Cloud to renew it.".to_string());
+        return Err(
+            "Waste X offline access has expired. Reconnect to Cloud to renew it.".to_string(),
+        );
     }
 
     Ok(expires_at)
@@ -285,16 +287,19 @@ fn offline_unlock(
         .ok_or_else(|| "This Waste X Desktop installation is not provisioned.".to_string())?;
     let credentials = load_cloud_credentials()?;
 
-    let stored_email = metadata(&connection, "offline_auth_email")?
-        .ok_or_else(|| "Offline sign-in has not been enabled yet. Connect to Waste X Cloud once to enable it.".to_string())?;
+    let stored_email = metadata(&connection, "offline_auth_email")?.ok_or_else(|| {
+        "Offline sign-in has not been enabled yet. Connect to Waste X Cloud once to enable it."
+            .to_string()
+    })?;
     let stored_hash = metadata(&connection, "offline_auth_password_hash")?
         .ok_or_else(|| "Offline sign-in has not been enabled yet.".to_string())?;
     let user_id = metadata(&connection, "offline_auth_user_id")?
         .ok_or_else(|| "Offline user identity is unavailable.".to_string())?;
     let role = metadata(&connection, "offline_auth_role")?
         .ok_or_else(|| "Offline user role is unavailable.".to_string())?;
-    let entitlement_json = metadata(&connection, "offline_entitlement")?
-        .ok_or_else(|| "Offline entitlement is unavailable. Reconnect to Waste X Cloud.".to_string())?;
+    let entitlement_json = metadata(&connection, "offline_entitlement")?.ok_or_else(|| {
+        "Offline entitlement is unavailable. Reconnect to Waste X Cloud.".to_string()
+    })?;
 
     if stored_email != input.email.trim().to_lowercase() {
         return Err("Invalid Waste X email or password.".to_string());
@@ -493,7 +498,10 @@ async fn online_unlock(
         ("offline_entitlement", entitlement_json.as_str()),
         ("offline_last_online_at", entitlement.issued_at.as_str()),
         ("offline_last_seen_at", now.as_str()),
-        ("session_expires_at", credentials.session_expires_at.as_str()),
+        (
+            "session_expires_at",
+            credentials.session_expires_at.as_str(),
+        ),
     ] {
         set_metadata(&transaction, key, value)?;
     }
@@ -613,6 +621,90 @@ pub fn desktop_lock(state: State<'_, DesktopAuthState>) -> Result<(), String> {
         .map_err(|_| "Waste X authentication state is unavailable.".to_string())?;
     *identity = None;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn desktop_sign_out(
+    app: AppHandle,
+    state: State<'_, DesktopAuthState>,
+) -> Result<Value, String> {
+    let mut connection = open_local_connection(&app)?;
+
+    let unresolved: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM local_sync_queue
+             WHERE status IN ('PENDING','SENDING','FAILED','CONFLICT')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if unresolved > 0 {
+        return Err(format!(
+            "Waste X cannot sign out while {unresolved} local event{} still need sync or review. Use Lock Desktop instead, or resolve Sync Review first.",
+            if unresolved == 1 { "" } else { "s" }
+        ));
+    }
+
+    let mut credentials = load_cloud_credentials()?;
+
+    if !credentials.session_token.trim().is_empty() {
+        if let Ok(client) = Client::builder().timeout(StdDuration::from_secs(5)).build() {
+            let _ = client
+                .post(format!("{}/api/desktop/v1/auth/logout", cloud_base_url()))
+                .bearer_auth(&credentials.session_token)
+                .header("X-Waste-X-Device-Secret", &credentials.device_secret)
+                .send()
+                .await;
+        }
+    }
+
+    /*
+     * Device registration survives sign-out.
+     *
+     * The opaque device secret is deliberately preserved because the
+     * workstation is still an authorised registered Desktop. The online
+     * session and every piece of offline user authority are removed.
+     *
+     * Therefore:
+     *   close/restart/Lock -> offline entitlement survives
+     *   explicit Sign out  -> Cloud password sign-in is required again
+     */
+    credentials.session_token.clear();
+    credentials.session_expires_at.clear();
+    save_cloud_credentials(&credentials)?;
+
+    let transaction = connection.transaction().map_err(|e| e.to_string())?;
+
+    for key in [
+        "offline_auth_user_id",
+        "offline_auth_email",
+        "offline_auth_role",
+        "offline_auth_password_hash",
+        "offline_entitlement",
+        "offline_last_online_at",
+        "offline_last_seen_at",
+        "session_expires_at",
+    ] {
+        transaction
+            .execute("DELETE FROM local_sync_metadata WHERE key = ?1", [key])
+            .map_err(|e| e.to_string())?;
+    }
+
+    transaction.commit().map_err(|e| e.to_string())?;
+
+    let mut identity = state
+        .identity
+        .lock()
+        .map_err(|_| "Waste X authentication state is unavailable.".to_string())?;
+
+    *identity = None;
+
+    Ok(json!({
+        "ok": true,
+        "deviceRegistrationPreserved": true,
+        "offlineAuthorityRemoved": true,
+    }))
 }
 
 #[tauri::command]

@@ -1,8 +1,8 @@
 "use server";
 
 import { database } from "@/db/database";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { drivers, users } from "@/db/schema";
+import { and, eq, or } from "drizzle-orm";
 import crypto from "crypto";
 import bcryptjs from "bcryptjs";
 
@@ -13,7 +13,9 @@ import { ERROR_CODES } from "@/lib/errors/errorCodes";
    TYPES
 ========================================================= */
 
-type ActionResponse = { success: true } | { success: false; message: string };
+type ActionResponse =
+  | { success: true; accountType: "mobile" | "web" }
+  | { success: false; message: string };
 
 /* =========================================================
    COMPLETE INVITE
@@ -52,8 +54,16 @@ export const completeInvite = withErrorHandling(
        FIND USER
     ============================== */
 
+    /*
+      New Waste X invitations store SHA-256(token).
+      Raw-token lookup remains temporarily for invitations created by the
+      legacy team invitation flow before token storage was standardised.
+    */
     const user = await database.query.users.findFirst({
-      where: eq(users.inviteToken, hashedToken),
+      where: or(
+        eq(users.inviteToken, hashedToken),
+        eq(users.inviteToken, token),
+      ),
     });
 
     if (!user) {
@@ -88,10 +98,35 @@ export const completeInvite = withErrorHandling(
         inviteToken: null,
         inviteExpiry: null,
         status: "ACTIVE",
+        isActive: true,
+        isSuspended: false,
       })
       .where(eq(users.id, user.id));
 
-    return { success: true };
+    /*
+      If this Waste X account was invited through a Driver Mobile Access
+      record, completing account setup also activates Mobile access.
+    */
+    await database
+      .update(drivers)
+      .set({
+        mobileAccessStatus: "ACTIVE",
+        mobileActivatedAt: new Date(),
+        mobileSuspendedAt: null,
+        mobileRevokedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(drivers.linkedUserId, user.id),
+          eq(drivers.mobileAccessStatus, "INVITED"),
+        ),
+      );
+
+    return {
+      success: true,
+      accountType: user.role === "driver" ? "mobile" : "web",
+    };
   },
   {
     actionName: "completeInvite",

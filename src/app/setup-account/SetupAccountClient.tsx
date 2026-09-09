@@ -4,11 +4,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { FiLock, FiAlertTriangle, FiCheckCircle } from "react-icons/fi";
 
-import { completeInviteAction } from "@/modules/team/actions/completeInviteAction";
+import { completeInvite } from "./actions";
 
 type CompleteInviteResult = {
   success?: boolean;
   message?: string;
+  accountType?: "mobile" | "web";
 };
 
 export default function SetupAccountClient() {
@@ -21,6 +22,7 @@ export default function SetupAccountClient() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [accountType, setAccountType] = useState<"mobile" | "web" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -49,17 +51,20 @@ export default function SetupAccountClient() {
     setLoading(true);
 
     try {
-      const result = (await completeInviteAction({
+      const result = (await completeInvite({
         token,
         password,
       })) as CompleteInviteResult;
 
       if (result?.success) {
         setSuccess(true);
+        setAccountType(result.accountType ?? "web");
 
-        setTimeout(() => {
-          router.push("/login");
-        }, 900);
+        if (result.accountType !== "mobile") {
+          setTimeout(() => {
+            router.push("/login");
+          }, 900);
+        }
 
         return;
       }
@@ -125,14 +130,17 @@ export default function SetupAccountClient() {
           </h1>
 
           <p className="mt-3 text-sm text-white/50">
-            Set your password to activate your account and access your assigned
-            organisation departments.
+            Set your password to activate your Waste X account.
           </p>
 
           {success && (
             <div className="mt-6 flex gap-3 rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-sm text-green-300">
               <FiCheckCircle className="mt-0.5 shrink-0" />
-              <span>Account activated. Redirecting to login...</span>
+              <span>
+                {accountType === "mobile"
+                  ? "Waste X Mobile is ready. Open the Waste X Mobile app on your authorised phone and sign in with the password you just created."
+                  : "Account activated. Redirecting to login..."}
+              </span>
             </div>
           )}
 
@@ -192,8 +200,9 @@ export default function SetupAccountClient() {
           </form>
 
           <p className="mt-5 text-center text-xs text-white/30">
-            Your access is controlled by your organisation role and assigned
-            department permissions.
+            {accountType === "mobile"
+              ? "Waste X Mobile access is controlled by your organisation and authorised device."
+              : "Your access is controlled by your organisation role and assigned department permissions."}
           </p>
         </div>
       </div>

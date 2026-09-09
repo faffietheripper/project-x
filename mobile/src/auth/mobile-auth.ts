@@ -15,6 +15,10 @@ import {
   verifyStoredOfflineEntitlement,
   type OfflineEntitlementStatus,
 } from "@/auth/offline-auth";
+import {
+  lockMobileApp,
+  markMobileAppUnlocked,
+} from "@/auth/app-lock";
 import { clearMobileAssignmentWorkingSet } from "@/assignments/local-working-set";
 import {
   clearMobileOfflineEntitlement,
@@ -293,6 +297,7 @@ export async function provisionMobile(input: {
   });
   await observeTrustedTime();
   await refreshOfflineEntitlement();
+  markMobileAppUnlocked();
   return response;
 }
 
@@ -319,12 +324,14 @@ export async function loginMobile(input: { email: string; password: string }) {
   });
   await observeTrustedTime();
   await refreshOfflineEntitlement();
+  markMobileAppUnlocked();
   lockOfflineOperations();
   return response;
 }
 
 export async function unlockMobileOffline() {
   await unlockOfflineOperations();
+  markMobileAppUnlocked();
   return getMobileAuthSnapshot();
 }
 
@@ -333,6 +340,7 @@ export async function logoutMobile() {
     const snapshot = await getMobileAuthSnapshot();
     if (snapshot.onlineAuthenticated) await wasteXMobileApi.logoutMobile();
   } finally {
+    lockMobileApp();
     lockOfflineOperations();
     await Promise.all([
       clearMobileSession(),

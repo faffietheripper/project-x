@@ -1,9 +1,10 @@
 import Link from "next/link";
 /* WASTE_X_OWN_CARRIER_DRIVER_DWT_V1 */
 import { notFound, redirect } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { auth } from "@/auth";
+import { clientDevices } from "@/db/client-sync-schema";
 import { database } from "@/db/database";
 import {
   counterparties,
@@ -22,6 +23,15 @@ import {
   restoreDriverAction,
   updateDriverAction,
 } from "../../actions";
+import {
+  cancelDriverMobileInviteAction,
+  inviteDriverToMobileAction,
+  resendDriverMobileInviteAction,
+  restoreDriverMobileAccessAction,
+  revokeDriverMobileAccessAction,
+  revokeDriverMobileDeviceAction,
+  suspendDriverMobileAccessAction,
+} from "../../mobile-access-actions";
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -33,6 +43,14 @@ function message(key: string, type: "success" | "error") {
     updated: "Driver updated.",
     archived: "Driver archived.",
     restored: "Driver restored.",
+    mobile_invited: "Waste X Mobile invitation sent.",
+    mobile_invite_resent: "Waste X Mobile invitation resent.",
+    mobile_invite_cancelled: "Mobile invitation cancelled.",
+    mobile_linked_active: "Existing Waste X account linked. Mobile access is active.",
+    mobile_suspended: "Waste X Mobile access suspended.",
+    mobile_restored: "Waste X Mobile access restored.",
+    mobile_revoked: "Waste X Mobile access revoked.",
+    mobile_device_revoked: "Mobile device revoked. That installation can no longer access Waste X.",
   };
 
   const errors: Record<string, string> = {
@@ -42,6 +60,20 @@ function message(key: string, type: "success" | "error") {
     vehicle_haulier_mismatch: "The default vehicle belongs to a different haulier.",
     own_carrier_invalid_reason: "Choose a valid reason for having no carrier registration.",
     own_carrier_invalid_means: "Choose a valid means of transport.",
+    mobile_email_required: "Add an email address to this Driver before inviting them to Waste X Mobile.",
+    mobile_email_invalid: "Enter a valid Driver email address before sending a Mobile invitation.",
+    mobile_driver_inactive: "Restore this Driver before enabling Waste X Mobile.",
+    mobile_account_other_org: "That Waste X account belongs to another organisation.",
+    mobile_account_linked_elsewhere: "That Waste X account is already linked to another Driver.",
+    mobile_account_suspended: "That Waste X account is suspended and cannot be reactivated through Mobile Access.",
+    mobile_account_unavailable: "The linked Waste X account is not currently available.",
+    mobile_account_create_failed: "Waste X could not create the Driver account.",
+    mobile_invite_email_failed: "The Mobile account was prepared, but the invitation email could not be delivered. You can resend it below.",
+    mobile_invalid_state: "That Mobile Access action is not available in the Driver's current state.",
+    mobile_link_invalid: "The linked Waste X account is invalid for this organisation.",
+    mobile_link_missing: "This Driver does not have a linked Waste X account.",
+    mobile_device_missing: "Choose a Mobile device to revoke.",
+    mobile_device_not_found: "That Mobile device is not registered to this Driver.",
   };
 
   return type === "success" ? success[key] ?? "Changes saved." : errors[key] ?? "Something went wrong.";
@@ -68,6 +100,48 @@ export default async function DriverDetailPage({
     where: and(eq(drivers.id, params.driverId), eq(drivers.organisationId, organisationId)),
   });
   if (!driver) notFound();
+
+  const linkedMobileUser = driver.linkedUserId
+    ? await database.query.users.findFirst({
+        where: and(
+          eq(users.id, driver.linkedUserId),
+          eq(users.organisationId, organisationId),
+        ),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          isActive: true,
+          isSuspended: true,
+          inviteExpiry: true,
+          lastLoginAt: true,
+        },
+      })
+    : null;
+
+  const mobileDevices = linkedMobileUser
+    ? await database
+        .select({
+          id: clientDevices.id,
+          displayName: clientDevices.displayName,
+          platform: clientDevices.platform,
+          status: clientDevices.status,
+          lastSeenAt: clientDevices.lastSeenAt,
+          revokedAt: clientDevices.revokedAt,
+          createdAt: clientDevices.createdAt,
+        })
+        .from(clientDevices)
+        .where(
+          and(
+            eq(clientDevices.organisationId, organisationId),
+            eq(clientDevices.deviceType, "MOBILE"),
+            eq(clientDevices.registeredByUserId, linkedMobileUser.id),
+          ),
+        )
+        .orderBy(desc(clientDevices.createdAt))
+    : [];
 
   const dwtSettings = await getWasteTrackingOrganisationSettings({
     organisationId,
@@ -189,6 +263,192 @@ export default async function DriverDetailPage({
           </form>
         </section>
 
+
+        <section className="rounded-[2rem] border border-black/10 bg-white p-7 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-700">
+                Mobile Access
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">Waste X Mobile</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-black/50">
+                Mobile access is granted explicitly to this Driver. The Driver
+                contact email is not used as Mobile authorisation once an
+                account has been linked.
+              </p>
+            </div>
+
+            <span className="rounded-full border border-black/10 bg-[#faf8f4] px-4 py-2 text-xs font-semibold">
+              {mobileAccessLabel(driver.mobileAccessStatus)}
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <Stat
+              label="Linked account"
+              value={linkedMobileUser?.email ?? "Not linked"}
+            />
+            <Stat
+              label="Account status"
+              value={linkedMobileUser?.status ?? "—"}
+            />
+            <Stat
+              label="Device records"
+              value={String(mobileDevices.length)}
+            />
+          </div>
+
+          {driver.mobileAccessStatus === "INVITED" && (
+            <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-900">
+              Invitation awaiting activation
+              {linkedMobileUser?.inviteExpiry
+                ? ` · expires ${formatMobileDate(linkedMobileUser.inviteExpiry)}`
+                : ""}
+            </div>
+          )}
+
+          {!driver.email && driver.mobileAccessStatus === "NOT_INVITED" && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+              Add an email address in Driver Details before inviting this Driver
+              to Waste X Mobile.
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            {driver.mobileAccessStatus === "NOT_INVITED" && (
+              <form action={inviteDriverToMobileAction}>
+                <input type="hidden" name="driverId" value={driver.id} />
+                <button
+                  disabled={!driver.isActive || !driver.email}
+                  className="rounded-2xl bg-black px-6 py-3 text-sm font-semibold text-orange-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Invite to Waste X Mobile
+                </button>
+              </form>
+            )}
+
+            {driver.mobileAccessStatus === "INVITED" && (
+              <>
+                <form action={resendDriverMobileInviteAction}>
+                  <input type="hidden" name="driverId" value={driver.id} />
+                  <button className="rounded-2xl bg-black px-6 py-3 text-sm font-semibold text-orange-400">
+                    Resend invitation
+                  </button>
+                </form>
+
+                <form action={cancelDriverMobileInviteAction}>
+                  <input type="hidden" name="driverId" value={driver.id} />
+                  <button className="rounded-2xl border border-black/10 bg-white px-6 py-3 text-sm font-semibold">
+                    Cancel invitation
+                  </button>
+                </form>
+              </>
+            )}
+
+            {driver.mobileAccessStatus === "ACTIVE" && (
+              <>
+                <form action={suspendDriverMobileAccessAction}>
+                  <input type="hidden" name="driverId" value={driver.id} />
+                  <button className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-3 text-sm font-semibold text-amber-800">
+                    Suspend Mobile Access
+                  </button>
+                </form>
+
+                <form action={revokeDriverMobileAccessAction}>
+                  <input type="hidden" name="driverId" value={driver.id} />
+                  <button className="rounded-2xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-semibold text-red-700">
+                    Revoke Mobile Access
+                  </button>
+                </form>
+              </>
+            )}
+
+            {(driver.mobileAccessStatus === "SUSPENDED" ||
+              driver.mobileAccessStatus === "REVOKED") && (
+              <form action={restoreDriverMobileAccessAction}>
+                <input type="hidden" name="driverId" value={driver.id} />
+                <button className="rounded-2xl bg-black px-6 py-3 text-sm font-semibold text-orange-400">
+                  Restore Mobile Access
+                </button>
+              </form>
+            )}
+          </div>
+
+          <div className="mt-8 border-t border-black/10 pt-6">
+            <div>
+              <h3 className="text-sm font-semibold">Registered phones</h3>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-black/45">
+                Revoke an individual phone if it is lost, stolen or no longer
+                trusted. Other registered phones remain unaffected.
+              </p>
+            </div>
+
+            {mobileDevices.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-black/10 bg-[#faf8f4] px-5 py-4 text-sm text-black/45">
+                No Mobile devices have been registered for this Driver yet.
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {mobileDevices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-black/10 bg-[#faf8f4] px-5 py-4"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold">
+                          {device.displayName}
+                        </p>
+                        <span className="rounded-full border border-black/10 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                          {device.status}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-xs text-black/45">
+                        {device.platform}
+                        {" · "}
+                        Last seen {formatMobileDate(device.lastSeenAt)}
+                      </p>
+
+                      <p className="mt-1 text-[11px] text-black/35">
+                        Registered {formatMobileDate(device.createdAt)}
+                        {device.revokedAt
+                          ? ` · revoked ${formatMobileDate(device.revokedAt)}`
+                          : ""}
+                      </p>
+                    </div>
+
+                    {device.status !== "REVOKED" && (
+                      <form action={revokeDriverMobileDeviceAction}>
+                        <input
+                          type="hidden"
+                          name="driverId"
+                          value={driver.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="deviceId"
+                          value={device.id}
+                        />
+                        <button className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">
+                          Revoke this device
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {driver.mobileAccessStatus === "REVOKED" && (
+            <p className="mt-5 text-xs leading-5 text-black/40">
+              Driver-level Mobile access is revoked. The Driver, linked account
+              and device records remain preserved for audit history.
+            </p>
+          )}
+        </section>
+
         <section className="flex gap-3 rounded-[2rem] border border-black/10 bg-white p-6 shadow-sm">
           {driver.isActive ? (
             <form action={archiveDriverAction}>
@@ -205,6 +465,36 @@ export default async function DriverDetailPage({
       </div>
     </main>
   );
+}
+
+
+function mobileAccessLabel(
+  status: "NOT_INVITED" | "INVITED" | "ACTIVE" | "SUSPENDED" | "REVOKED",
+) {
+  switch (status) {
+    case "NOT_INVITED":
+      return "Not invited";
+    case "INVITED":
+      return "Invitation sent";
+    case "ACTIVE":
+      return "Active";
+    case "SUSPENDED":
+      return "Suspended";
+    case "REVOKED":
+      return "Revoked";
+  }
+}
+
+function formatMobileDate(value: Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(value);
 }
 
 const inputClass = "h-12 w-full rounded-2xl border border-black/10 bg-[#faf8f4] px-4 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100";

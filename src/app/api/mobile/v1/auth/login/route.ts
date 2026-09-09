@@ -6,6 +6,7 @@ import { database } from "@/db/database";
 import {
   createClientSession,
   hashOpaqueSecret,
+  requireMobileUserAccess,
   verifyWasteXPassword,
 } from "@/lib/client-api/auth";
 import {
@@ -48,11 +49,18 @@ export async function POST(request: Request) {
       );
     }
 
+    await requireMobileUserAccess({
+      userId: user.id,
+      organisationId: user.organisationId,
+      role: user.role,
+    });
+
     const device = await database.query.clientDevices.findFirst({
       where: and(
         eq(clientDevices.id, parsed.data.deviceId),
         eq(clientDevices.organisationId, user.organisationId),
         eq(clientDevices.deviceType, "MOBILE"),
+        eq(clientDevices.registeredByUserId, user.id),
         eq(clientDevices.secretHash, hashOpaqueSecret(parsed.data.deviceSecret)),
         eq(clientDevices.status, "ACTIVE"),
       ),

@@ -3,9 +3,42 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { RejectLoadModal, type SiteRejectionCategory } from "./RejectLoadModal";
 import { TicketPanel } from "./TicketPanel";
+import { CreateJobPanel, type DesktopCreatedJob } from "./CreateJobPanel";
+import { ManageTransportPanel } from "./ManageTransportPanel";
+import {
+  QuickAddTransportModal,
+  type QuickTransportKind,
+} from "./QuickAddTransportModal";
 
 type LocalDbStatus = { ready: boolean; encrypted: boolean; schemaVersion: number; cipherVersion: string; tableCount: number };
-type ProvisioningStatus = { provisioned: boolean; deviceId: string | null; organisationId: string | null; displayName: string | null };
+type ProvisioningStatus = {
+  provisioned: boolean;
+  deviceId: string | null;
+  organisationId: string | null;
+  defaultSiteId: string | null;
+  defaultSiteName: string | null;
+  displayName: string | null;
+};
+type ProvisionOptions = {
+  organisation: {
+    id: string;
+    name: string;
+  };
+  user: {
+    id: string;
+    email: string;
+    role: string;
+  };
+  sites: Array<{
+    id: string;
+    name: string;
+    fullAddress: string | null;
+    postcode: string | null;
+    isDefault: boolean;
+  }>;
+  recommendedSiteId: string | null;
+};
+
 type AuthStatus = { unlocked: boolean; canOffline: boolean; email: string | null; mode: "ONLINE" | "OFFLINE" | null; offlineExpiresAt: string | null; offlineDaysRemaining: number };
 type OperationalSummary = { jobs: number; jobLoads: number; pendingSyncEvents: number; conflicts: number };
 type OpsReference = { id: string; label: string; haulierCounterpartyId: string | null };
@@ -13,6 +46,7 @@ type WeightMetric = "Grams" | "Kilograms" | "Tonnes";
 type TareSource = "LOAD" | "VEHICLE_MASTER" | "MANUAL" | null;
 type VehicleTareResult = { vehicleId: string; tareWeightKg: number | null };
 type LoadView = "live" | "rejected" | "completed" | "cancelled";
+type DesktopView = "operations" | "create" | "cloud" | "manage" | "settings";
 
 type DailyLoad = {
   id: string;
@@ -35,17 +69,65 @@ type DailyLoad = {
   notes: string | null;
   entityVersion: number;
   pendingEvents: number;
+  searchText: string;
 };
 
 type DailyOperationsSnapshot = { loads: DailyLoad[]; drivers: OpsReference[]; vehicles: OpsReference[]; pendingEvents: number; conflicts: number };
 type DesktopSyncStatus = { running: boolean; cloudReachable: boolean; authRequired: boolean; lastAttemptAt: string | null; lastSuccessAt: string | null; lastError: string | null; cursor: string | null; pending: number; retryableFailed: number; permanentFailed: number; conflicts: number; deferredRemoteChanges: number };
 type DesktopSyncRunResult = { status: DesktopSyncStatus; pushedApplied: number; pushedDuplicates: number; pushedConflicts: number; pushedFailed: number; pulledChanges: number; deferredRemoteChanges: number };
 type UnlockResult = { ok: boolean; mode: "ONLINE" | "OFFLINE" };
-type CloudContext = { baseUrl: string; environment: string; organisationId: string | null; organisationName: string | null; deviceId: string | null; displayName: string | null; horizonStart: string | null; horizonEnd: string | null; lastBootstrapAt: string | null };
+type CloudContext = {
+  baseUrl: string;
+  environment: string;
+  organisationId: string | null;
+  organisationName: string | null;
+  deviceId: string | null;
+  defaultSiteId: string | null;
+  defaultSiteName: string | null;
+  displayName: string | null;
+  horizonStart: string | null;
+  horizonEnd: string | null;
+  lastBootstrapAt: string | null;
+};
 type CloudJob = { id: string; jobNumber: string | null; jobDate: string | null; direction: string | null; status: string | null };
 type CloudLoad = { id: string; jobId: string; loadNumber: number | null; direction: string | null; status: string | null };
 type CloudEvidence = { evidenceId: string; entityType: string; entityId: string; fileName: string; contentType: string; byteSize: number; status: string; uploadedAt: string | null; createdAt: string | null };
 type CloudCatalogue = { organisation: { id: string; teamName: string | null; status: string | null } | null; query: string; offset: number; limit: number; totals: { jobs: number; evidence: number }; jobs: CloudJob[]; jobLoads: CloudLoad[]; evidence: CloudEvidence[]; hasMoreJobs: boolean; nextOffset: number | null };
+type CloudHistoryEvent = {
+  id: string;
+  occurredAt: string;
+  source: "Desktop" | "Mobile" | "Cloud";
+  eventType: string;
+  label: string;
+  entityType: string;
+  entityId: string;
+  loadNumber: number | null;
+  resultStatus: string | null;
+  reasonCode: string | null;
+  version: number | null;
+  actor: { id: string; name: string | null; email: string | null } | null;
+  device: { id: string; displayName: string; deviceType: string; platform: string } | null;
+  payload: unknown;
+};
+type CloudJobHistory = {
+  ok: true;
+  job: CloudJob & {
+    driverId: string | null;
+    vehicleId: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+  };
+  loads: Array<CloudLoad & {
+    driverId: string | null;
+    vehicleId: string | null;
+    ticketNumber: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+  }>;
+  events: CloudHistoryEvent[];
+  files: CloudEvidence[];
+  note: string;
+};
 
 type EditState = {
   driverId: string;
@@ -189,6 +271,54 @@ function fileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function cloudHistoryTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString([], {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}
+
+function cloudHistorySummary(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "";
+  }
+
+  const record = payload as Record<string, unknown>;
+  const keys: Array<[string, string]> = [
+    ["driverId", "Driver"],
+    ["vehicleId", "Vehicle"],
+    ["status", "Status"],
+    ["grossWeight", "Gross"],
+    ["tareWeight", "Tare"],
+    ["netWeight", "Net"],
+    ["weightMetric", "Metric"],
+    ["ticketNumber", "Ticket"],
+    ["reason", "Reason"],
+    ["summary", "Summary"],
+    ["fileName", "File"],
+  ];
+
+  return keys
+    .flatMap(([key, label]) => {
+      if (!(key in record)) return [];
+      const value = record[key];
+
+      if (value === null || value === "") return [`${label}: none`];
+
+      return ["string", "number", "boolean"].includes(typeof value)
+        ? [`${label}: ${String(value)}`]
+        : [];
+    })
+    .slice(0, 5)
+    .join(" · ");
+}
+
 export function App() {
   const [database, setDatabase] = useState<LocalDbStatus | null>(null);
   const [provisioning, setProvisioning] = useState<ProvisioningStatus | null>(null);
@@ -200,15 +330,27 @@ export function App() {
   const [cloudCatalogue, setCloudCatalogue] = useState<CloudCatalogue | null>(null);
   const [cloudQuery, setCloudQuery] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudSelectedJobId, setCloudSelectedJobId] = useState<string | null>(null);
+  const [cloudHistory, setCloudHistory] = useState<CloudJobHistory | null>(null);
+  const [cloudHistoryBusy, setCloudHistoryBusy] = useState(false);
+  const [cloudHistoryError, setCloudHistoryError] = useState<string | null>(null);
   const [selectedLoadId, setSelectedLoadId] = useState<string | null>(null);
   const [loadView, setLoadView] = useState<LoadView>("live");
+
+  const [desktopView, setDesktopView] = useState<DesktopView>("operations");
+
+  const [loadQuery, setLoadQuery] = useState("");
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [quickTransportKind, setQuickTransportKind] = useState<QuickTransportKind | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [tareSource, setTareSource] = useState<TareSource>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("Waste X Desktop — Mac");
+  const [displayName, setDisplayName] = useState("Waste X Site Desktop");
+  const [provisionOptions, setProvisionOptions] = useState<ProvisionOptions | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [signOutArmed, setSignOutArmed] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const syncLoopActive = useRef(false);
@@ -265,18 +407,77 @@ export function App() {
       setSync(syncStatus);
       setCloudContext(context);
     } else {
-      setSummary(null); setOperations(null); setSync(null); setCloudContext(null); setCloudCatalogue(null); setSelectedLoadId(null); setEdit(null); setTareSource(null);
+      setSummary(null); setOperations(null); setSync(null); setCloudContext(null); setCloudCatalogue(null); setCloudSelectedJobId(null); setCloudHistory(null); setCloudHistoryError(null); setSelectedLoadId(null); setEdit(null); setTareSource(null);
+    }
+  }
+
+  async function fetchCloudJobHistory(jobId: string) {
+    if (!auth?.unlocked || !sync?.cloudReachable) return;
+
+    setCloudHistoryBusy(true);
+    setCloudHistoryError(null);
+
+    try {
+      setCloudHistory(
+        await invoke<CloudJobHistory>("desktop_cloud_job_history", {
+          input: { jobId },
+        }),
+      );
+    } catch (error) {
+      setCloudHistory(null);
+      setCloudHistoryError(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setCloudHistoryBusy(false);
     }
   }
 
   async function fetchCloudCatalogue(query = cloudQuery, offset = 0) {
     if (!auth?.unlocked) return;
     setCloudBusy(true);
+
     try {
-      setCloudCatalogue(await invoke<CloudCatalogue>("desktop_cloud_catalogue", { input: { query, offset, limit: 50 } }));
+      const catalogue = await invoke<CloudCatalogue>(
+        "desktop_cloud_catalogue",
+        { input: { query, offset, limit: 50 } },
+      );
+
+      setCloudCatalogue(catalogue);
+
+      const selected =
+        cloudSelectedJobId &&
+        catalogue.jobs.some((job) => job.id === cloudSelectedJobId)
+          ? cloudSelectedJobId
+          : catalogue.jobs[0]?.id ?? null;
+
+      setCloudSelectedJobId(selected);
+
+      if (selected) void fetchCloudJobHistory(selected);
+      else {
+        setCloudHistory(null);
+        setCloudHistoryError(null);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setCloudBusy(false); }
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function copyCloudHistory() {
+    if (!cloudHistory) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(cloudHistory, null, 2),
+      );
+      setMessage("Record history copied as JSON.");
+    } catch {
+      setMessage(
+        "Automatic copy was unavailable. Expand Raw record data and copy the required information manually.",
+      );
+    }
   }
 
   async function syncNow(showToast = true) {
@@ -368,13 +569,67 @@ export function App() {
     finally { setBusy(false); }
   }
 
+  async function handleProvisionCheck(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    setProvisionOptions(null);
+    setSelectedSiteId("");
+
+    try {
+      const options = await invoke<ProvisionOptions>("desktop_provision_options", {
+        input: { email, password },
+      });
+
+      setProvisionOptions(options);
+      setSelectedSiteId(
+        options.recommendedSiteId ??
+          (options.sites.length === 1 ? options.sites[0]!.id : ""),
+      );
+
+      if (options.sites.length === 0) {
+        setMessage(
+          "Your organisation has no active Waste X site. Create or activate a site in Waste X Web before registering this workstation.",
+        );
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleProvision(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!provisionOptions) {
+      setMessage("Verify the Waste X account before registering this workstation.");
+      return;
+    }
+
+    if (!selectedSiteId) {
+      setMessage("Choose the operating site for this Waste X Desktop.");
+      return;
+    }
+
     await run(async () => {
-      await invoke("desktop_provision_and_bootstrap", { input: { email, password, displayName } });
-      await invoke<UnlockResult>("desktop_unlock", { input: { email, password } });
+      await invoke("desktop_provision_and_bootstrap", {
+        input: {
+          email,
+          password,
+          displayName,
+          defaultSiteId: selectedSiteId,
+        },
+      });
+
+      await invoke<UnlockResult>("desktop_unlock", {
+        input: { email, password },
+      });
+
       setPassword("");
-    }, "This Mac is provisioned and the operational working set is stored locally.");
+      setProvisionOptions(null);
+      setSelectedSiteId("");
+    }, "This workstation is registered, the site working set is stored locally, and offline access is ready.");
   }
 
   async function handleUnlock(event: FormEvent<HTMLFormElement>) {
@@ -391,7 +646,29 @@ export function App() {
     finally { setBusy(false); }
   }
 
-  async function handleLock() { await invoke("desktop_lock"); setMessage(null); await refreshLocalState(); }
+  async function handleLock() {
+    await invoke("desktop_lock");
+    setMessage(null);
+    await refreshLocalState();
+  }
+
+  async function handleSignOut() {
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      await invoke("desktop_sign_out");
+      setSignOutArmed(false);
+      await refreshLocalState();
+      setMessage(
+        "Signed out. This workstation remains registered, but Waste X Cloud is required for the next password sign-in.",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function loadDetailsInput(load: DailyLoad, values: EditState) {
     const netWeight = calculatedNetWeight(values.grossWeight, values.tareWeight);
@@ -434,6 +711,67 @@ export function App() {
       await invoke("desktop_save_load_details", { input: loadDetailsInput(selectedLoad, edit) });
       await invoke("desktop_complete_load", { input: { loadId: selectedLoad.id } });
     }, "Site weights finalised and load completed locally. The receiving-site ticket can now be generated.");
+  }
+
+  async function handleQuickTransportCreated(
+    kind: QuickTransportKind,
+    entityId: string,
+  ) {
+    /*
+      The modal refreshed the Cloud bootstrap. Reload Operations, then select
+      the new record in the current unsaved Load editor.
+
+      Do not auto-save the Load: the operator may also have unsaved weights
+      or notes. Save site details remains the explicit Load commit point.
+    */
+    await refreshLocalState();
+
+    if (kind === "driver") {
+      setEdit((current) =>
+        current ? { ...current, driverId: entityId } : current,
+      );
+      setMessage(
+        "Driver created and selected. Save site details to assign the Driver to this Load.",
+      );
+      return;
+    }
+
+    setEdit((current) =>
+      current ? { ...current, vehicleId: entityId } : current,
+    );
+
+    const metric = edit?.weightMetric ?? "Tonnes";
+
+    try {
+      const tare = await storedVehicleTare(entityId, metric);
+
+      if (tare !== null) {
+        setEdit((current) =>
+          current && current.vehicleId === entityId
+            ? {
+                ...current,
+                tareWeight: tare,
+                netWeight: calculatedNetWeight(
+                  current.grossWeight,
+                  tare,
+                ),
+              }
+            : current,
+        );
+        setTareSource("VEHICLE_MASTER");
+      } else {
+        setTareSource(null);
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+
+    setMessage(
+      "Vehicle created and selected. Save site details to assign the Vehicle to this Load.",
+    );
   }
 
   async function handleVehicleChange(vehicleId: string) {
@@ -503,6 +841,1350 @@ export function App() {
   const syncProblems = (sync?.conflicts ?? 0) + (sync?.permanentFailed ?? 0) + (sync?.deferredRemoteChanges ?? 0);
   const incomingWeightLocked = Boolean(selectedLoad?.direction === "incoming" && !["arrived", "accepted"].includes(selectedLoad.status));
 
+
+  // PILOT_DESKTOP_SHELL_V2
+  if (auth?.unlocked) {
+    const pilotSiteName =
+      (
+        cloudContext as
+          | (CloudContext & { defaultSiteName?: string | null })
+          | null
+      )?.defaultSiteName ??
+      (
+        provisioning as
+          | (ProvisioningStatus & { defaultSiteName?: string | null })
+          | null
+      )?.defaultSiteName ??
+      "Receiving site";
+
+    const driverLabels = new Map(
+      (operations?.drivers ?? []).map((driver) => [driver.id, driver.label]),
+    );
+
+    const vehicleLabels = new Map(
+      (operations?.vehicles ?? []).map((vehicle) => [vehicle.id, vehicle.label]),
+    );
+
+    const pilotDriverLabel = (load: DailyLoad) =>
+      load.driverId
+        ? driverLabels.get(load.driverId) ?? "Assigned driver"
+        : "Unassigned";
+
+    const pilotVehicleLabel = (load: DailyLoad) =>
+      load.vehicleId
+        ? vehicleLabels.get(load.vehicleId) ?? "Assigned vehicle"
+        : "No vehicle";
+
+    const normalisedLoadQuery = loadQuery.trim().toLowerCase();
+
+    const statusPriority = (status: string) => {
+      if (status === "arrived") return 0;
+      if (status === "accepted") return 1;
+      if (status === "planned") return 2;
+      return 3;
+    };
+
+    const pilotVisibleLoads = [...visibleLoads]
+      .filter((load) => {
+        if (!normalisedLoadQuery) return true;
+
+        const searchable = [
+          load.jobNumber,
+          load.jobId,
+          load.id,
+          load.loadNumber !== null ? `load ${load.loadNumber}` : "",
+          load.jobDate ?? "",
+          load.direction,
+          load.status,
+          load.wasteDescription,
+          load.ewcCode ?? "",
+          load.ticketNumber ?? "",
+          load.notes ?? "",
+          pilotDriverLabel(load),
+          pilotVehicleLabel(load),
+          load.searchText ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchable.includes(normalisedLoadQuery);
+      })
+      .sort((a, b) => {
+        if (loadView === "live") {
+          const priority =
+            statusPriority(a.status) - statusPriority(b.status);
+
+          if (priority !== 0) return priority;
+        }
+
+        const date =
+          (a.jobDate ?? "").localeCompare(b.jobDate ?? "");
+
+        if (date !== 0) return date;
+
+        const job = a.jobNumber.localeCompare(b.jobNumber);
+
+        if (job !== 0) return job;
+
+        return (a.loadNumber ?? 0) - (b.loadNumber ?? 0);
+      });
+
+    const pilotSelectedVisible = Boolean(
+      selectedLoad &&
+        pilotVisibleLoads.some((load) => load.id === selectedLoad.id),
+    );
+
+    return (
+      <main className="shell pilot-shell">
+        <header className="pilot-appbar">
+          <div className="pilot-brand">
+            <span className="eyebrow">Waste X Desktop</span>
+            <strong>{pilotSiteName}</strong>
+          </div>
+
+          <nav
+            className="pilot-primary-nav"
+            aria-label="Waste X Desktop navigation"
+          >
+            <button
+              type="button"
+              className={desktopView === "operations" ? "active" : ""}
+              onClick={() => setDesktopView("operations")}
+            >
+              Operations
+            </button>
+
+            <button
+              type="button"
+              className={desktopView === "create" ? "active" : ""}
+              onClick={() => setDesktopView("create")}
+            >
+              Create job
+            </button>
+
+            <button
+              type="button"
+              className={desktopView === "cloud" ? "active" : ""}
+              onClick={() => setDesktopView("cloud")}
+            >
+              Cloud records
+            </button>
+
+            <button
+              type="button"
+              className={desktopView === "manage" ? "active" : ""}
+              onClick={() => setDesktopView("manage")}
+            >
+              Manage
+            </button>
+
+            <button
+              type="button"
+              className={desktopView === "settings" ? "active" : ""}
+              onClick={() => setDesktopView("settings")}
+            >
+              Settings
+            </button>
+          </nav>
+
+          <div className="pilot-appbar-actions">
+            <span
+              className={`pilot-connection ${
+                sync?.cloudReachable ? "online" : "offline"
+              }`}
+            >
+              <i />
+              {sync?.cloudReachable ? "Online" : "Offline"}
+            </span>
+
+            <button
+              type="button"
+              className="pilot-lock-button"
+              onClick={handleLock}
+            >
+              Lock Desktop
+            </button>
+          </div>
+        </header>
+
+        {desktopView === "operations" ? (
+          <section className="pilot-screen pilot-operations-screen">
+            <div className="pilot-operations-title">
+              <div>
+                <span className="eyebrow">Site operations</span>
+                <h1>Loads</h1>
+                <p>
+                  {pilotSiteName} · select a load and operate it from one screen.
+                </p>
+              </div>
+
+              <div className="pilot-mini-status">
+                <span>
+                  <strong>{operations?.pendingEvents ?? 0}</strong> queued
+                </span>
+                <span>
+                  <strong>{syncProblems}</strong> review
+                </span>
+              </div>
+            </div>
+
+            <section
+              className="load-view-tabs pilot-load-tabs"
+              aria-label="Load status views"
+            >
+              {([
+                ["live", "Live", loadCounts.live],
+                ["rejected", "Rejected", loadCounts.rejected],
+                ["completed", "Completed", loadCounts.completed],
+                ["cancelled", "Cancelled", loadCounts.cancelled],
+              ] as Array<[LoadView, string, number]>).map(
+                ([value, label, count]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className={loadView === value ? "active" : ""}
+                    onClick={() => setLoadView(value)}
+                  >
+                    {label} <span>{count}</span>
+                  </button>
+                ),
+              )}
+            </section>
+
+            <div className="pilot-search-row">
+              <div className="pilot-search">
+                <span aria-hidden="true">⌕</span>
+
+                <input
+                  type="search"
+                  value={loadQuery}
+                  onChange={(event) => setLoadQuery(event.target.value)}
+                  placeholder="Search reference, driver, source, waste, vehicle, EWC or ticket…"
+                  aria-label="Search cached loads"
+                />
+
+                {loadQuery ? (
+                  <button
+                    type="button"
+                    className="pilot-search-clear"
+                    onClick={() => setLoadQuery("")}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+
+              <span className="pilot-result-count">
+                {pilotVisibleLoads.length} matching{" "}
+                {loadView === "live" ? "live" : loadView}{" "}
+                {pilotVisibleLoads.length === 1 ? "load" : "loads"}
+              </span>
+            </div>
+
+            <section className="pilot-workspace">
+              <section className="pilot-load-panel">
+                <div className="pilot-table-head">
+                  <span>Reference</span>
+                  <span>Driver / waste</span>
+                  <span>Status</span>
+                </div>
+
+                <div className="pilot-table-body">
+                  {pilotVisibleLoads.map((load) => (
+                    <button
+                      type="button"
+                      key={load.id}
+                      className={`pilot-table-row ${
+                        selectedLoadId === load.id ? "selected" : ""
+                      }`}
+                      onClick={() => setSelectedLoadId(load.id)}
+                    >
+                      <span className="pilot-reference-cell">
+                        <strong>
+                          {load.jobNumber || "Job"} · {load.loadNumber ?? "—"}
+                        </strong>
+
+                        <small>
+                          {shortDate(load.jobDate)} · {load.direction}
+                          {load.ewcCode ? ` · ${load.ewcCode}` : ""}
+                        </small>
+                      </span>
+
+                      <span className="pilot-detail-cell">
+                        <strong>{pilotDriverLabel(load)}</strong>
+
+                        <small>
+                          {load.wasteDescription ||
+                            "Waste description required"}
+                          {load.vehicleId
+                            ? ` · ${pilotVehicleLabel(load)}`
+                            : ""}
+                        </small>
+                      </span>
+
+                      <span className="pilot-table-status">
+                        <span
+                          className={`status-pill status-${load.status}`}
+                        >
+                          {load.status}
+                        </span>
+
+                        {load.pendingEvents > 0 ? (
+                          <small>
+                            {load.pendingEvents} queued
+                          </small>
+                        ) : load.ticketNumber ? (
+                          <small>Ticket ready</small>
+                        ) : null}
+                      </span>
+                    </button>
+                  ))}
+
+                  {!pilotVisibleLoads.length ? (
+                    <div className="empty-state pilot-empty-table">
+                      {loadQuery
+                        ? `No ${loadView} loads match “${loadQuery}”.`
+                        : `No ${loadView} loads are cached on this Desktop.`}
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="load-editor pilot-load-editor">
+                {selectedLoad && pilotSelectedVisible && edit ? (
+                  <>
+                    <div className="editor-heading pilot-editor-heading">
+                      <div>
+                        <span className="eyebrow">Selected load</span>
+
+                        <h3>
+                          {selectedLoad.jobNumber} · Load{" "}
+                          {selectedLoad.loadNumber ?? "—"}
+                        </h3>
+
+                        <p className="pilot-editor-meta">
+                          {shortDate(selectedLoad.jobDate)} ·{" "}
+                          {selectedLoad.direction}
+                          {selectedLoad.ewcCode
+                            ? ` · EWC ${selectedLoad.ewcCode}`
+                            : ""}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`status-pill status-${selectedLoad.status}`}
+                      >
+                        {selectedLoad.status}
+                      </span>
+                    </div>
+
+                    {selectedLoad.status === "rejected" ? (
+                      <div className="site-rejection-record">
+                        <span>REJECTION RECORD</span>
+
+                        <strong>
+                          {rejection?.authority === "DRIVER"
+                            ? "Driver refused collection"
+                            : "Receiving site rejected load"}
+                        </strong>
+
+                        <b>
+                          {rejection?.categoryLabel ??
+                            "Reason recorded in load notes"}
+                        </b>
+
+                        <p>
+                          {rejection?.reason ??
+                            "Review the recorded rejection detail below."}
+                        </p>
+
+                        <small>
+                          This load is terminal and does not receive a normal
+                          completed-load ticket.
+                        </small>
+                      </div>
+                    ) : null}
+
+                    {/* WASTE_X_STAGE_D_ACTIVE_SHELL_V1 */}
+                    {quickTransportKind ? (
+                      <QuickAddTransportModal
+                        open
+                        kind={quickTransportKind}
+                        jobNumber={selectedLoad.jobNumber}
+                        loadNumber={selectedLoad.loadNumber}
+                        haulierCounterpartyId={
+                          selectedLoad.haulierCounterpartyId
+                        }
+                        onClose={() => setQuickTransportKind(null)}
+                        onCreated={handleQuickTransportCreated}
+                      />
+                    ) : null}
+
+                    <form
+                      className="editor-form pilot-editor-form"
+                      onSubmit={saveDetails}
+                    >
+                      <label className="pilot-quick-select-field">
+                        <span className="pilot-quick-select-heading">
+                          <span>Driver</span>
+                          <button
+                            type="button"
+                            disabled={
+                              selectedTerminal ||
+                              busy ||
+                              !sync?.cloudReachable
+                            }
+                            title={
+                              sync?.cloudReachable
+                                ? "Create a Driver for this Load's carrier"
+                                : "Connect to Waste X Cloud to add a Driver"
+                            }
+                            onClick={() => setQuickTransportKind("driver")}
+                          >
+                            + Add
+                          </button>
+                        </span>
+
+                        <select
+                          disabled={selectedTerminal}
+                          value={edit.driverId}
+                          onChange={(event) =>
+                            setEdit({
+                              ...edit,
+                              driverId: event.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Select driver</option>
+
+                          {availableDrivers.map((driver) => (
+                            <option
+                              key={driver.id}
+                              value={driver.id}
+                            >
+                              {driver.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="pilot-quick-select-field">
+                        <span className="pilot-quick-select-heading">
+                          <span>Vehicle</span>
+                          <button
+                            type="button"
+                            disabled={
+                              selectedTerminal ||
+                              busy ||
+                              !sync?.cloudReachable
+                            }
+                            title={
+                              sync?.cloudReachable
+                                ? "Create a Vehicle for this Load's carrier"
+                                : "Connect to Waste X Cloud to add a Vehicle"
+                            }
+                            onClick={() => setQuickTransportKind("vehicle")}
+                          >
+                            + Add
+                          </button>
+                        </span>
+
+                        <select
+                          disabled={selectedTerminal}
+                          value={edit.vehicleId}
+                          onChange={(event) =>
+                            void handleVehicleChange(event.target.value)
+                          }
+                        >
+                          <option value="">Select vehicle</option>
+
+                          {availableVehicles.map((vehicle) => (
+                            <option
+                              key={vehicle.id}
+                              value={vehicle.id}
+                            >
+                              {vehicle.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="wide">
+                        <span>Waste description</span>
+
+                        <input
+                          disabled={selectedTerminal}
+                          value={edit.wasteDescription}
+                          onChange={(event) =>
+                            setEdit({
+                              ...edit,
+                              wasteDescription: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+
+                      <label>
+                        <span>Gross · weighbridge reading</span>
+
+                        <input
+                          disabled={
+                            selectedTerminal || incomingWeightLocked
+                          }
+                          inputMode="decimal"
+                          value={edit.grossWeight}
+                          onChange={(event) => {
+                            const grossWeight = event.target.value;
+
+                            setEdit({
+                              ...edit,
+                              grossWeight,
+                              netWeight: calculatedNetWeight(
+                                grossWeight,
+                                edit.tareWeight,
+                              ),
+                            });
+                          }}
+                        />
+                      </label>
+
+                      <label>
+                        <span>Tare</span>
+
+                        <input
+                          disabled={
+                            selectedTerminal || incomingWeightLocked
+                          }
+                          inputMode="decimal"
+                          value={edit.tareWeight}
+                          onChange={(event) => {
+                            const tareWeight = event.target.value;
+
+                            setTareSource("MANUAL");
+
+                            setEdit({
+                              ...edit,
+                              tareWeight,
+                              netWeight: calculatedNetWeight(
+                                edit.grossWeight,
+                                tareWeight,
+                              ),
+                            });
+                          }}
+                        />
+
+                        <small className="small-copy">
+                          {tareSource === "VEHICLE_MASTER"
+                            ? "Loaded from the vehicle's stored tare."
+                            : tareSource === "LOAD"
+                              ? "Using the tare already saved on this load."
+                              : tareSource === "MANUAL"
+                                ? "Operator-adjusted tare."
+                                : "Enter the actual tare."}
+                        </small>
+                      </label>
+
+                      <label>
+                        <span>Net · calculated</span>
+
+                        <input
+                          readOnly
+                          inputMode="decimal"
+                          value={edit.netWeight}
+                        />
+
+                        <small className="small-copy">
+                          Gross − tare.
+                        </small>
+                      </label>
+
+                      <label>
+                        <span>Metric</span>
+
+                        <select
+                          disabled={
+                            selectedTerminal || incomingWeightLocked
+                          }
+                          value={edit.weightMetric}
+                          onChange={(event) =>
+                            handleMetricChange(
+                              event.target.value as WeightMetric,
+                            )
+                          }
+                        >
+                          <option>Tonnes</option>
+                          <option>Kilograms</option>
+                          <option>Grams</option>
+                        </select>
+                      </label>
+
+                      {incomingWeightLocked && !selectedTerminal ? (
+                        <p className="wide small-copy pilot-weight-note">
+                          Weight entry unlocks when the load reaches the
+                          receiving site.
+                        </p>
+                      ) : null}
+
+                      <label className="wide">
+                        <span>Site ticket</span>
+
+                        <input
+                          disabled
+                          value={
+                            selectedLoad.ticketNumber ??
+                            (selectedLoad.status === "completed"
+                              ? "Ready to generate below"
+                              : selectedLoad.status === "rejected"
+                                ? "Not issued for rejected loads"
+                                : "Available after site completion")
+                          }
+                        />
+                      </label>
+
+                      <label className="wide">
+                        <span>Notes</span>
+
+                        <textarea
+                          disabled={selectedTerminal}
+                          rows={2}
+                          value={edit.notes}
+                          onChange={(event) =>
+                            setEdit({
+                              ...edit,
+                              notes: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={busy || selectedTerminal}
+                      >
+                        Save site details
+                      </button>
+                    </form>
+
+                    <div className="action-row pilot-action-row">
+                      {selectedLoad.direction === "incoming" &&
+                      selectedLoad.status === "planned" &&
+                      selectedLoad.haulierCounterpartyId ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            loadAction(
+                              "desktop_mark_load_arrived",
+                              "External-haulier arrival recorded locally and queued for sync.",
+                            )
+                          }
+                        >
+                          Mark external carrier arrived
+                        </button>
+                      ) : null}
+
+                      {selectedLoad.direction === "incoming" &&
+                      selectedLoad.status === "planned" &&
+                      !selectedLoad.haulierCounterpartyId ? (
+                        <span className="small-copy">
+                          Waiting for the assigned Driver to mark Arrived at
+                          destination on Mobile.
+                        </span>
+                      ) : null}
+
+                      {selectedLoad.direction === "incoming" &&
+                      selectedLoad.status === "arrived" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="danger-button"
+                            disabled={busy}
+                            onClick={() => setRejectModalOpen(true)}
+                          >
+                            Reject load
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              loadAction(
+                                "desktop_accept_load",
+                                "Load accepted locally and queued for sync.",
+                              )
+                            }
+                          >
+                            Accept load
+                          </button>
+                        </>
+                      ) : null}
+
+                      {(selectedLoad.direction === "incoming" &&
+                        selectedLoad.status === "accepted") ||
+                      (selectedLoad.direction === "outgoing" &&
+                        ![
+                          "completed",
+                          "rejected",
+                          "cancelled",
+                        ].includes(selectedLoad.status)) ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void completeSelectedLoad()
+                          }
+                        >
+                          Finalise weights + Complete
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {selectedLoad.status === "completed" ||
+                    selectedLoad.ticketNumber ? (
+                      <TicketPanel
+                        loadId={selectedLoad.id}
+                        disabled={busy}
+                        onChanged={refreshLocalState}
+                      />
+                    ) : null}
+
+                    <div className="local-proof pilot-local-proof">
+                      {selectedLoad.pendingEvents > 0
+                        ? `${selectedLoad.pendingEvents} local ${
+                            selectedLoad.pendingEvents === 1
+                              ? "change"
+                              : "changes"
+                          } waiting to sync`
+                        : "Local record up to date"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="empty-state editor-empty">
+                    {pilotVisibleLoads.length
+                      ? "Select a load from the table."
+                      : "No load is available in this view."}
+                  </div>
+                )}
+              </section>
+            </section>
+          </section>
+        ) : null}
+
+        {/* WASTE_X_DESKTOP_CREATE_JOB_PANEL_V1 */}
+        {desktopView === "create" ? (
+          <CreateJobPanel
+            cloudReachable={Boolean(sync?.cloudReachable)}
+            siteName={pilotSiteName}
+            onCreated={async (created: DesktopCreatedJob) => {
+              await refreshLocalState();
+              setLoadView("live");
+              setLoadQuery("");
+              setSelectedLoadId(created.firstLoadId);
+              setDesktopView("operations");
+              setMessage(
+                created.syncFeedWarning
+                  ? `${created.job.jobNumber} created. The encrypted working set was refreshed, but one Cloud change-feed publication needs review.`
+                  : `${created.job.jobNumber} created and added to site operations.`,
+              );
+            }}
+          />
+        ) : null}
+
+        {desktopView === "cloud" ? (
+          <section className="pilot-screen pilot-scroll-screen">
+            <div className="pilot-page-heading">
+              <div>
+                <span className="eyebrow">Organisation records</span>
+                <h1>Cloud records</h1>
+                <p>
+                  Search the wider{" "}
+                  {cloudContext?.organisationName ?? "Waste X organisation"}{" "}
+                  and inspect the captured operational history.
+                </p>
+              </div>
+            </div>
+
+            <form className="pilot-cloud-search" onSubmit={handleCloudSearch}>
+              <input
+                value={cloudQuery}
+                onChange={(event) => setCloudQuery(event.target.value)}
+                placeholder="Search job reference, status or direction…"
+              />
+              <button disabled={!sync?.cloudReachable || cloudBusy}>
+                {cloudBusy ? "Searching…" : "Search records"}
+              </button>
+            </form>
+
+            {!sync?.cloudReachable ? (
+              <div className="pilot-offline-card">
+                <strong>Cloud records are unavailable offline.</strong>
+                <span>
+                  Site operations and the encrypted working set remain available.
+                </span>
+              </div>
+            ) : cloudCatalogue ? (
+              <>
+                <div className="pilot-record-counts">
+                  <span><strong>{cloudCatalogue.totals.jobs}</strong> matching jobs</span>
+                  <span><strong>{cloudHistory?.events.length ?? 0}</strong> selected history events</span>
+                  <span><strong>{cloudHistory?.files.length ?? 0}</strong> attached files</span>
+                </div>
+
+                <div className="pilot-record-history-layout">
+                  <section className="pilot-record-list-panel">
+                    <div className="pilot-history-heading">
+                      <div>
+                        <span className="eyebrow">Records</span>
+                        <h2>Jobs</h2>
+                      </div>
+                    </div>
+
+                    <div className="pilot-record-job-list">
+                      {cloudCatalogue.jobs.map((job) => {
+                        const loadCount = cloudCatalogue.jobLoads.filter(
+                          (load) => load.jobId === job.id,
+                        ).length;
+
+                        return (
+                          <button
+                            type="button"
+                            key={job.id}
+                            className={`pilot-record-job ${
+                              cloudSelectedJobId === job.id ? "active" : ""
+                            }`}
+                            onClick={() => {
+                              setCloudSelectedJobId(job.id);
+                              void fetchCloudJobHistory(job.id);
+                            }}
+                          >
+                            <strong>{job.jobNumber ?? job.id}</strong>
+                            <span>
+                              {shortDate(job.jobDate)} · {job.direction ?? "—"} ·{" "}
+                              {job.status ?? "—"}
+                            </span>
+                            <small>
+                              {loadCount} {loadCount === 1 ? "load" : "loads"}
+                            </small>
+                          </button>
+                        );
+                      })}
+
+                      {!cloudCatalogue.jobs.length ? (
+                        <div className="empty-state">No Cloud jobs matched.</div>
+                      ) : null}
+                    </div>
+
+                    <div className="cloud-page-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={cloudBusy || cloudCatalogue.offset === 0}
+                        onClick={() =>
+                          void fetchCloudCatalogue(
+                            cloudCatalogue.query,
+                            Math.max(
+                              0,
+                              cloudCatalogue.offset - cloudCatalogue.limit,
+                            ),
+                          )
+                        }
+                      >
+                        Previous
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={
+                          cloudBusy ||
+                          !cloudCatalogue.hasMoreJobs ||
+                          cloudCatalogue.nextOffset === null
+                        }
+                        onClick={() =>
+                          void fetchCloudCatalogue(
+                            cloudCatalogue.query,
+                            cloudCatalogue.nextOffset ?? 0,
+                          )
+                        }
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="pilot-record-history-panel">
+                    <div className="pilot-history-heading main">
+                      <div>
+                        <span className="eyebrow">Authoritative record</span>
+                        <h2>
+                          {cloudHistory?.job.jobNumber ??
+                            (cloudSelectedJobId ? "Record history" : "Select a Job")}
+                        </h2>
+                        <p>
+                          Captured Desktop, Mobile and canonical Cloud changes.
+                        </p>
+                      </div>
+
+                      {cloudSelectedJobId ? (
+                        <div className="pilot-history-actions">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={cloudHistoryBusy}
+                            onClick={() =>
+                              void fetchCloudJobHistory(cloudSelectedJobId)
+                            }
+                          >
+                            {cloudHistoryBusy ? "Refreshing…" : "Refresh"}
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={!cloudHistory}
+                            onClick={() => void copyCloudHistory()}
+                          >
+                            Copy JSON
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {cloudHistoryError ? (
+                      <div className="pilot-history-error">{cloudHistoryError}</div>
+                    ) : null}
+
+                    {cloudHistoryBusy && !cloudHistory ? (
+                      <div className="empty-state">Loading record history…</div>
+                    ) : cloudHistory ? (
+                      <>
+                        <div className="pilot-history-current">
+                          <span><b>Status</b> {cloudHistory.job.status ?? "—"}</span>
+                          <span><b>Direction</b> {cloudHistory.job.direction ?? "—"}</span>
+                          <span><b>Loads</b> {cloudHistory.loads.length}</span>
+                          <span>
+                            <b>Updated</b>{" "}
+                            {cloudHistory.job.updatedAt
+                              ? cloudHistoryTime(cloudHistory.job.updatedAt)
+                              : "—"}
+                          </span>
+                        </div>
+
+                        <div className="pilot-history-timeline">
+                          {cloudHistory.events.map((event) => {
+                            const summary = cloudHistorySummary(event.payload);
+
+                            return (
+                              <article
+                                className={`pilot-history-event ${
+                                  event.resultStatus === "REJECTED" ? "rejected" : ""
+                                }`}
+                                key={event.id}
+                              >
+                                <i />
+                                <div>
+                                  <div className="pilot-history-event-top">
+                                    <div>
+                                      <strong>{event.label}</strong>
+                                      <span>
+                                        {event.entityType === "job_load" &&
+                                        event.loadNumber
+                                          ? `Load ${event.loadNumber}`
+                                          : "Job"}{" "}
+                                        · {event.source}
+                                      </span>
+                                    </div>
+                                    <time>{cloudHistoryTime(event.occurredAt)}</time>
+                                  </div>
+
+                                  <div className="pilot-history-meta">
+                                    {event.actor ? (
+                                      <span>
+                                        Operator:{" "}
+                                        {event.actor.name ??
+                                          event.actor.email ??
+                                          event.actor.id}
+                                      </span>
+                                    ) : null}
+                                    {event.device ? (
+                                      <span>Device: {event.device.displayName}</span>
+                                    ) : null}
+                                    {event.resultStatus ? (
+                                      <span>Result: {event.resultStatus}</span>
+                                    ) : null}
+                                    {event.version !== null ? (
+                                      <span>Version {event.version}</span>
+                                    ) : null}
+                                    {event.reasonCode ? (
+                                      <span>Reason: {event.reasonCode}</span>
+                                    ) : null}
+                                  </div>
+
+                                  {summary ? (
+                                    <p className="pilot-history-summary">{summary}</p>
+                                  ) : null}
+
+                                  <details className="pilot-history-raw">
+                                    <summary>Raw record data</summary>
+                                    <pre>
+                                      {JSON.stringify(event.payload, null, 2)}
+                                    </pre>
+                                  </details>
+                                </div>
+                              </article>
+                            );
+                          })}
+
+                          {!cloudHistory.events.length ? (
+                            <div className="empty-state">
+                              No captured history is available for this record yet.
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <section className="pilot-history-files">
+                          <div className="pilot-history-heading">
+                            <div>
+                              <span className="eyebrow">Attached records</span>
+                              <h3>Files / evidence</h3>
+                            </div>
+                            <span>{cloudHistory.files.length}</span>
+                          </div>
+
+                          {cloudHistory.files.length ? (
+                            <div className="cloud-list">
+                              {cloudHistory.files.map((file) => (
+                                <div className="cloud-row" key={file.evidenceId}>
+                                  <strong>{file.fileName}</strong>
+                                  <span>{file.entityType} · {file.entityId}</span>
+                                  <span>{fileSize(file.byteSize)} · {file.status}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="pilot-history-no-files">
+                              No files are attached to this Job or its Loads.
+                              Operational history remains available above.
+                            </div>
+                          )}
+                        </section>
+
+                        <p className="pilot-history-note">{cloudHistory.note}</p>
+                      </>
+                    ) : (
+                      <div className="empty-state">
+                        Select a Job to inspect its operational history.
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                Search Waste X Cloud to load organisation records.
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        {/* WASTE_X_DESKTOP_MANAGE_TRANSPORT_V1 */}
+        {desktopView === "manage" ? (
+          <ManageTransportPanel
+            cloudReachable={Boolean(sync?.cloudReachable)}
+            onMasterDataChanged={async () => {
+              await refreshLocalState();
+            }}
+          />
+        ) : null}
+
+        {desktopView === "settings" ? (
+          <section className="pilot-screen pilot-scroll-screen">
+            <div className="pilot-page-heading">
+              <div>
+                <span className="eyebrow">Workstation</span>
+                <h1>Settings</h1>
+
+                <p>
+                  Workstation, offline and account controls. Daily site
+                  operations stay separate from technical details.
+                </p>
+              </div>
+            </div>
+
+            <div className="pilot-settings-grid">
+              <section className="pilot-setting-card">
+                <span className="eyebrow">Workstation</span>
+
+                <h2>
+                  {cloudContext?.displayName ??
+                    provisioning?.displayName ??
+                    "Waste X Desktop"}
+                </h2>
+
+                <dl>
+                  <div>
+                    <dt>Organisation</dt>
+                    <dd>
+                      {cloudContext?.organisationName ??
+                        cloudContext?.organisationId ??
+                        "—"}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>Site</dt>
+                    <dd>{pilotSiteName}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Offline working set</dt>
+                    <dd>
+                      {shortDate(
+                        cloudContext?.horizonStart ?? null,
+                      )}{" "}
+                      →{" "}
+                      {shortDate(
+                        cloudContext?.horizonEnd ?? null,
+                      )}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>Last refreshed</dt>
+                    <dd>
+                      {shortTime(
+                        cloudContext?.lastBootstrapAt ?? null,
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="pilot-setting-card">
+                <span className="eyebrow">Sync & offline</span>
+
+                <h2>
+                  {sync?.cloudReachable
+                    ? "Connected"
+                    : "Working offline"}
+                </h2>
+
+                <dl>
+                  <div>
+                    <dt>Queued changes</dt>
+                    <dd>
+                      {(sync?.pending ?? 0) +
+                        (sync?.retryableFailed ?? 0)}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>Review required</dt>
+                    <dd>{syncProblems}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Offline access</dt>
+                    <dd>
+                      {auth.offlineDaysRemaining} days remaining
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>Last sync</dt>
+                    <dd>
+                      {shortTime(sync?.lastSuccessAt ?? null)}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="pilot-setting-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={syncBusy}
+                    onClick={() => void syncNow(true)}
+                  >
+                    {syncBusy || sync?.running
+                      ? "Syncing…"
+                      : "Sync now"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      busy || !sync?.cloudReachable
+                    }
+                    onClick={() =>
+                      run(
+                        () =>
+                          invoke(
+                            "desktop_refresh_bootstrap",
+                          ),
+                        "Cloud working set refreshed.",
+                      )
+                    }
+                  >
+                    Refresh working set
+                  </button>
+                </div>
+              </section>
+
+              <section
+                className={`pilot-setting-card ${
+                  syncProblems > 0 ? "needs-review" : ""
+                }`}
+              >
+                <span className="eyebrow">Sync review</span>
+
+                <h2>
+                  {syncProblems > 0
+                    ? `${syncProblems} ${
+                        syncProblems === 1 ? "item" : "items"
+                      } need attention`
+                    : "No review items"}
+                </h2>
+
+                <p>
+                  {syncProblems > 0
+                    ? "Waste X kept the affected records safely. Normal site operations can continue. Use Details in the status bar to inspect the exact review item."
+                    : "No conflicts or rejected sync events currently require attention."}
+                </p>
+              </section>
+
+              <section className="pilot-setting-card">
+                <span className="eyebrow">Account</span>
+
+                <h2>{auth.email ?? "Signed-in operator"}</h2>
+
+                <p>
+                  Use Lock Desktop for normal workstation security.
+                  Signing out removes this user's offline authority and
+                  requires Cloud for the next password sign-in.
+                </p>
+
+                {signOutArmed ? (
+                  <div className="pilot-signout-confirm">
+                    <strong>
+                      Sign out of this workstation?
+                    </strong>
+
+                    <span>
+                      The workstation stays registered, but this user's
+                      offline authority will be removed.
+                    </span>
+
+                    <div>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={busy}
+                        onClick={() => {
+                          setSignOutArmed(false);
+                          setMessage(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        className="danger-button"
+                        disabled={busy}
+                        onClick={() =>
+                          void handleSignOut()
+                        }
+                      >
+                        {busy
+                          ? "Signing out…"
+                          : "Confirm sign out"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="pilot-signout-button"
+                    disabled={busy}
+                    onClick={() => {
+                      setSignOutArmed(true);
+                      setMessage(null);
+                    }}
+                  >
+                    Sign out…
+                  </button>
+                )}
+              </section>
+
+              <section className="pilot-setting-card pilot-diagnostics">
+                <details>
+                  <summary>Advanced diagnostics</summary>
+
+                  <dl>
+                    <div>
+                      <dt>Local storage</dt>
+                      <dd>
+                        {database?.ready &&
+                        database?.encrypted
+                          ? "Encrypted and ready"
+                          : "Starting"}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Database schema</dt>
+                      <dd>
+                        {database?.schemaVersion ?? "—"}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Cloud environment</dt>
+                      <dd>
+                        {cloudContext?.environment ?? "—"}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Cloud endpoint</dt>
+                      <dd>
+                        {cloudContext?.baseUrl ?? "—"}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Sync cursor</dt>
+                      <dd>{sync?.cursor ?? "—"}</dd>
+                    </div>
+                  </dl>
+                </details>
+              </section>
+            </div>
+          </section>
+        ) : null}
+
+        {selectedLoad ? (
+          <RejectLoadModal
+            open={
+              rejectModalOpen &&
+              selectedLoad.status === "arrived"
+            }
+            jobNumber={selectedLoad.jobNumber}
+            loadNumber={selectedLoad.loadNumber}
+            busy={busy}
+            onClose={() => setRejectModalOpen(false)}
+            onConfirm={rejectLoad}
+          />
+        ) : null}
+
+        {message ? (
+          <div className="toast pilot-toast">{message}</div>
+        ) : null}
+      </main>
+    );
+  }
+
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -511,7 +2193,59 @@ export function App() {
           <h1>{locked ? "Waste X is locked." : "Local-first operations."}</h1>
           <p>Driver Mobile records transport arrival. The receiving site controls acceptance/rejection, weights, completion and the final site ticket.</p>
         </div>
-        {auth?.unlocked ? <div className="top-actions"><button className="secondary-button" disabled={syncBusy} onClick={() => void syncNow(true)}>{syncBusy || sync?.running ? "Syncing…" : "Sync now"}</button><button className="secondary-button" onClick={handleLock}>Lock Desktop</button></div> : null}
+        {auth?.unlocked ? (
+          <div className="top-actions">
+            <button
+              className="secondary-button"
+              disabled={syncBusy}
+              onClick={() => void syncNow(true)}
+            >
+              {syncBusy || sync?.running ? "Syncing…" : "Sync now"}
+            </button>
+            <button
+              className="secondary-button"
+              disabled={busy}
+              onClick={handleLock}
+            >
+              Lock Desktop
+            </button>
+            {signOutArmed ? (
+              <>
+                <button
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => {
+                    setSignOutArmed(false);
+                    setMessage(null);
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => void handleSignOut()}
+                >
+                  {busy ? "Signing out…" : "Confirm sign out"}
+                </button>
+              </>
+            ) : (
+              <button
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => {
+                  setSignOutArmed(true);
+                  setMessage(
+                    "Sign out removes this user's offline authority. Lock Desktop instead if you want this workstation to remain usable while Waste X Cloud is unavailable.",
+                  );
+                }}
+              >
+                Sign out
+              </button>
+            )}
+          </div>
+        ) : null}
       </header>
 
       <section className="status-grid">
@@ -522,9 +2256,159 @@ export function App() {
       </section>
 
       {!provisioning?.provisioned ? (
-        <section className="panel"><span className="eyebrow">Initial provisioning</span><h2>Connect this Mac to Waste X.</h2><form className="form-grid" onSubmit={handleProvision}><label><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label><label><span>Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label><label className="wide"><span>Desktop name</span><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required /></label><button disabled={busy}>{busy ? "Provisioning…" : "Provision this Mac"}</button></form></section>
+        <section className="panel auth-panel">
+          <span className="eyebrow">Set up Waste X Desktop</span>
+          <h2>Connect this workstation to Waste X.</h2>
+          <p className="small-copy">
+            Sign in first. Waste X will detect your organisation and available
+            operating sites before this workstation is registered.
+          </p>
+
+          {!provisionOptions ? (
+            <form className="form-grid" onSubmit={handleProvisionCheck}>
+              <label>
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setProvisionOptions(null);
+                    setSelectedSiteId("");
+                  }}
+                  required
+                  autoFocus
+                />
+              </label>
+
+              <label>
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setProvisionOptions(null);
+                    setSelectedSiteId("");
+                  }}
+                  required
+                />
+              </label>
+
+              <button disabled={busy}>
+                {busy ? "Checking…" : "Continue"}
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="empty-state">
+                <strong>{provisionOptions.organisation.name}</strong>
+                <span>
+                  {provisionOptions.sites.length > 0
+                    ? `${provisionOptions.sites.length} active site${provisionOptions.sites.length === 1 ? "" : "s"} available`
+                    : "No active operating sites are available"}
+                </span>
+              </div>
+
+              <form className="form-grid" onSubmit={handleProvision}>
+                <label className="wide">
+                  <span>Operating site</span>
+                  <select
+                    value={selectedSiteId}
+                    onChange={(event) => setSelectedSiteId(event.target.value)}
+                    required
+                  >
+                    <option value="">Choose site…</option>
+                    {provisionOptions.sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                        {site.isDefault ? " · Default" : ""}
+                        {site.postcode ? ` · ${site.postcode}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="wide">
+                  <span>Workstation name</span>
+                  <input
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    required
+                  />
+                </label>
+
+                <div className="wide top-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() => {
+                      setProvisionOptions(null);
+                      setSelectedSiteId("");
+                    }}
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    disabled={busy || !selectedSiteId}
+                  >
+                    {busy
+                      ? "Registering…"
+                      : "Register & open Waste X"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </section>
       ) : !auth?.unlocked ? (
-        <section className="panel auth-panel"><span className="eyebrow">Secure unlock</span><h2>Sign in to Waste X Desktop.</h2><p className="small-copy">If Cloud cannot be reached, Waste X validates against the encrypted offline entitlement instead.</p><form className="form-grid" onSubmit={handleUnlock}><label><span>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label><label><span>Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label><button disabled={busy}>{busy ? "Checking…" : "Unlock Waste X"}</button></form></section>
+        <section className="panel auth-panel">
+          <span className="eyebrow">Secure workstation</span>
+          <h2>Unlock Waste X Desktop.</h2>
+          <p className="small-copy">
+            {provisioning.defaultSiteName
+              ? `${provisioning.defaultSiteName} · `
+              : ""}
+            Enter your Waste X password. If Cloud cannot be reached, a valid
+            encrypted offline entitlement can unlock this workstation.
+          </p>
+
+          <form className="form-grid" onSubmit={handleUnlock}>
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                autoFocus
+              />
+            </label>
+
+            <button disabled={busy}>
+              {busy ? "Checking…" : "Unlock Waste X"}
+            </button>
+          </form>
+
+          {auth?.canOffline ? (
+            <p className="small-copy">
+              Offline access ready · {auth.offlineDaysRemaining} day
+              {auth.offlineDaysRemaining === 1 ? "" : "s"} remaining.
+            </p>
+          ) : null}
+        </section>
       ) : (
         <>
           <section className={`sync-strip ${sync?.cloudReachable ? "online" : "offline"} ${syncProblems > 0 ? "problem" : ""}`}>
@@ -532,7 +2416,35 @@ export function App() {
             <div className="sync-metrics"><span><strong>{sync?.pending ?? 0}</strong> pending</span><span><strong>{sync?.retryableFailed ?? 0}</strong> retrying</span><span><strong>{syncProblems}</strong> review</span><span>cursor {sync?.cursor ?? "—"}</span></div>
           </section>
 
-          <section className="environment-strip"><span><strong>Device</strong> {cloudContext?.displayName ?? provisioning?.displayName ?? "—"}</span><span><strong>Organisation</strong> {cloudContext?.organisationName ?? cloudContext?.organisationId ?? "—"}</span><span><strong>Offline working set</strong> {shortDate(cloudContext?.horizonStart ?? null)} → {shortDate(cloudContext?.horizonEnd ?? null)}</span><span><strong>Last bootstrap</strong> {shortTime(cloudContext?.lastBootstrapAt ?? null)}</span></section>
+          <section className="environment-strip">
+            <span>
+              <strong>Device</strong>{" "}
+              {cloudContext?.displayName ?? provisioning?.displayName ?? "—"}
+            </span>
+            <span>
+              <strong>Organisation</strong>{" "}
+              {cloudContext?.organisationName ??
+                cloudContext?.organisationId ??
+                "—"}
+            </span>
+            <span>
+              <strong>Site</strong>{" "}
+              {cloudContext?.defaultSiteName ??
+                provisioning?.defaultSiteName ??
+                cloudContext?.defaultSiteId ??
+                provisioning?.defaultSiteId ??
+                "—"}
+            </span>
+            <span>
+              <strong>Offline working set</strong>{" "}
+              {shortDate(cloudContext?.horizonStart ?? null)} →{" "}
+              {shortDate(cloudContext?.horizonEnd ?? null)}
+            </span>
+            <span>
+              <strong>Last bootstrap</strong>{" "}
+              {shortTime(cloudContext?.lastBootstrapAt ?? null)}
+            </span>
+          </section>
 
           <section className="cloud-catalogue">
             <div className="cloud-catalogue-heading"><div><span className="eyebrow">Organisation Cloud Access</span><h2>Whole-account view when connected</h2><p className="small-copy">Historical Cloud records stay searchable without bloating the guaranteed offline cache. Operational writes still hydrate into SQLite first.</p></div><form className="cloud-search" onSubmit={handleCloudSearch}><input value={cloudQuery} onChange={(e) => setCloudQuery(e.target.value)} placeholder="Search job number, status or direction" /><button disabled={!sync?.cloudReachable || cloudBusy}>{cloudBusy ? "Searching…" : "Search Cloud"}</button></form></div>
@@ -583,8 +2495,79 @@ export function App() {
                   ) : null}
 
                   <form className="editor-form" onSubmit={saveDetails}>
-                    <label><span>Driver</span><select disabled={selectedTerminal} value={edit.driverId} onChange={(e) => setEdit({ ...edit, driverId: e.target.value })}><option value="">Select driver</option>{availableDrivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.label}</option>)}</select></label>
-                    <label><span>Vehicle</span><select disabled={selectedTerminal} value={edit.vehicleId} onChange={(e) => void handleVehicleChange(e.target.value)}><option value="">Select vehicle</option>{availableVehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.label}</option>)}</select></label>
+                    <label className="pilot-quick-select-field">
+                      <span className="pilot-quick-select-heading">
+                        <span>Driver</span>
+                        <button
+                          type="button"
+                          disabled={
+                            selectedTerminal ||
+                            busy ||
+                            !sync?.cloudReachable
+                          }
+                          title={
+                            sync?.cloudReachable
+                              ? "Create a Driver for this Load's carrier"
+                              : "Connect to Waste X Cloud to add a Driver"
+                          }
+                          onClick={() => setQuickTransportKind("driver")}
+                        >
+                          + Add
+                        </button>
+                      </span>
+                      <select
+                        disabled={selectedTerminal}
+                        value={edit.driverId}
+                        onChange={(e) =>
+                          setEdit({
+                            ...edit,
+                            driverId: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select driver</option>
+                        {availableDrivers.map((driver) => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="pilot-quick-select-field">
+                      <span className="pilot-quick-select-heading">
+                        <span>Vehicle</span>
+                        <button
+                          type="button"
+                          disabled={
+                            selectedTerminal ||
+                            busy ||
+                            !sync?.cloudReachable
+                          }
+                          title={
+                            sync?.cloudReachable
+                              ? "Create a Vehicle for this Load's carrier"
+                              : "Connect to Waste X Cloud to add a Vehicle"
+                          }
+                          onClick={() => setQuickTransportKind("vehicle")}
+                        >
+                          + Add
+                        </button>
+                      </span>
+                      <select
+                        disabled={selectedTerminal}
+                        value={edit.vehicleId}
+                        onChange={(e) =>
+                          void handleVehicleChange(e.target.value)
+                        }
+                      >
+                        <option value="">Select vehicle</option>
+                        {availableVehicles.map((vehicle) => (
+                          <option key={vehicle.id} value={vehicle.id}>
+                            {vehicle.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="wide"><span>Waste description</span><input disabled={selectedTerminal} value={edit.wasteDescription} onChange={(e) => setEdit({ ...edit, wasteDescription: e.target.value })} /></label>
                     <label><span>Gross · weighbridge reading</span><input disabled={selectedTerminal || incomingWeightLocked} inputMode="decimal" value={edit.grossWeight} onChange={(e) => { const grossWeight = e.target.value; setEdit({ ...edit, grossWeight, netWeight: calculatedNetWeight(grossWeight, edit.tareWeight) }); }} /></label>
                     <label><span>Tare · editable</span><input disabled={selectedTerminal || incomingWeightLocked} inputMode="decimal" value={edit.tareWeight} onChange={(e) => { const tareWeight = e.target.value; setTareSource("MANUAL"); setEdit({ ...edit, tareWeight, netWeight: calculatedNetWeight(edit.grossWeight, tareWeight) }); }} /><small className="small-copy">{tareSource === "VEHICLE_MASTER" ? "Loaded from the selected vehicle's stored tare." : tareSource === "LOAD" ? "Using the tare already saved on this load." : tareSource === "MANUAL" ? "Operator-adjusted tare for this load." : "No stored vehicle tare — enter the actual tare."}</small></label>
@@ -613,6 +2596,20 @@ export function App() {
           </section>
         </>
       )}
+
+      {quickTransportKind && selectedLoad ? (
+        <QuickAddTransportModal
+          open
+          kind={quickTransportKind}
+          jobNumber={selectedLoad.jobNumber}
+          loadNumber={selectedLoad.loadNumber}
+          haulierCounterpartyId={
+            selectedLoad.haulierCounterpartyId
+          }
+          onClose={() => setQuickTransportKind(null)}
+          onCreated={handleQuickTransportCreated}
+        />
+      ) : null}
 
       {selectedLoad ? (
         <RejectLoadModal
